@@ -603,7 +603,8 @@ function startSplitTimer() {
       notes: draft.notes,
       sessions: [],
       created: baseId + i,
-      finished: false
+      finished: false,
+      splitGroupId: baseId
     };
     db.orders.unshift(order);
     return order.id;
@@ -780,6 +781,11 @@ function showOrderDetail(id) {
   const total = totalTime(order);
   const pendingCount = order.sessions.filter(s => !s.cnf).length;
 
+  const groupSiblings = order.splitGroupId
+    ? db.orders.filter(o => o.splitGroupId === order.splitGroupId && o.id !== id && !o.finished)
+    : [];
+  const hasActiveGroup = groupSiblings.length > 0;
+
   document.getElementById('modal-detail-title').textContent = order.po;
   document.getElementById('modal-detail-body').innerHTML = `
     <div class="total-bar">
@@ -787,12 +793,12 @@ function showOrderDetail(id) {
       <strong>${fmt(total)}</strong>
     </div>
     ${order.tags.length ? `<div class="order-tags" style="margin-bottom:12px;">${order.tags.map(t => `<span class="order-tag">${t}</span>`).join('')}</div>` : ''}
-    ${order.notes ? `<div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:12px;line-height:1.6;">${escHtml(order.notes)}</div>` : ''}
+    ${order.notes ? `<div style="font-size:11px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">${escHtml(order.notes)}</div>` : ''}
     <hr class="divider">
     <div class="section-label">Sessions (${order.sessions.length})</div>
     <div class="sessions-list">
       ${order.sessions.length === 0
-        ? '<div style="font-size:10px;color:var(--text-muted);letter-spacing:1px;padding:12px 0;">No sessions recorded yet</div>'
+        ? '<div style="font-size:11px;color:var(--text-muted);padding:12px 0;">No sessions recorded yet</div>'
         : order.sessions.map((s, i) => `
           <div class="session-item">
             <div>
@@ -807,11 +813,22 @@ function showOrderDetail(id) {
     </div>
     ${!order.finished ? `
       <hr class="divider">
-      <div class="row" style="margin-bottom:10px;">
-        <button class="btn btn-ghost" onclick="addSessionToOrder(${id})">+ Add Session</button>
-        <button class="btn btn-warn" onclick="confirmFinish(${id})">Mark Finished</button>
-      </div>
-      ${pendingCount > 0 ? `<div style="font-size:10px;color:var(--amber);letter-spacing:1px;text-align:center;">${pendingCount} session${pendingCount>1?'s':''} pending CNF</div>` : ''}
+      ${hasActiveGroup ? `
+        <div style="font-size:11px;color:var(--text-dim);text-align:center;margin-bottom:10px;">
+          Split group · ${groupSiblings.length + 1} orders
+        </div>
+        <button class="btn btn-primary" style="margin-bottom:8px;" onclick="resumeGroupTimer(${order.splitGroupId})">▶ Resume Group Timer</button>
+        <div class="row" style="margin-bottom:10px;">
+          <button class="btn btn-ghost" onclick="addSessionToOrder(${id})">+ Solo Session</button>
+          <button class="btn btn-warn" onclick="confirmFinish(${id})">Mark Finished</button>
+        </div>
+      ` : `
+        <div class="row" style="margin-bottom:10px;">
+          <button class="btn btn-ghost" onclick="addSessionToOrder(${id})">+ Add Session</button>
+          <button class="btn btn-warn" onclick="confirmFinish(${id})">Mark Finished</button>
+        </div>
+      `}
+      ${pendingCount > 0 ? `<div style="font-size:11px;color:var(--amber);text-align:center;">${pendingCount} session${pendingCount>1?'s':''} pending CNF</div>` : ''}
     ` : `<div class="alert alert-success" style="margin-top:12px;">✓ Order complete — archived</div>`}
   `;
   openModal('modal-detail');
@@ -832,7 +849,29 @@ function addSessionToOrder(orderId) {
   const order = db.orders.find(o => o.id === orderId);
   switchView('new');
   showStep('timer');
+  document.getElementById('timer-po-label').textContent = 'Production Order';
   document.getElementById('timer-po').textContent = order ? order.po : '';
+}
+
+function resumeGroupTimer(splitGroupId) {
+  const groupOrders = db.orders.filter(o => o.splitGroupId === splitGroupId && !o.finished);
+  if (groupOrders.length === 0) return;
+  closeModal('modal-detail');
+  splitOrderIds = groupOrders.map(o => o.id);
+  timerStart = Date.now();
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    const el = document.getElementById('timer-display');
+    if (el) el.textContent = fmt(Date.now() - timerStart);
+  }, 500);
+  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+  scheduleFourPmAlert();
+  switchView('new');
+  showStep('timer');
+  document.getElementById('timer-po-label').textContent = `Split — ${groupOrders.length} Orders`;
+  document.getElementById('timer-po').innerHTML = groupOrders.map(o =>
+    `<div style="font-size:18px;line-height:1.5;">${escHtml(o.po)}</div>`
+  ).join('');
 }
 
 function confirmFinish(id) {
