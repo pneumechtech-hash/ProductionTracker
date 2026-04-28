@@ -286,6 +286,50 @@
   #dismiss-btn { background: transparent; color: var(--text-dim); border: 1px solid var(--border-mid); }
 
   canvas { display: none; }
+
+  /* SWIPE-TO-DELETE (archive) */
+  .swipe-wrapper {
+    position: relative;
+    overflow: hidden;
+    border-radius: 4px;
+    margin-bottom: 10px;
+  }
+  .swipe-action {
+    position: absolute;
+    right: 0; top: 0; bottom: 0;
+    width: 80px;
+    background: var(--red);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: width 0.2s ease;
+  }
+  .swipe-action-label {
+    font-size: 10px; letter-spacing: 2px; color: #fff;
+    text-transform: uppercase; pointer-events: none;
+  }
+  .swipe-action.confirming { width: 100%; }
+  .swipe-confirm-row { display: flex; gap: 8px; }
+  .swipe-confirm-row button {
+    font-family: 'Courier New', monospace; font-size: 9px;
+    letter-spacing: 1px; text-transform: uppercase;
+    padding: 6px 14px; border-radius: 2px; cursor: pointer;
+    min-height: 32px;
+  }
+  .swipe-yes { background: #fff; color: var(--red); border: none; font-weight: bold; }
+  .swipe-no  { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.5); }
+  .swipe-card-wrap {
+    position: relative;
+    transform: translateX(0);
+    will-change: transform;
+    margin-bottom: 0 !important;
+    border-radius: 4px;
+  }
 </style>
 </head>
 <body>
@@ -404,6 +448,12 @@
   </div>
 </div>
 
+<!-- ── 4PM TOAST ── -->
+<div id="four-pm-toast" style="display:none;position:fixed;top:0;left:0;right:0;z-index:400;background:#1a0e00;border-bottom:2px solid var(--amber);padding:14px 16px;display:none;align-items:center;justify-content:center;gap:12px;font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;color:var(--amber);text-transform:uppercase;">
+  <span>⚠ 4:00 PM — Timer still running</span>
+  <button onclick="dismissFourPmToast()" style="background:transparent;border:1px solid var(--amber);color:var(--amber);font-family:'Courier New',monospace;font-size:9px;letter-spacing:1px;padding:4px 10px;cursor:pointer;border-radius:2px;text-transform:uppercase;">Dismiss</button>
+</div>
+
 <!-- ── INSTALL BANNER ── -->
 <div id="install-banner">
   <p>Add PO Tracker to home screen for the full app experience</p>
@@ -418,7 +468,7 @@
 'use strict';
 
 // ── STATE ──────────────────────────────────────────────────────────────────
-const TAGS = ['Gantry','Air Prep','Kits','Wiring','Hydraulics','Pneumatics','Mechanical','Electrical','Testing','QA','Rework','Other'];
+const TAGS = ['Gantry','Air Prep','Testing','Learning'];
 const DB_KEY = 'po-tracker-v1';
 
 let db = { orders: [], archive: [] };
@@ -426,6 +476,7 @@ let draft = { tags: [], notes: '', po: '' };
 let activeOrderId = null;
 let timerStart = null;
 let timerInterval = null;
+let fourPmTimeout = null;
 let codeReader = null;
 let scanStream = null;
 let deferredInstallPrompt = null;
@@ -552,6 +603,41 @@ function createOrderAndStartTimer() {
   document.getElementById('timer-po').textContent = order.po;
 }
 
+// ── 4PM ALERT ─────────────────────────────────────────────────────────────
+function scheduleFourPmAlert() {
+  clearFourPmAlert();
+  const now = new Date();
+  const fourPm = new Date();
+  fourPm.setHours(16, 0, 0, 0);
+  const msUntil = fourPm - now;
+  if (msUntil <= 0) return;
+  fourPmTimeout = setTimeout(() => {
+    if (!timerStart) return;
+    showFourPmAlert();
+  }, msUntil);
+}
+
+function clearFourPmAlert() {
+  if (fourPmTimeout) { clearTimeout(fourPmTimeout); fourPmTimeout = null; }
+}
+
+function showFourPmAlert() {
+  const toast = document.getElementById('four-pm-toast');
+  if (toast) toast.style.display = 'flex';
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification('PO Tracker — Timer Running', {
+      body: 'It is 4:00 PM and a timer is still active.',
+      icon: 'icons/icon-192.png',
+      tag: 'four-pm-alert'
+    });
+  }
+}
+
+function dismissFourPmToast() {
+  const toast = document.getElementById('four-pm-toast');
+  if (toast) toast.style.display = 'none';
+}
+
 // ── TIMER ─────────────────────────────────────────────────────────────────
 function beginTimer(orderId) {
   activeOrderId = orderId;
@@ -561,6 +647,10 @@ function beginTimer(orderId) {
     const el = document.getElementById('timer-display');
     if (el) el.textContent = fmt(Date.now() - timerStart);
   }, 500);
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+  scheduleFourPmAlert();
 }
 
 function openStopModal() {
@@ -572,6 +662,8 @@ function stopSession(cnf) {
   const duration = Date.now() - timerStart;
   clearInterval(timerInterval);
   timerInterval = null;
+  clearFourPmAlert();
+  dismissFourPmToast();
 
   const order = db.orders.find(o => o.id === activeOrderId);
   if (order) {
@@ -704,13 +796,96 @@ function renderArchive() {
   }
   el.innerHTML = db.archive.map(o => {
     const total = totalTime(o);
-    return `<div class="order-card finished" onclick="showOrderDetail(${o.id})">
-      <div class="order-po" style="color:var(--text-dim);">${escHtml(o.po)}</div>
-      <div class="order-meta">Finished ${fmtDate(o.finishedAt)} · ${o.sessions.length} session${o.sessions.length !== 1 ? 's' : ''}</div>
-      ${o.tags.length ? `<div class="order-tags">${o.tags.map(t => `<span class="order-tag">${t}</span>`).join('')}</div>` : ''}
-      <div class="order-total">Total: ${fmt(total)}</div>
+    return `
+    <div class="swipe-wrapper" data-id="${o.id}">
+      <div class="swipe-action">
+        <span class="swipe-action-label">Delete</span>
+      </div>
+      <div class="swipe-card-wrap order-card finished" onclick="showOrderDetail(${o.id})">
+        <div class="order-po" style="color:var(--text-dim);">${escHtml(o.po)}</div>
+        <div class="order-meta">Finished ${fmtDate(o.finishedAt)} · ${o.sessions.length} session${o.sessions.length !== 1 ? 's' : ''}</div>
+        ${o.tags.length ? `<div class="order-tags">${o.tags.map(t => `<span class="order-tag">${t}</span>`).join('')}</div>` : ''}
+        <div class="order-total">Total: ${fmt(total)}</div>
+      </div>
     </div>`;
   }).join('');
+  initSwipeDelete();
+}
+
+function initSwipeDelete() {
+  const SNAP = 80;
+  document.querySelectorAll('.swipe-wrapper').forEach(wrapper => {
+    const id = Number(wrapper.dataset.id);
+    const card = wrapper.querySelector('.swipe-card-wrap');
+    const action = wrapper.querySelector('.swipe-action');
+    let startX = 0, startY = 0, moveDx = 0, tracking = false, open = false;
+
+    card.addEventListener('touchstart', e => {
+      if (action.classList.contains('confirming')) return;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      moveDx = 0;
+      tracking = true;
+      card.style.transition = 'none';
+    }, { passive: true });
+
+    card.addEventListener('touchmove', e => {
+      if (!tracking) return;
+      moveDx = e.touches[0].clientX - startX;
+      const moveDy = e.touches[0].clientY - startY;
+      if (!open && Math.abs(moveDy) > Math.abs(moveDx)) { tracking = false; card.style.transition = ''; return; }
+      const base = open ? -SNAP : 0;
+      const tx = Math.min(0, Math.max(-SNAP, base + moveDx));
+      card.style.transform = `translateX(${tx}px)`;
+    }, { passive: true });
+
+    card.addEventListener('touchend', () => {
+      if (!tracking) return;
+      tracking = false;
+      card.style.transition = 'transform 0.2s ease';
+      if (moveDx < -30) {
+        open = true;
+        card.style.transform = `translateX(-${SNAP}px)`;
+      } else if (moveDx > 20 || !open) {
+        open = false;
+        card.style.transform = 'translateX(0)';
+      }
+    });
+
+    action.addEventListener('click', e => {
+      e.stopPropagation();
+      if (action.classList.contains('confirming')) return;
+      action.classList.add('confirming');
+      card.style.transition = 'transform 0.2s ease';
+      card.style.transform = `translateX(-${wrapper.offsetWidth}px)`;
+      action.innerHTML = `
+        <span class="swipe-action-label">Confirm delete?</span>
+        <div class="swipe-confirm-row">
+          <button class="swipe-yes">Yes</button>
+          <button class="swipe-no">Cancel</button>
+        </div>`;
+      action.querySelector('.swipe-yes').addEventListener('click', ev => {
+        ev.stopPropagation();
+        deleteArchiveEntry(id);
+      });
+      action.querySelector('.swipe-no').addEventListener('click', ev => {
+        ev.stopPropagation();
+        open = false;
+        card.style.transition = 'transform 0.2s ease';
+        card.style.transform = 'translateX(0)';
+        action.classList.remove('confirming');
+        action.innerHTML = '<span class="swipe-action-label">Delete</span>';
+      });
+    });
+  });
+}
+
+function deleteArchiveEntry(id) {
+  const idx = db.archive.findIndex(o => o.id === id);
+  if (idx === -1) return;
+  db.archive.splice(idx, 1);
+  saveDB();
+  renderArchive();
 }
 
 // ── MODAL HELPERS ──────────────────────────────────────────────────────────
