@@ -2,11 +2,11 @@
   "name": "PO Tracker",
   "short_name": "PO Tracker",
   "description": "Production Order Time Tracker",
-  "start_url": "/",
+  "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0a0f0a",
-  "theme_color": "#0a0f0a",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
   "icons": [
     {
       "src": "icons/icon-192.png",
