@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0f0a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PO Tracker">
+<meta name="description" content="Production Order Time Tracker">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>PO Tracker</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  
+  :root {
+    --green: #4aff7a;
+    --green-dim: #0d200d;
+    --green-mid: #4a8a4a;
+    --green-dark: #1e2e1e;
+    --amber: #ffb84a;
+    --red: #ff4a4a;
+    --bg: #0a0f0a;
+    --bg-card: #0d150d;
+    --bg-input: #0f1a0f;
+    --text: #c8d4c8;
+    --text-dim: #4a6a4a;
+    --text-muted: #3a4a3a;
+    --border: #1e2e1e;
+    --border-mid: #2a3a2a;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: 'Courier New', Courier, monospace; }
+
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+  }
+
+  /* TOP BAR */
+  .topbar {
+    flex-shrink: 0;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 100;
+  }
+  .logo { font-size: 11px; font-weight: bold; letter-spacing: 3px; color: var(--green); text-transform: uppercase; }
+  .tab-bar { display: flex; gap: 4px; }
+  .tab {
+    font-size: 10px; letter-spacing: 1px; padding: 5px 10px;
+    border: 1px solid var(--border-mid); border-radius: 2px; cursor: pointer;
+    background: transparent; color: #7a8a7a; text-transform: uppercase;
+    font-family: 'Courier New', monospace; transition: all 0.15s;
+    min-height: 34px; display: flex; align-items: center;
+  }
+  .tab.active { background: var(--green); color: var(--bg); border-color: var(--green); font-weight: bold; }
+
+  /* SCROLLABLE CONTENT AREA */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* VIEWS */
+  .view { display: none; padding: 16px; padding-bottom: 24px; }
+  .view.active { display: block; }
+
+  /* TYPOGRAPHY */
+  .section-label {
+    font-size: 9px; letter-spacing: 3px; color: var(--text-dim);
+    text-transform: uppercase; margin-bottom: 10px; padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* BUTTONS */
+  .btn {
+    display: block; width: 100%; padding: 13px;
+    text-align: center; font-family: 'Courier New', monospace;
+    font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+    border: 1px solid var(--border-mid); border-radius: 2px;
+    cursor: pointer; transition: all 0.15s; min-height: 46px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .btn-primary { background: var(--green); color: var(--bg); border-color: var(--green); font-weight: bold; }
+  .btn-primary:active { opacity: 0.8; transform: scale(0.98); }
+  .btn-ghost { background: transparent; color: #7a8a7a; }
+  .btn-ghost:active { background: #1a2a1a; }
+  .btn-danger { background: transparent; color: var(--red); border-color: var(--red); }
+  .btn-danger:active { background: #2a0f0f; }
+  .btn-warn { background: transparent; color: var(--amber); border-color: var(--amber); }
+  .btn-warn:active { background: #2a1a0a; }
+  .btn-sm {
+    padding: 7px 12px; font-size: 10px; width: auto;
+    min-height: 34px; border-radius: 2px;
+  }
+
+  /* TAGS */
+  .tags-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .tag {
+    padding: 7px 14px; font-size: 10px; letter-spacing: 1px;
+    text-transform: uppercase; border: 1px solid var(--border-mid);
+    border-radius: 2px; cursor: pointer; color: #7a8a7a;
+    background: transparent; font-family: 'Courier New', monospace;
+    min-height: 36px; display: flex; align-items: center;
+    transition: all 0.1s;
+  }
+  .tag.selected { border-color: var(--green); color: var(--green); background: var(--green-dim); }
+  .tag:active { opacity: 0.7; }
+
+  /* INPUTS */
+  .input-field {
+    width: 100%; background: var(--bg-input); border: 1px solid var(--border-mid);
+    border-radius: 2px; padding: 11px 12px; font-family: 'Courier New', monospace;
+    font-size: 14px; color: var(--text); outline: none; min-height: 46px;
+    -webkit-appearance: none; appearance: none;
+  }
+  .input-field:focus { border-color: var(--green); }
+  .input-field::placeholder { color: var(--text-muted); }
+  textarea.input-field { min-height: 80px; resize: none; }
+
+  /* SCAN ZONE */
+  .scan-zone {
+    border: 1px dashed var(--border-mid); border-radius: 4px;
+    overflow: hidden; margin-bottom: 16px; background: var(--bg-card);
+    position: relative; min-height: 80px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .scan-zone video {
+    width: 100%; max-height: 260px; object-fit: cover;
+    display: none; border-radius: 0;
+  }
+  .scan-zone video.active { display: block; }
+  .scan-idle-inner { text-align: center; padding: 24px 16px; }
+  .scan-icon { font-size: 32px; color: #2a4a2a; margin-bottom: 8px; }
+  .scan-tap-hint { font-size: 11px; color: var(--green-mid); letter-spacing: 1px; }
+  .scan-hint { font-size: 10px; color: var(--text-dim); letter-spacing: 1px; padding: 6px; text-align: center; }
+  .scan-crosshair {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    width: 200px; height: 120px; border: 2px solid var(--green);
+    border-radius: 4px; pointer-events: none; display: none;
+    box-shadow: 0 0 0 2000px rgba(0,0,0,0.4);
+  }
+  .scan-crosshair.active { display: block; }
+
+  /* PO CONFIRM */
+  .po-confirm {
+    background: var(--green-dim); border: 1px solid var(--green);
+    border-radius: 4px; padding: 18px 16px; margin-bottom: 16px;
+  }
+  .po-number {
+    font-size: 26px; font-weight: bold; color: var(--green);
+    letter-spacing: 4px; text-align: center; font-family: 'Courier New', monospace;
+    margin-bottom: 6px; word-break: break-all;
+  }
+  .po-label { font-size: 9px; letter-spacing: 3px; color: #4a8a4a; text-align: center; text-transform: uppercase; }
+
+  /* TIMER */
+  .timer-display {
+    text-align: center; padding: 28px 16px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 4px; margin-bottom: 16px;
+  }
+  .timer-digits {
+    font-size: 48px; font-weight: bold; color: var(--green);
+    letter-spacing: 6px; font-family: 'Courier New', monospace;
+  }
+  .timer-digits.running { animation: blink 2s ease-in-out infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.65} }
+  .timer-status { font-size: 9px; letter-spacing: 3px; color: var(--text-dim); margin-top: 10px; text-transform: uppercase; }
+  .timer-status.running { color: var(--green); }
+
+  /* SESSIONS */
+  .sessions-list { margin-bottom: 16px; }
+  .session-item {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 2px; padding: 10px 12px; margin-bottom: 6px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px;
+  }
+  .session-time { font-size: 15px; color: var(--text); font-family: 'Courier New', monospace; letter-spacing: 2px; }
+  .session-date { font-size: 9px; color: var(--text-dim); margin-top: 3px; letter-spacing: 1px; }
+  .cnf-badge {
+    font-size: 9px; letter-spacing: 2px; padding: 4px 8px;
+    border-radius: 2px; border: 1px solid var(--green);
+    color: var(--green); background: var(--green-dim);
+    white-space: nowrap; font-family: 'Courier New', monospace;
+  }
+  .cnf-badge.pending { border-color: var(--amber); color: var(--amber); background: #200e00; }
+
+  /* ORDER CARDS */
+  .order-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 4px; padding: 14px; margin-bottom: 10px;
+    cursor: pointer; transition: border-color 0.15s; active: {};
+  }
+  .order-card:active { border-color: #2a4a2a; background: #0e1a0e; }
+  .order-card.finished { opacity: 0.5; border-style: dashed; }
+  .order-po { font-size: 18px; font-weight: bold; color: var(--green); letter-spacing: 3px; word-break: break-all; }
+  .order-meta { font-size: 10px; color: var(--text-dim); margin-top: 4px; letter-spacing: 1px; }
+  .order-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+  .order-tag {
+    font-size: 9px; padding: 3px 7px; border: 1px solid var(--border);
+    border-radius: 2px; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase;
+  }
+  .order-total { font-size: 11px; color: #7a9a7a; margin-top: 8px; letter-spacing: 1px; }
+
+  /* STATUS DOT */
+  .status-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+  .dot-green { background: var(--green); }
+  .dot-amber { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+  .dot-gray { background: #3a4a3a; }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.88); z-index: 200;
+    align-items: flex-end; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #0f1a0f; border: 1px solid var(--border-mid);
+    border-bottom: none; border-radius: 10px 10px 0 0;
+    width: 100%; max-width: 500px;
+    max-height: 88vh; overflow-y: auto;
+    padding: 20px 16px;
+    padding-bottom: calc(20px + var(--safe-bottom));
+  }
+  .modal-title { font-size: 11px; letter-spacing: 3px; color: var(--green); text-transform: uppercase; margin-bottom: 20px; }
+  .modal-close {
+    float: right; background: transparent; border: none;
+    color: #7a8a7a; font-size: 20px; cursor: pointer;
+    font-family: 'Courier New', monospace; padding: 0; line-height: 1;
+    min-height: 32px; min-width: 32px; display: flex; align-items: center; justify-content: center;
+  }
+
+  /* UTILS */
+  .row { display: flex; gap: 8px; }
+  .row .btn { flex: 1; }
+  .gap { height: 10px; }
+  .gap-lg { height: 20px; }
+  .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+  .empty-state { text-align: center; padding: 56px 20px; }
+  .empty-icon { font-size: 36px; color: #2a3a2a; margin-bottom: 12px; }
+  .empty-text { font-size: 11px; color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase; }
+
+  .total-bar {
+    background: var(--green-dim); border: 1px solid var(--border);
+    border-radius: 4px; padding: 12px 16px; margin-bottom: 16px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .total-bar span { font-size: 9px; letter-spacing: 2px; color: var(--text-dim); text-transform: uppercase; }
+  .total-bar strong { font-size: 20px; color: var(--green); letter-spacing: 3px; font-family: 'Courier New', monospace; }
+
+  .alert { padding: 10px 12px; border-radius: 2px; font-size: 11px; letter-spacing: 1px; margin-bottom: 12px; }
+  .alert-success { background: var(--green-dim); border: 1px solid var(--green); color: var(--green); }
+  .alert-error { background: #200d0d; border: 1px solid var(--red); color: var(--red); }
+
+  .pending-warn { color: var(--amber); }
+
+  /* Install banner */
+  #install-banner {
+    display: none; position: fixed; bottom: 0; left: 0; right: 0;
+    background: #0d200d; border-top: 1px solid var(--green);
+    padding: 12px 16px; z-index: 300; align-items: center; justify-content: space-between; gap: 12px;
+    padding-bottom: calc(12px + var(--safe-bottom));
+  }
+  #install-banner.show { display: flex; }
+  #install-banner p { font-size: 11px; color: var(--green); letter-spacing: 1px; }
+  #install-banner button { font-family: 'Courier New', monospace; font-size: 10px; letter-spacing: 1px; padding: 6px 12px; border-radius: 2px; cursor: pointer; }
+  #install-btn { background: var(--green); color: var(--bg); border: none; font-weight: bold; }
+  #dismiss-btn { background: transparent; color: var(--text-dim); border: 1px solid var(--border-mid); }
+
+  canvas { display: none; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="logo">PO Tracker</div>
+    <div class="tab-bar">
+      <button class="tab active" onclick="switchView('orders')">Orders</button>
+      <button class="tab" onclick="switchView('new')">+ New</button>
+      <button class="tab" onclick="switchView('archive')">Archive</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ── ORDERS VIEW ── -->
+    <div id="view-orders" class="view active">
+      <div class="section-label">Active Orders</div>
+      <div id="orders-list"></div>
+    </div>
+
+    <!-- ── NEW ORDER VIEW ── -->
+    <div id="view-new" class="view">
+
+      <!-- Step 1: Tags -->
+      <div id="step-tags">
+        <div class="section-label">Step 1 — Select Tags</div>
+        <div class="tags-grid" id="tags-grid"></div>
+        <div class="gap"></div>
+        <div class="section-label">Additional Info</div>
+        <textarea class="input-field" id="new-notes" rows="3" placeholder="Optional notes..."></textarea>
+        <div class="gap-lg"></div>
+        <button class="btn btn-primary" onclick="goToScan()">Next — Scan PO ›</button>
+      </div>
+
+      <!-- Step 2: Scan -->
+      <div id="step-scan" style="display:none">
+        <div class="section-label">Step 2 — Scan Barcode</div>
+        <div class="scan-zone" id="scan-zone" onclick="activateScanner('new')">
+          <video id="scan-video" playsinline muted></video>
+          <div class="scan-crosshair" id="scan-crosshair"></div>
+          <div class="scan-idle-inner" id="scan-idle">
+            <div class="scan-icon">▦</div>
+            <div class="scan-tap-hint">Tap to activate camera</div>
+          </div>
+          <div class="scan-hint" id="scan-status"></div>
+        </div>
+        <div class="section-label">Or Enter Manually</div>
+        <div class="row" style="margin-bottom:16px;">
+          <input class="input-field" id="manual-po" type="text" placeholder="Type PO number..." style="flex:1;">
+          <button class="btn btn-ghost btn-sm" onclick="useManualPO()">Use</button>
+        </div>
+        <button class="btn btn-ghost" onclick="backToTags()">← Back</button>
+      </div>
+
+      <!-- Step 3: Confirm -->
+      <div id="step-confirm" style="display:none">
+        <div class="section-label">Step 3 — Confirm PO</div>
+        <div class="po-confirm">
+          <div class="po-label">Production Order</div>
+          <div class="po-number" id="confirm-po">—</div>
+          <div class="po-label" id="confirm-tags">—</div>
+        </div>
+        <div class="gap"></div>
+        <button class="btn btn-primary" onclick="createOrderAndStartTimer()">▶ Start Timer</button>
+        <div class="gap"></div>
+        <button class="btn btn-ghost" onclick="goToScan()">← Rescan</button>
+      </div>
+
+      <!-- Step 4: Timer running -->
+      <div id="step-timer" style="display:none">
+        <div class="section-label">Recording Session</div>
+        <div class="po-confirm" style="margin-bottom:12px;">
+          <div class="po-label">Production Order</div>
+          <div class="po-number" id="timer-po">—</div>
+        </div>
+        <div class="timer-display">
+          <div class="timer-digits running" id="timer-display">00:00:00</div>
+          <div class="timer-status running">● RECORDING</div>
+        </div>
+        <button class="btn btn-danger" onclick="openStopModal()">■ Stop Timer</button>
+      </div>
+
+    </div><!-- /view-new -->
+
+    <!-- ── ARCHIVE VIEW ── -->
+    <div id="view-archive" class="view">
+      <div class="section-label">Finished Orders</div>
+      <div id="archive-list"></div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /app -->
+
+<!-- ── ORDER DETAIL MODAL ── -->
+<div class="modal-overlay" id="modal-detail">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-detail')">✕</button>
+    <div class="modal-title" id="modal-detail-title">Order Detail</div>
+    <div id="modal-detail-body"></div>
+  </div>
+</div>
+
+<!-- ── STOP TIMER MODAL ── -->
+<div class="modal-overlay" id="modal-stop">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-stop')">✕</button>
+    <div class="modal-title">Stop Timer</div>
+    <div id="stop-elapsed" style="text-align:center;font-size:36px;color:var(--green);letter-spacing:4px;margin:16px 0;font-family:'Courier New',monospace;font-weight:bold;"></div>
+    <div class="section-label" style="margin-bottom:8px;">Mark as CNF?</div>
+    <p style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:18px;">CNF = time entered into SAP</p>
+    <div class="row">
+      <button class="btn btn-warn" onclick="stopSession(false)">Save — Not CNF</button>
+      <button class="btn btn-primary" onclick="stopSession(true)">Save + CNF ✓</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── INSTALL BANNER ── -->
+<div id="install-banner">
+  <p>Add PO Tracker to home screen for the full app experience</p>
+  <div style="display:flex;gap:6px;">
+    <button id="install-btn" onclick="installApp()">Install</button>
+    <button id="dismiss-btn" onclick="dismissInstall()">✕</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
+<script>
+'use strict';
+
+// ── STATE ──────────────────────────────────────────────────────────────────
+const TAGS = ['Gantry','Air Prep','Kits','Wiring','Hydraulics','Pneumatics','Mechanical','Electrical','Testing','QA','Rework','Other'];
+const DB_KEY = 'po-tracker-v1';
+
+let db = { orders: [], archive: [] };
+let draft = { tags: [], notes: '', po: '' };
+let activeOrderId = null;
+let timerStart = null;
+let timerInterval = null;
+let codeReader = null;
+let scanStream = null;
+let deferredInstallPrompt = null;
+
+// ── DATABASE ───────────────────────────────────────────────────────────────
+function loadDB() {
+  try {
+    const raw = localStorage.getItem(DB_KEY);
+    if (raw) db = JSON.parse(raw);
+  } catch(e) { console.warn('DB load error', e); }
+}
+function saveDB() {
+  try { localStorage.setItem(DB_KEY, JSON.stringify(db)); } catch(e) { console.warn('DB save error', e); }
+}
+
+// ── FORMATTERS ─────────────────────────────────────────────────────────────
+function fmt(ms) {
+  if (!ms || ms < 0) return '00:00:00';
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sc = s % 60;
+  return `${pad(h)}:${pad(m)}:${pad(sc)}`;
+}
+function pad(n) { return String(n).padStart(2, '0'); }
+function fmtDate(ts) {
+  return new Date(ts).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+function totalTime(order) {
+  return order.sessions.reduce((a, s) => a + (s.duration || 0), 0);
+}
+
+// ── VIEW NAVIGATION ────────────────────────────────────────────────────────
+function switchView(v) {
+  stopScanner();
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('view-' + v).classList.add('active');
+  document.querySelectorAll('.tab').forEach(t => {
+    const label = t.textContent.toLowerCase();
+    if ((v === 'orders' && label.includes('order')) ||
+        (v === 'new' && label.includes('new')) ||
+        (v === 'archive' && label.includes('archive'))) {
+      t.classList.add('active');
+    }
+  });
+  if (v === 'orders') renderOrders();
+  if (v === 'archive') renderArchive();
+  if (v === 'new') { resetDraft(); showStep('tags'); renderTags(); }
+}
+
+function showStep(s) {
+  ['tags','scan','confirm','timer'].forEach(n => {
+    document.getElementById('step-' + n).style.display = n === s ? 'block' : 'none';
+  });
+}
+
+// ── NEW ORDER FLOW ─────────────────────────────────────────────────────────
+function resetDraft() {
+  draft = { tags: [], notes: '', po: '' };
+  document.getElementById('new-notes').value = '';
+  document.getElementById('manual-po').value = '';
+  document.getElementById('scan-status').textContent = '';
+}
+
+function renderTags() {
+  document.getElementById('tags-grid').innerHTML = TAGS.map(t =>
+    `<button class="tag${draft.tags.includes(t) ? ' selected' : ''}" onclick="toggleTag('${t}')">${t}</button>`
+  ).join('');
+}
+
+function toggleTag(t) {
+  const i = draft.tags.indexOf(t);
+  if (i > -1) draft.tags.splice(i, 1); else draft.tags.push(t);
+  renderTags();
+}
+
+function goToScan() {
+  draft.notes = document.getElementById('new-notes').value.trim();
+  showStep('scan');
+}
+
+function backToTags() {
+  stopScanner();
+  showStep('tags');
+}
+
+function activateScanner(ctx) {
+  startScanner('scan-video', 'scan-crosshair', 'scan-idle', 'scan-status', val => {
+    draft.po = val;
+    showConfirm();
+  });
+}
+
+function useManualPO() {
+  const v = document.getElementById('manual-po').value.trim();
+  if (!v) return;
+  draft.po = v;
+  stopScanner();
+  showConfirm();
+}
+
+function showConfirm() {
+  stopScanner();
+  document.getElementById('confirm-po').textContent = draft.po;
+  document.getElementById('confirm-tags').textContent = draft.tags.join(' · ') || 'No tags selected';
+  showStep('confirm');
+}
+
+function createOrderAndStartTimer() {
+  const order = {
+    id: Date.now(),
+    po: draft.po,
+    tags: [...draft.tags],
+    notes: draft.notes,
+    sessions: [],
+    created: Date.now(),
+    finished: false
+  };
+  db.orders.unshift(order);
+  saveDB();
+  beginTimer(order.id);
+  showStep('timer');
+  document.getElementById('timer-po').textContent = order.po;
+}
+
+// ── TIMER ─────────────────────────────────────────────────────────────────
+function beginTimer(orderId) {
+  activeOrderId = orderId;
+  timerStart = Date.now();
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    const el = document.getElementById('timer-display');
+    if (el) el.textContent = fmt(Date.now() - timerStart);
+  }, 500);
+}
+
+function openStopModal() {
+  document.getElementById('stop-elapsed').textContent = fmt(Date.now() - timerStart);
+  openModal('modal-stop');
+}
+
+function stopSession(cnf) {
+  const duration = Date.now() - timerStart;
+  clearInterval(timerInterval);
+  timerInterval = null;
+
+  const order = db.orders.find(o => o.id === activeOrderId);
+  if (order) {
+    order.sessions.push({ start: timerStart, duration, cnf, date: timerStart });
+    saveDB();
+  }
+
+  const savedId = activeOrderId;
+  activeOrderId = null;
+  timerStart = null;
+
+  closeModal('modal-stop');
+  switchView('orders');
+
+  // Open detail after short delay so render is ready
+  setTimeout(() => showOrderDetail(savedId), 80);
+}
+
+// ── ORDER DETAIL MODAL ─────────────────────────────────────────────────────
+function showOrderDetail(id) {
+  const order = db.orders.find(o => o.id === id) || db.archive.find(o => o.id === id);
+  if (!order) return;
+
+  const total = totalTime(order);
+  const pendingCount = order.sessions.filter(s => !s.cnf).length;
+
+  document.getElementById('modal-detail-title').textContent = order.po;
+  document.getElementById('modal-detail-body').innerHTML = `
+    <div class="total-bar">
+      <span>Total Time</span>
+      <strong>${fmt(total)}</strong>
+    </div>
+    ${order.tags.length ? `<div class="order-tags" style="margin-bottom:12px;">${order.tags.map(t => `<span class="order-tag">${t}</span>`).join('')}</div>` : ''}
+    ${order.notes ? `<div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:12px;line-height:1.6;">${escHtml(order.notes)}</div>` : ''}
+    <hr class="divider">
+    <div class="section-label">Sessions (${order.sessions.length})</div>
+    <div class="sessions-list">
+      ${order.sessions.length === 0
+        ? '<div style="font-size:10px;color:var(--text-muted);letter-spacing:1px;padding:12px 0;">No sessions recorded yet</div>'
+        : order.sessions.map((s, i) => `
+          <div class="session-item">
+            <div>
+              <div class="session-time">${fmt(s.duration)}</div>
+              <div class="session-date">${fmtDate(s.date)}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+              <span class="cnf-badge${s.cnf ? '' : ' pending'}">${s.cnf ? 'CNF' : 'PENDING'}</span>
+              ${!order.finished ? `<button class="btn btn-ghost btn-sm" onclick="toggleCNF(${id},${i})" style="font-size:9px;padding:4px 8px;min-height:30px;">${s.cnf ? 'Undo' : 'CNF'}</button>` : ''}
+            </div>
+          </div>`).join('')}
+    </div>
+    ${!order.finished ? `
+      <hr class="divider">
+      <div class="row" style="margin-bottom:10px;">
+        <button class="btn btn-ghost" onclick="addSessionToOrder(${id})">+ Add Session</button>
+        <button class="btn btn-warn" onclick="confirmFinish(${id})">Mark Finished</button>
+      </div>
+      ${pendingCount > 0 ? `<div style="font-size:10px;color:var(--amber);letter-spacing:1px;text-align:center;">${pendingCount} session${pendingCount>1?'s':''} pending CNF</div>` : ''}
+    ` : `<div class="alert alert-success" style="margin-top:12px;">✓ Order complete — archived</div>`}
+  `;
+  openModal('modal-detail');
+}
+
+function toggleCNF(orderId, idx) {
+  const order = db.orders.find(o => o.id === orderId);
+  if (!order) return;
+  order.sessions[idx].cnf = !order.sessions[idx].cnf;
+  saveDB();
+  showOrderDetail(orderId);
+  renderOrders();
+}
+
+function addSessionToOrder(orderId) {
+  closeModal('modal-detail');
+  beginTimer(orderId);
+  const order = db.orders.find(o => o.id === orderId);
+  switchView('new');
+  showStep('timer');
+  document.getElementById('timer-po').textContent = order ? order.po : '';
+}
+
+function confirmFinish(id) {
+  if (!confirm('Mark this order as finished and move it to archive?')) return;
+  finishOrder(id);
+}
+
+function finishOrder(id) {
+  const idx = db.orders.findIndex(o => o.id === id);
+  if (idx === -1) return;
+  const order = db.orders.splice(idx, 1)[0];
+  order.finished = true;
+  order.finishedAt = Date.now();
+  db.archive.unshift(order);
+  saveDB();
+  closeModal('modal-detail');
+  renderOrders();
+}
+
+// ── RENDER LISTS ───────────────────────────────────────────────────────────
+function renderOrders() {
+  const el = document.getElementById('orders-list');
+  if (db.orders.length === 0) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">▢</div><div class="empty-text">No active orders<br><br>Tap + New to begin</div></div>`;
+    return;
+  }
+  el.innerHTML = db.orders.map(o => {
+    const total = totalTime(o);
+    const pending = o.sessions.filter(s => !s.cnf).length;
+    const dot = o.sessions.length === 0 ? 'dot-gray' : (pending > 0 ? 'dot-amber' : 'dot-green');
+    return `<div class="order-card" onclick="showOrderDetail(${o.id})">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+        <div class="order-po">${escHtml(o.po)}</div>
+        <span class="status-dot ${dot}" style="margin-top:6px;"></span>
+      </div>
+      <div class="order-meta">${fmtDate(o.created)} · ${o.sessions.length} session${o.sessions.length !== 1 ? 's' : ''}</div>
+      ${o.tags.length ? `<div class="order-tags">${o.tags.map(t => `<span class="order-tag">${t}</span>`).join('')}</div>` : ''}
+      <div class="order-total">
+        Total: ${fmt(total)}
+        ${pending > 0 ? `· <span class="pending-warn">${pending} pending CNF</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderArchive() {
+  const el = document.getElementById('archive-list');
+  if (db.archive.length === 0) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">▣</div><div class="empty-text">No archived orders</div></div>`;
+    return;
+  }
+  el.innerHTML = db.archive.map(o => {
+    const total = totalTime(o);
+    return `<div class="order-card finished" onclick="showOrderDetail(${o.id})">
+      <div class="order-po" style="color:var(--text-dim);">${escHtml(o.po)}</div>
+      <div class="order-meta">Finished ${fmtDate(o.finishedAt)} · ${o.sessions.length} session${o.sessions.length !== 1 ? 's' : ''}</div>
+      ${o.tags.length ? `<div class="order-tags">${o.tags.map(t => `<span class="order-tag">${t}</span>`).join('')}</div>` : ''}
+      <div class="order-total">Total: ${fmt(total)}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── MODAL HELPERS ──────────────────────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+
+// ── BARCODE SCANNER ────────────────────────────────────────────────────────
+async function startScanner(videoId, crosshairId, idleId, statusId, onResult) {
+  stopScanner();
+  const video = document.getElementById(videoId);
+  const crosshair = document.getElementById(crosshairId);
+  const idle = document.getElementById(idleId);
+  const status = document.getElementById(statusId);
+
+  try {
+    scanStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    video.srcObject = scanStream;
+    video.classList.add('active');
+    if (idle) idle.style.display = 'none';
+    if (crosshair) crosshair.classList.add('active');
+    await video.play();
+    if (status) status.textContent = 'Point camera at barcode...';
+
+    if ('BarcodeDetector' in window) {
+      let active = true;
+      codeReader = { reset: () => { active = false; } };
+      const detector = new BarcodeDetector();
+      const tick = async () => {
+        if (!active || video.readyState < 2) {
+          if (active) requestAnimationFrame(tick);
+          return;
+        }
+        try {
+          const codes = await detector.detect(video);
+          if (codes.length > 0 && active) {
+            active = false;
+            onResult(codes[0].rawValue);
+            stopScanner();
+            return;
+          }
+        } catch(e) {}
+        if (active) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    } else if (typeof ZXing !== 'undefined') {
+      const hints = new Map();
+      hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+      codeReader = new ZXing.BrowserMultiFormatReader(hints, 500);
+      codeReader.decodeFromStream(scanStream, video, (result, err) => {
+        if (result) {
+          onResult(result.getText());
+          stopScanner();
+        }
+      });
+    } else {
+      if (status) status.textContent = 'Scanner library not loaded — use manual entry';
+    }
+  } catch (e) {
+    if (idle) idle.innerHTML = `<div style="color:var(--red);font-size:11px;letter-spacing:1px;padding:20px;">Camera access denied.<br>Use manual entry below.</div>`;
+    if (crosshair) crosshair.classList.remove('active');
+  }
+}
+
+function stopScanner() {
+  try { if (codeReader) { codeReader.reset(); codeReader = null; } } catch(e) {}
+  if (scanStream) {
+    scanStream.getTracks().forEach(t => t.stop());
+    scanStream = null;
+  }
+  const v = document.getElementById('scan-video');
+  if (v) { v.classList.remove('active'); v.srcObject = null; }
+  const c = document.getElementById('scan-crosshair');
+  if (c) c.classList.remove('active');
+  const idle = document.getElementById('scan-idle');
+  if (idle) idle.style.display = '';
+}
+
+// ── UTILS ──────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── PWA INSTALL ────────────────────────────────────────────────────────────
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const dismissed = localStorage.getItem('install-dismissed');
+  if (!dismissed) document.getElementById('install-banner').classList.add('show');
+});
+function installApp() {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  deferredInstallPrompt.userChoice.then(() => {
+    deferredInstallPrompt = null;
+    document.getElementById('install-banner').classList.remove('show');
+  });
+}
+function dismissInstall() {
+  localStorage.setItem('install-dismissed', '1');
+  document.getElementById('install-banner').classList.remove('show');
+}
+
+// ── SERVICE WORKER ─────────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW reg failed', e));
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+loadDB();
+renderTags();
+renderOrders();
+
+// Prevent rubber-band scroll on iOS
+document.addEventListener('touchmove', e => {
+  if (e.target.closest('.content') || e.target.closest('.modal')) return;
+  e.preventDefault();
+}, { passive: false });
+
+// Back button closes modals
+window.addEventListener('popstate', () => {
+  const open = document.querySelector('.modal-overlay.open');
+  if (open) { open.classList.remove('open'); history.pushState(null, ''); }
+});
+history.pushState(null, '');
+</script>
+</body>
+</html>
