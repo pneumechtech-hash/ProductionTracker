@@ -59,6 +59,7 @@
     transition: all 0.15s; min-height: 34px; display: flex; align-items: center;
   }
   .tab.active { background: var(--green); color: #09090b; border-color: var(--green); font-weight: 600; }
+  .tab:disabled { opacity: 0.35; cursor: not-allowed; }
 
   /* SCROLLABLE CONTENT AREA */
   .content { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
@@ -304,6 +305,34 @@
     position: relative; transform: translateX(0); will-change: transform;
     margin-bottom: 0 !important; border-radius: 12px;
   }
+
+  /* SPLIT BADGE */
+  .split-badge {
+    display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: 1px;
+    padding: 2px 7px; border-radius: 5px; text-transform: uppercase;
+    border: 1px solid rgba(251,191,36,0.45); color: var(--amber);
+    background: rgba(251,191,36,0.08); margin-top: 5px;
+  }
+  .order-card.split-order { border-left: 3px solid var(--amber); }
+
+  /* MULTI-SELECT */
+  .order-card.ms-selected { border-color: var(--green); background: var(--green-dim); }
+  .ms-check {
+    width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+    border: 2px solid var(--border-mid);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: transparent; transition: all 0.15s;
+  }
+  .ms-check.on { background: var(--green); border-color: var(--green); color: #09090b; }
+  #multiselect-bar {
+    display: none; position: fixed; bottom: 0; left: 0; right: 0;
+    background: #15151b; border-top: 2px solid var(--green);
+    padding: 12px 16px; z-index: 150;
+    padding-bottom: calc(12px + var(--safe-bottom));
+  }
+  .ms-bar-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .ms-bar-count { font-size: 12px; font-weight: 600; color: var(--green); letter-spacing: 1px; text-transform: uppercase; }
+  .ms-bar-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 </style>
 </head>
 <body>
@@ -311,7 +340,7 @@
   <div class="topbar">
     <div class="logo">PO Tracker</div>
     <div class="tab-bar">
-      <button class="tab active" onclick="switchView('orders')">Orders</button>
+      <button class="tab active" id="tab-orders" onclick="switchView('orders')">Orders</button>
       <button class="tab" onclick="switchView('new')">+ New</button>
       <button class="tab" onclick="switchView('archive')">Archive</button>
     </div>
@@ -446,6 +475,20 @@
   </div>
 </div>
 
+<!-- ── MULTI-SELECT BAR ── -->
+<div id="multiselect-bar">
+  <div class="ms-bar-top">
+    <span class="ms-bar-count" id="multiselect-count">0 selected</span>
+    <button class="btn btn-ghost btn-sm" onclick="exitMultiSelect()">Cancel</button>
+  </div>
+  <div class="ms-bar-grid">
+    <button class="btn btn-ghost btn-sm" onclick="multiSelectCNF()">CNF All</button>
+    <button class="btn btn-warn btn-sm" onclick="multiSelectFinish()">Finish All</button>
+    <button class="btn btn-primary btn-sm" onclick="multiSelectBoth()">CNF + Finish</button>
+    <button class="btn btn-ghost btn-sm" id="ms-split-btn" onclick="multiSelectSplitTimer()">▶ Split Timer</button>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
 <script>
 'use strict';
@@ -486,6 +529,10 @@ function fmt(ms) {
   return `${pad(h)}:${pad(m)}:${pad(sc)}`;
 }
 function pad(n) { return String(n).padStart(2, '0'); }
+function fmtMin(ms) {
+  if (!ms || ms < 0) return '0 min';
+  return Math.round(ms / 60000) + ' min';
+}
 function fmtDate(ts) {
   return new Date(ts).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
@@ -495,6 +542,7 @@ function totalTime(order) {
 
 // ── VIEW NAVIGATION ────────────────────────────────────────────────────────
 function switchView(v) {
+  if (v !== 'orders') resetMultiSelect();
   stopScanner();
   document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
@@ -618,6 +666,7 @@ function startSplitTimer() {
   }, 500);
   if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
   scheduleFourPmAlert();
+  setOrdersTabDisabled(true);
   showStep('timer');
   const n = draft.splitPOs.length;
   document.getElementById('timer-po-label').textContent = `Split — ${n} Orders`;
@@ -673,6 +722,7 @@ function createOrderAndStartTimer() {
   saveDB();
   beginTimer(order.id);
   showStep('timer');
+  document.getElementById('timer-po-label').textContent = 'Production Order';
   document.getElementById('timer-po').textContent = order.po;
 }
 
@@ -712,6 +762,11 @@ function dismissFourPmToast() {
 }
 
 // ── TIMER ─────────────────────────────────────────────────────────────────
+function setOrdersTabDisabled(disabled) {
+  const tab = document.getElementById('tab-orders');
+  if (tab) tab.disabled = disabled;
+}
+
 function beginTimer(orderId) {
   activeOrderId = orderId;
   timerStart = Date.now();
@@ -724,14 +779,16 @@ function beginTimer(orderId) {
     Notification.requestPermission();
   }
   scheduleFourPmAlert();
+  setOrdersTabDisabled(true);
 }
 
 function openStopModal() {
   const elapsed = Date.now() - timerStart;
-  document.getElementById('stop-elapsed').textContent = fmt(elapsed);
+  document.getElementById('stop-elapsed').innerHTML = `${fmt(elapsed)}<div style="font-size:13px;color:var(--text-dim);letter-spacing:2px;margin-top:4px;font-family:'Courier New',monospace;">${fmtMin(elapsed)}</div>`;
   const splitInfo = document.getElementById('stop-split-info');
   if (splitOrderIds.length > 1) {
-    splitInfo.textContent = `÷ ${splitOrderIds.length} orders = ${fmt(Math.floor(elapsed / splitOrderIds.length))} each`;
+    const each = Math.floor(elapsed / splitOrderIds.length);
+    splitInfo.textContent = `÷ ${splitOrderIds.length} orders = ${fmt(each)} (${fmtMin(each)}) each`;
     splitInfo.style.display = 'block';
   } else {
     splitInfo.style.display = 'none';
@@ -746,6 +803,7 @@ function stopSession(cnf) {
   clearFourPmAlert();
   dismissFourPmToast();
 
+  setOrdersTabDisabled(false);
   if (splitOrderIds.length > 0) {
     const splitDuration = Math.floor(duration / splitOrderIds.length);
     splitOrderIds.forEach(oid => {
@@ -775,6 +833,7 @@ function stopSession(cnf) {
 
 // ── ORDER DETAIL MODAL ─────────────────────────────────────────────────────
 function showOrderDetail(id) {
+  if (multiSelectMode) { toggleOrderSelection(id); return; }
   const order = db.orders.find(o => o.id === id) || db.archive.find(o => o.id === id);
   if (!order) return;
 
@@ -790,7 +849,10 @@ function showOrderDetail(id) {
   document.getElementById('modal-detail-body').innerHTML = `
     <div class="total-bar">
       <span>Total Time</span>
-      <strong>${fmt(total)}</strong>
+      <div style="text-align:right;line-height:1.3;">
+        <strong>${fmt(total)}</strong>
+        <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-top:2px;">${fmtMin(total)}</div>
+      </div>
     </div>
     ${order.tags.length ? `<div class="order-tags" style="margin-bottom:12px;">${order.tags.map(t => `<span class="order-tag">${t}</span>`).join('')}</div>` : ''}
     ${order.notes ? `<div style="font-size:11px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">${escHtml(order.notes)}</div>` : ''}
@@ -803,7 +865,7 @@ function showOrderDetail(id) {
           <div class="session-item">
             <div>
               <div class="session-time">${fmt(s.duration)}</div>
-              <div class="session-date">${fmtDate(s.date)}</div>
+              <div class="session-date">${fmtDate(s.date)} · ${fmtMin(s.duration)}</div>
             </div>
             <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
               <span class="cnf-badge${s.cnf ? '' : ' pending'}">${s.cnf ? 'CNF' : 'PENDING'}</span>
@@ -866,6 +928,7 @@ function resumeGroupTimer(splitGroupId) {
   }, 500);
   if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
   scheduleFourPmAlert();
+  setOrdersTabDisabled(true);
   switchView('new');
   showStep('timer');
   document.getElementById('timer-po-label').textContent = `Split — ${groupOrders.length} Orders`;
@@ -896,25 +959,35 @@ function renderOrders() {
   const el = document.getElementById('orders-list');
   if (db.orders.length === 0) {
     el.innerHTML = `<div class="empty-state"><div class="empty-icon">▢</div><div class="empty-text">No active orders<br><br>Tap + New to begin</div></div>`;
+    initOrdersLongPress();
     return;
   }
   el.innerHTML = db.orders.map(o => {
     const total = totalTime(o);
     const pending = o.sessions.filter(s => !s.cnf).length;
     const dot = o.sessions.length === 0 ? 'dot-gray' : (pending > 0 ? 'dot-amber' : 'dot-green');
-    return `<div class="order-card" onclick="showOrderDetail(${o.id})">
+    const sel = multiSelectMode && selectedOrderIds.has(o.id);
+    const isSplit = !!o.splitGroupId;
+    const splitGroupSize = isSplit ? db.orders.filter(x => x.splitGroupId === o.splitGroupId && !x.finished).length : 0;
+    return `<div class="order-card${sel ? ' ms-selected' : ''}${isSplit ? ' split-order' : ''}" data-id="${o.id}" onclick="showOrderDetail(${o.id})">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
-        <div class="order-po">${escHtml(o.po)}</div>
-        <span class="status-dot ${dot}" style="margin-top:6px;"></span>
+        <div>
+          <div class="order-po">${escHtml(o.po)}</div>
+          ${isSplit ? `<span class="split-badge">Split ×${splitGroupSize}</span>` : ''}
+        </div>
+        ${multiSelectMode
+          ? `<div class="ms-check${sel ? ' on' : ''}" style="margin-top:4px;">${sel ? '✓' : ''}</div>`
+          : `<span class="status-dot ${dot}" style="margin-top:6px;"></span>`}
       </div>
       <div class="order-meta">${fmtDate(o.created)} · ${o.sessions.length} session${o.sessions.length !== 1 ? 's' : ''}</div>
       ${o.tags.length ? `<div class="order-tags">${o.tags.map(t => `<span class="order-tag">${t}</span>`).join('')}</div>` : ''}
       <div class="order-total">
-        Total: ${fmt(total)}
+        Total: ${fmt(total)} · ${fmtMin(total)}
         ${pending > 0 ? `· <span class="pending-warn">${pending} pending CNF</span>` : ''}
       </div>
     </div>`;
   }).join('');
+  initOrdersLongPress();
 }
 
 function renderArchive() {
@@ -1124,6 +1197,136 @@ function installApp() {
 function dismissInstall() {
   localStorage.setItem('install-dismissed', '1');
   document.getElementById('install-banner').classList.remove('show');
+}
+
+// ── MULTI-SELECT ──────────────────────────────────────────────────────────
+let multiSelectMode = false;
+let selectedOrderIds = new Set();
+
+function resetMultiSelect() {
+  multiSelectMode = false;
+  selectedOrderIds = new Set();
+  const bar = document.getElementById('multiselect-bar');
+  if (bar) bar.style.display = 'none';
+}
+
+function enterMultiSelect(orderId) {
+  multiSelectMode = true;
+  selectedOrderIds = new Set([orderId]);
+  renderOrders();
+  document.getElementById('multiselect-bar').style.display = 'block';
+  updateMultiSelectBar();
+}
+
+function exitMultiSelect() {
+  resetMultiSelect();
+  renderOrders();
+}
+
+function toggleOrderSelection(orderId) {
+  if (selectedOrderIds.has(orderId)) selectedOrderIds.delete(orderId);
+  else selectedOrderIds.add(orderId);
+  if (selectedOrderIds.size === 0) { exitMultiSelect(); return; }
+  updateMultiSelectBar();
+  renderOrders();
+}
+
+function updateMultiSelectBar() {
+  const n = selectedOrderIds.size;
+  const el = document.getElementById('multiselect-count');
+  if (el) el.textContent = `${n} order${n !== 1 ? 's' : ''} selected`;
+  const splitBtn = document.getElementById('ms-split-btn');
+  if (splitBtn) splitBtn.disabled = !!timerStart;
+}
+
+function multiSelectCNF() {
+  selectedOrderIds.forEach(id => {
+    const order = db.orders.find(o => o.id === id);
+    if (order) order.sessions.forEach(s => { s.cnf = true; });
+  });
+  saveDB();
+  exitMultiSelect();
+}
+
+function multiSelectFinish() {
+  [...selectedOrderIds].forEach(id => finishOrderSilent(id));
+  saveDB();
+  exitMultiSelect();
+}
+
+function multiSelectBoth() {
+  selectedOrderIds.forEach(id => {
+    const order = db.orders.find(o => o.id === id);
+    if (order) order.sessions.forEach(s => { s.cnf = true; });
+  });
+  [...selectedOrderIds].forEach(id => finishOrderSilent(id));
+  saveDB();
+  exitMultiSelect();
+}
+
+function finishOrderSilent(id) {
+  const idx = db.orders.findIndex(o => o.id === id);
+  if (idx === -1) return;
+  const order = db.orders.splice(idx, 1)[0];
+  order.finished = true;
+  order.finishedAt = Date.now();
+  db.archive.unshift(order);
+}
+
+function multiSelectSplitTimer() {
+  if (timerStart) return;
+  const orders = [...selectedOrderIds].map(id => db.orders.find(o => o.id === id)).filter(Boolean);
+  if (orders.length === 0) return;
+  resetMultiSelect();
+  splitOrderIds = orders.map(o => o.id);
+  timerStart = Date.now();
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    const el = document.getElementById('timer-display');
+    if (el) el.textContent = fmt(Date.now() - timerStart);
+  }, 500);
+  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+  scheduleFourPmAlert();
+  setOrdersTabDisabled(true);
+  switchView('new');
+  showStep('timer');
+  document.getElementById('timer-po-label').textContent = `Split — ${orders.length} Orders`;
+  document.getElementById('timer-po').innerHTML = orders.map(o =>
+    `<div style="font-size:18px;line-height:1.5;">${escHtml(o.po)}</div>`
+  ).join('');
+}
+
+function initOrdersLongPress() {
+  const list = document.getElementById('orders-list');
+  if (!list || list._lpInit) return;
+  list._lpInit = true;
+  let pressTimer = null;
+  let moved = false;
+  let targetId = null;
+
+  list.addEventListener('touchstart', e => {
+    const card = e.target.closest('[data-id]');
+    if (!card) return;
+    targetId = Number(card.dataset.id);
+    moved = false;
+    pressTimer = setTimeout(() => {
+      if (moved) return;
+      if (navigator.vibrate) navigator.vibrate(40);
+      if (multiSelectMode) toggleOrderSelection(targetId);
+      else enterMultiSelect(targetId);
+    }, 500);
+  }, { passive: true });
+
+  list.addEventListener('touchmove', () => {
+    moved = true;
+    clearTimeout(pressTimer);
+    pressTimer = null;
+  }, { passive: true });
+
+  list.addEventListener('touchend', () => {
+    clearTimeout(pressTimer);
+    pressTimer = null;
+  });
 }
 
 // ── SERVICE WORKER ─────────────────────────────────────────────────────────
