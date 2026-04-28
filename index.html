@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#0a0f0a">
+<meta name="theme-color" content="#09090b">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -15,108 +15,89 @@
 <title>PO Tracker</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  
+
   :root {
-    --green: #4aff7a;
-    --green-dim: #0d200d;
-    --green-mid: #4a8a4a;
-    --green-dark: #1e2e1e;
-    --amber: #ffb84a;
-    --red: #ff4a4a;
-    --bg: #0a0f0a;
-    --bg-card: #0d150d;
-    --bg-input: #0f1a0f;
-    --text: #c8d4c8;
-    --text-dim: #4a6a4a;
-    --text-muted: #3a4a3a;
-    --border: #1e2e1e;
-    --border-mid: #2a3a2a;
+    --green: #60a5fa;
+    --green-dim: #0c1929;
+    --green-mid: #3b82f6;
+    --green-dark: #0f1e33;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --bg: #09090b;
+    --bg-card: #111116;
+    --bg-input: #18181c;
+    --text: #e4e4e7;
+    --text-dim: #71717a;
+    --text-muted: #3f3f46;
+    --border: #1e1e28;
+    --border-mid: #2a2a38;
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
   }
 
-  html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: 'Courier New', Courier, monospace; }
+  html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
 
-  .app {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    padding-top: var(--safe-top);
-    padding-bottom: var(--safe-bottom);
-  }
+  .app { display: flex; flex-direction: column; height: 100%; padding-top: var(--safe-top); padding-bottom: var(--safe-bottom); }
 
   /* TOP BAR */
   .topbar {
     flex-shrink: 0;
-    background: var(--bg);
+    background: rgba(9,9,11,0.8);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border-bottom: 1px solid var(--border);
     padding: 10px 16px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    display: flex; align-items: center; justify-content: space-between;
     z-index: 100;
   }
-  .logo { font-size: 11px; font-weight: bold; letter-spacing: 3px; color: var(--green); text-transform: uppercase; }
-  .tab-bar { display: flex; gap: 4px; }
+  .logo { font-size: 13px; font-weight: 700; letter-spacing: 1.5px; color: var(--green); text-transform: uppercase; }
+  .tab-bar { display: flex; gap: 6px; }
   .tab {
-    font-size: 10px; letter-spacing: 1px; padding: 5px 10px;
-    border: 1px solid var(--border-mid); border-radius: 2px; cursor: pointer;
-    background: transparent; color: #7a8a7a; text-transform: uppercase;
-    font-family: 'Courier New', monospace; transition: all 0.15s;
-    min-height: 34px; display: flex; align-items: center;
+    font-size: 12px; font-weight: 500; letter-spacing: 0.2px; padding: 6px 13px;
+    border: 1px solid var(--border-mid); border-radius: 8px; cursor: pointer;
+    background: transparent; color: var(--text-dim);
+    transition: all 0.15s; min-height: 34px; display: flex; align-items: center;
   }
-  .tab.active { background: var(--green); color: var(--bg); border-color: var(--green); font-weight: bold; }
+  .tab.active { background: var(--green); color: #09090b; border-color: var(--green); font-weight: 600; }
 
   /* SCROLLABLE CONTENT AREA */
-  .content {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-  }
+  .content { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
 
   /* VIEWS */
-  .view { display: none; padding: 16px; padding-bottom: 24px; }
+  .view { display: none; padding: 16px; padding-bottom: 28px; }
   .view.active { display: block; }
 
   /* TYPOGRAPHY */
   .section-label {
-    font-size: 9px; letter-spacing: 3px; color: var(--text-dim);
+    font-size: 10px; font-weight: 600; letter-spacing: 1.5px; color: var(--text-dim);
     text-transform: uppercase; margin-bottom: 10px; padding-bottom: 6px;
     border-bottom: 1px solid var(--border);
   }
 
   /* BUTTONS */
   .btn {
-    display: block; width: 100%; padding: 13px;
-    text-align: center; font-family: 'Courier New', monospace;
-    font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
-    border: 1px solid var(--border-mid); border-radius: 2px;
+    display: flex; width: 100%; padding: 13px; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 500; letter-spacing: 0.2px;
+    border: 1px solid var(--border-mid); border-radius: 10px;
     cursor: pointer; transition: all 0.15s; min-height: 46px;
-    display: flex; align-items: center; justify-content: center;
   }
-  .btn-primary { background: var(--green); color: var(--bg); border-color: var(--green); font-weight: bold; }
-  .btn-primary:active { opacity: 0.8; transform: scale(0.98); }
-  .btn-ghost { background: transparent; color: #7a8a7a; }
-  .btn-ghost:active { background: #1a2a1a; }
-  .btn-danger { background: transparent; color: var(--red); border-color: var(--red); }
-  .btn-danger:active { background: #2a0f0f; }
-  .btn-warn { background: transparent; color: var(--amber); border-color: var(--amber); }
-  .btn-warn:active { background: #2a1a0a; }
-  .btn-sm {
-    padding: 7px 12px; font-size: 10px; width: auto;
-    min-height: 34px; border-radius: 2px;
-  }
+  .btn-primary { background: var(--green); color: #09090b; border-color: var(--green); font-weight: 600; }
+  .btn-primary:active { opacity: 0.85; transform: scale(0.98); }
+  .btn-ghost { background: transparent; color: var(--text-dim); }
+  .btn-ghost:active { background: var(--bg-card); }
+  .btn-danger { background: transparent; color: var(--red); border-color: rgba(248,113,113,0.4); }
+  .btn-danger:active { background: rgba(248,113,113,0.07); }
+  .btn-warn { background: transparent; color: var(--amber); border-color: rgba(251,191,36,0.4); }
+  .btn-warn:active { background: rgba(251,191,36,0.07); }
+  .btn-sm { padding: 7px 14px; font-size: 12px; width: auto; min-height: 34px; border-radius: 7px; }
 
   /* TAGS */
   .tags-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
   .tag {
-    padding: 7px 14px; font-size: 10px; letter-spacing: 1px;
-    text-transform: uppercase; border: 1px solid var(--border-mid);
-    border-radius: 2px; cursor: pointer; color: #7a8a7a;
-    background: transparent; font-family: 'Courier New', monospace;
-    min-height: 36px; display: flex; align-items: center;
-    transition: all 0.1s;
+    padding: 8px 16px; font-size: 12px; font-weight: 500; letter-spacing: 0.2px;
+    border: 1px solid var(--border-mid); border-radius: 8px;
+    cursor: pointer; color: var(--text-dim); background: transparent;
+    min-height: 36px; display: flex; align-items: center; transition: all 0.1s;
   }
   .tag.selected { border-color: var(--green); color: var(--green); background: var(--green-dim); }
   .tag:active { opacity: 0.7; }
@@ -124,9 +105,10 @@
   /* INPUTS */
   .input-field {
     width: 100%; background: var(--bg-input); border: 1px solid var(--border-mid);
-    border-radius: 2px; padding: 11px 12px; font-family: 'Courier New', monospace;
+    border-radius: 9px; padding: 12px 14px;
     font-size: 14px; color: var(--text); outline: none; min-height: 46px;
-    -webkit-appearance: none; appearance: none;
+    -webkit-appearance: none; appearance: none; transition: border-color 0.15s;
+    font-family: inherit;
   }
   .input-field:focus { border-color: var(--green); }
   .input-field::placeholder { color: var(--text-muted); }
@@ -134,118 +116,115 @@
 
   /* SCAN ZONE */
   .scan-zone {
-    border: 1px dashed var(--border-mid); border-radius: 4px;
+    border: 1px dashed var(--border-mid); border-radius: 12px;
     overflow: hidden; margin-bottom: 16px; background: var(--bg-card);
     position: relative; min-height: 80px;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
   }
-  .scan-zone video {
-    width: 100%; max-height: 260px; object-fit: cover;
-    display: none; border-radius: 0;
-  }
+  .scan-zone video { width: 100%; max-height: 260px; object-fit: cover; display: none; }
   .scan-zone video.active { display: block; }
   .scan-idle-inner { text-align: center; padding: 24px 16px; }
-  .scan-icon { font-size: 32px; color: #2a4a2a; margin-bottom: 8px; }
-  .scan-tap-hint { font-size: 11px; color: var(--green-mid); letter-spacing: 1px; }
-  .scan-hint { font-size: 10px; color: var(--text-dim); letter-spacing: 1px; padding: 6px; text-align: center; }
+  .scan-icon { font-size: 32px; color: var(--border-mid); margin-bottom: 8px; }
+  .scan-tap-hint { font-size: 12px; font-weight: 500; color: var(--green); }
+  .scan-hint { font-size: 11px; color: var(--text-dim); padding: 6px; text-align: center; }
   .scan-crosshair {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
     width: 200px; height: 120px; border: 2px solid var(--green);
-    border-radius: 4px; pointer-events: none; display: none;
-    box-shadow: 0 0 0 2000px rgba(0,0,0,0.4);
+    border-radius: 8px; pointer-events: none; display: none;
+    box-shadow: 0 0 0 2000px rgba(0,0,0,0.45);
   }
   .scan-crosshair.active { display: block; }
 
   /* PO CONFIRM */
   .po-confirm {
-    background: var(--green-dim); border: 1px solid var(--green);
-    border-radius: 4px; padding: 18px 16px; margin-bottom: 16px;
+    background: var(--green-dim); border: 1px solid rgba(96,165,250,0.2);
+    border-radius: 12px; padding: 20px 16px; margin-bottom: 16px;
   }
   .po-number {
-    font-size: 26px; font-weight: bold; color: var(--green);
-    letter-spacing: 4px; text-align: center; font-family: 'Courier New', monospace;
+    font-size: 26px; font-weight: 700; color: var(--green);
+    letter-spacing: 3px; text-align: center; font-family: 'Courier New', monospace;
     margin-bottom: 6px; word-break: break-all;
   }
-  .po-label { font-size: 9px; letter-spacing: 3px; color: #4a8a4a; text-align: center; text-transform: uppercase; }
+  .po-label { font-size: 10px; font-weight: 500; letter-spacing: 1.5px; color: var(--text-dim); text-align: center; text-transform: uppercase; }
 
   /* TIMER */
   .timer-display {
-    text-align: center; padding: 28px 16px;
+    text-align: center; padding: 32px 16px;
     background: var(--bg-card); border: 1px solid var(--border);
-    border-radius: 4px; margin-bottom: 16px;
+    border-radius: 14px; margin-bottom: 16px;
   }
   .timer-digits {
-    font-size: 48px; font-weight: bold; color: var(--green);
-    letter-spacing: 6px; font-family: 'Courier New', monospace;
+    font-size: 48px; font-weight: 700; color: var(--green);
+    letter-spacing: 4px; font-family: 'Courier New', monospace;
   }
-  .timer-digits.running { animation: blink 2s ease-in-out infinite; }
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.65} }
-  .timer-status { font-size: 9px; letter-spacing: 3px; color: var(--text-dim); margin-top: 10px; text-transform: uppercase; }
+  .timer-digits.running { animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+  .timer-status { font-size: 10px; font-weight: 600; letter-spacing: 2px; color: var(--text-dim); margin-top: 12px; text-transform: uppercase; }
   .timer-status.running { color: var(--green); }
 
   /* SESSIONS */
   .sessions-list { margin-bottom: 16px; }
   .session-item {
     background: var(--bg-card); border: 1px solid var(--border);
-    border-radius: 2px; padding: 10px 12px; margin-bottom: 6px;
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 8px;
+    border-radius: 9px; padding: 11px 14px; margin-bottom: 6px;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
   }
   .session-time { font-size: 15px; color: var(--text); font-family: 'Courier New', monospace; letter-spacing: 2px; }
-  .session-date { font-size: 9px; color: var(--text-dim); margin-top: 3px; letter-spacing: 1px; }
+  .session-date { font-size: 10px; color: var(--text-dim); margin-top: 3px; }
   .cnf-badge {
-    font-size: 9px; letter-spacing: 2px; padding: 4px 8px;
-    border-radius: 2px; border: 1px solid var(--green);
-    color: var(--green); background: var(--green-dim);
-    white-space: nowrap; font-family: 'Courier New', monospace;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.3px; padding: 4px 9px;
+    border-radius: 6px; border: 1px solid rgba(96,165,250,0.4);
+    color: var(--green); background: var(--green-dim); white-space: nowrap;
   }
-  .cnf-badge.pending { border-color: var(--amber); color: var(--amber); background: #200e00; }
+  .cnf-badge.pending { border-color: rgba(251,191,36,0.4); color: var(--amber); background: rgba(251,191,36,0.07); }
 
   /* ORDER CARDS */
   .order-card {
     background: var(--bg-card); border: 1px solid var(--border);
-    border-radius: 4px; padding: 14px; margin-bottom: 10px;
-    cursor: pointer; transition: border-color 0.15s; active: {};
+    border-radius: 12px; padding: 14px; margin-bottom: 10px;
+    cursor: pointer; transition: border-color 0.15s, background 0.15s;
   }
-  .order-card:active { border-color: #2a4a2a; background: #0e1a0e; }
-  .order-card.finished { opacity: 0.5; border-style: dashed; }
-  .order-po { font-size: 18px; font-weight: bold; color: var(--green); letter-spacing: 3px; word-break: break-all; }
-  .order-meta { font-size: 10px; color: var(--text-dim); margin-top: 4px; letter-spacing: 1px; }
+  .order-card:active { border-color: var(--border-mid); background: #16161e; }
+  .order-card.finished { opacity: 0.45; border-style: dashed; }
+  .order-po { font-size: 18px; font-weight: 700; color: var(--green); letter-spacing: 2px; font-family: 'Courier New', monospace; word-break: break-all; }
+  .order-meta { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
   .order-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
   .order-tag {
-    font-size: 9px; padding: 3px 7px; border: 1px solid var(--border);
-    border-radius: 2px; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase;
+    font-size: 10px; font-weight: 500; padding: 3px 8px;
+    border: 1px solid var(--border); border-radius: 5px; color: var(--text-dim);
   }
-  .order-total { font-size: 11px; color: #7a9a7a; margin-top: 8px; letter-spacing: 1px; }
+  .order-total { font-size: 11px; color: var(--text-dim); margin-top: 8px; font-family: 'Courier New', monospace; letter-spacing: 1px; }
 
   /* STATUS DOT */
-  .status-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
-  .dot-green { background: var(--green); }
-  .dot-amber { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
-  .dot-gray { background: #3a4a3a; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+  .dot-green { background: #4ade80; box-shadow: 0 0 6px rgba(74,222,128,0.5); }
+  .dot-amber { background: var(--amber); box-shadow: 0 0 6px rgba(251,191,36,0.5); }
+  .dot-gray { background: var(--text-muted); }
 
   /* MODAL */
   .modal-overlay {
     display: none; position: fixed; inset: 0;
-    background: rgba(0,0,0,0.88); z-index: 200;
+    background: rgba(0,0,0,0.75); z-index: 200;
     align-items: flex-end; justify-content: center;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
   }
   .modal-overlay.open { display: flex; }
   .modal {
-    background: #0f1a0f; border: 1px solid var(--border-mid);
-    border-bottom: none; border-radius: 10px 10px 0 0;
+    background: #15151b; border: 1px solid var(--border-mid);
+    border-bottom: none; border-radius: 20px 20px 0 0;
     width: 100%; max-width: 500px;
     max-height: 88vh; overflow-y: auto;
     padding: 20px 16px;
     padding-bottom: calc(20px + var(--safe-bottom));
   }
-  .modal-title { font-size: 11px; letter-spacing: 3px; color: var(--green); text-transform: uppercase; margin-bottom: 20px; }
+  .modal-title { font-size: 13px; font-weight: 600; letter-spacing: 1px; color: var(--text); text-transform: uppercase; margin-bottom: 20px; }
   .modal-close {
     float: right; background: transparent; border: none;
-    color: #7a8a7a; font-size: 20px; cursor: pointer;
-    font-family: 'Courier New', monospace; padding: 0; line-height: 1;
+    color: var(--text-dim); font-size: 18px; cursor: pointer;
+    padding: 0; line-height: 1; border-radius: 6px;
     min-height: 32px; min-width: 32px; display: flex; align-items: center; justify-content: center;
   }
+  .modal-close:active { background: var(--bg-input); }
 
   /* UTILS */
   .row { display: flex; gap: 8px; }
@@ -255,80 +234,75 @@
   .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
 
   .empty-state { text-align: center; padding: 56px 20px; }
-  .empty-icon { font-size: 36px; color: #2a3a2a; margin-bottom: 12px; }
-  .empty-text { font-size: 11px; color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase; }
+  .empty-icon { font-size: 36px; color: var(--border-mid); margin-bottom: 12px; }
+  .empty-text { font-size: 12px; font-weight: 500; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; }
 
   .total-bar {
-    background: var(--green-dim); border: 1px solid var(--border);
-    border-radius: 4px; padding: 12px 16px; margin-bottom: 16px;
+    background: var(--green-dim); border: 1px solid rgba(96,165,250,0.15);
+    border-radius: 12px; padding: 13px 16px; margin-bottom: 16px;
     display: flex; justify-content: space-between; align-items: center;
   }
-  .total-bar span { font-size: 9px; letter-spacing: 2px; color: var(--text-dim); text-transform: uppercase; }
-  .total-bar strong { font-size: 20px; color: var(--green); letter-spacing: 3px; font-family: 'Courier New', monospace; }
+  .total-bar span { font-size: 10px; font-weight: 600; letter-spacing: 1px; color: var(--text-dim); text-transform: uppercase; }
+  .total-bar strong { font-size: 20px; color: var(--green); letter-spacing: 2px; font-family: 'Courier New', monospace; }
 
-  .alert { padding: 10px 12px; border-radius: 2px; font-size: 11px; letter-spacing: 1px; margin-bottom: 12px; }
-  .alert-success { background: var(--green-dim); border: 1px solid var(--green); color: var(--green); }
-  .alert-error { background: #200d0d; border: 1px solid var(--red); color: var(--red); }
+  .alert { padding: 11px 14px; border-radius: 9px; font-size: 12px; font-weight: 500; letter-spacing: 0.2px; margin-bottom: 12px; }
+  .alert-success { background: var(--green-dim); border: 1px solid rgba(96,165,250,0.25); color: var(--green); }
+  .alert-error { background: rgba(248,113,113,0.07); border: 1px solid rgba(248,113,113,0.4); color: var(--red); }
 
   .pending-warn { color: var(--amber); }
 
   /* Install banner */
   #install-banner {
     display: none; position: fixed; bottom: 0; left: 0; right: 0;
-    background: #0d200d; border-top: 1px solid var(--green);
+    background: var(--bg-card); border-top: 1px solid var(--border-mid);
     padding: 12px 16px; z-index: 300; align-items: center; justify-content: space-between; gap: 12px;
     padding-bottom: calc(12px + var(--safe-bottom));
   }
   #install-banner.show { display: flex; }
-  #install-banner p { font-size: 11px; color: var(--green); letter-spacing: 1px; }
-  #install-banner button { font-family: 'Courier New', monospace; font-size: 10px; letter-spacing: 1px; padding: 6px 12px; border-radius: 2px; cursor: pointer; }
-  #install-btn { background: var(--green); color: var(--bg); border: none; font-weight: bold; }
+  #install-banner p { font-size: 12px; font-weight: 500; color: var(--text); }
+  #install-banner button { font-size: 11px; font-weight: 500; padding: 7px 14px; border-radius: 7px; cursor: pointer; }
+  #install-btn { background: var(--green); color: #09090b; border: none; font-weight: 600; }
   #dismiss-btn { background: transparent; color: var(--text-dim); border: 1px solid var(--border-mid); }
 
   canvas { display: none; }
 
+  /* SPLIT TIME MODE */
+  .split-mode-bar { display: flex; gap: 6px; margin-bottom: 14px; }
+  .split-opt {
+    flex: 1; padding: 9px; font-size: 12px; font-weight: 500; letter-spacing: 0.2px;
+    border: 1px solid var(--border-mid); border-radius: 8px;
+    cursor: pointer; background: transparent; color: var(--text-dim);
+    transition: all 0.15s; min-height: 38px;
+  }
+  .split-opt.active { background: var(--amber); color: #09090b; border-color: var(--amber); font-weight: 600; }
+  .split-po-item {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 9px; padding: 10px 14px; margin-bottom: 6px;
+  }
+  .split-po-num { font-size: 15px; color: var(--amber); letter-spacing: 1.5px; font-family: 'Courier New', monospace; }
+  .split-po-remove { background: transparent; border: none; color: var(--red); cursor: pointer; font-size: 16px; padding: 0 4px; line-height: 1; }
+
   /* SWIPE-TO-DELETE (archive) */
-  .swipe-wrapper {
-    position: relative;
-    overflow: hidden;
-    border-radius: 4px;
-    margin-bottom: 10px;
-  }
+  .swipe-wrapper { position: relative; overflow: hidden; border-radius: 12px; margin-bottom: 10px; }
   .swipe-action {
-    position: absolute;
-    right: 0; top: 0; bottom: 0;
-    width: 80px;
-    background: var(--red);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    cursor: pointer;
-    user-select: none;
-    -webkit-user-select: none;
-    transition: width 0.2s ease;
+    position: absolute; right: 0; top: 0; bottom: 0; width: 80px;
+    background: var(--red); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 8px;
+    cursor: pointer; user-select: none; -webkit-user-select: none; transition: width 0.2s ease;
   }
-  .swipe-action-label {
-    font-size: 10px; letter-spacing: 2px; color: #fff;
-    text-transform: uppercase; pointer-events: none;
-  }
+  .swipe-action-label { font-size: 11px; font-weight: 600; color: #fff; pointer-events: none; }
   .swipe-action.confirming { width: 100%; }
   .swipe-confirm-row { display: flex; gap: 8px; }
   .swipe-confirm-row button {
-    font-family: 'Courier New', monospace; font-size: 9px;
-    letter-spacing: 1px; text-transform: uppercase;
-    padding: 6px 14px; border-radius: 2px; cursor: pointer;
-    min-height: 32px;
+    font-size: 11px; font-weight: 600; padding: 7px 16px;
+    border-radius: 7px; cursor: pointer; min-height: 34px;
   }
-  .swipe-yes { background: #fff; color: var(--red); border: none; font-weight: bold; }
-  .swipe-no  { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.5); }
+  .swipe-yes { background: #fff; color: var(--red); border: none; }
+  .swipe-no  { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.45); }
   .swipe-card-wrap {
-    position: relative;
-    transform: translateX(0);
-    will-change: transform;
-    margin-bottom: 0 !important;
-    border-radius: 4px;
+    position: relative; transform: translateX(0); will-change: transform;
+    margin-bottom: 0 !important; border-radius: 12px;
   }
 </style>
 </head>
@@ -368,6 +342,10 @@
       <!-- Step 2: Scan -->
       <div id="step-scan" style="display:none">
         <div class="section-label">Step 2 — Scan Barcode</div>
+        <div class="split-mode-bar">
+          <button class="split-opt active" id="opt-single" onclick="setSplitMode(false)">Single PO</button>
+          <button class="split-opt" id="opt-split" onclick="setSplitMode(true)">Split Time</button>
+        </div>
         <div class="scan-zone" id="scan-zone" onclick="activateScanner('new')">
           <video id="scan-video" playsinline muted></video>
           <div class="scan-crosshair" id="scan-crosshair"></div>
@@ -378,9 +356,13 @@
           <div class="scan-hint" id="scan-status"></div>
         </div>
         <div class="section-label">Or Enter Manually</div>
-        <div class="row" style="margin-bottom:16px;">
+        <div class="row" style="margin-bottom:10px;">
           <input class="input-field" id="manual-po" type="text" placeholder="Type PO number..." style="flex:1;">
-          <button class="btn btn-ghost btn-sm" onclick="useManualPO()">Use</button>
+          <button class="btn btn-ghost btn-sm" id="manual-po-btn" onclick="useManualPO()">Use</button>
+        </div>
+        <div id="split-po-list" style="display:none;margin-bottom:10px;"></div>
+        <div id="split-start-wrap" style="display:none;margin-bottom:10px;">
+          <button class="btn btn-primary" id="split-start-btn" onclick="startSplitTimer()" disabled>▶ Start Timer — 0 POs</button>
         </div>
         <button class="btn btn-ghost" onclick="backToTags()">← Back</button>
       </div>
@@ -403,7 +385,7 @@
       <div id="step-timer" style="display:none">
         <div class="section-label">Recording Session</div>
         <div class="po-confirm" style="margin-bottom:12px;">
-          <div class="po-label">Production Order</div>
+          <div class="po-label" id="timer-po-label">Production Order</div>
           <div class="po-number" id="timer-po">—</div>
         </div>
         <div class="timer-display">
@@ -439,6 +421,7 @@
     <button class="modal-close" onclick="closeModal('modal-stop')">✕</button>
     <div class="modal-title">Stop Timer</div>
     <div id="stop-elapsed" style="text-align:center;font-size:36px;color:var(--green);letter-spacing:4px;margin:16px 0;font-family:'Courier New',monospace;font-weight:bold;"></div>
+    <div id="stop-split-info" style="display:none;text-align:center;font-size:10px;color:var(--amber);letter-spacing:2px;margin-top:-8px;margin-bottom:16px;font-family:'Courier New',monospace;"></div>
     <div class="section-label" style="margin-bottom:8px;">Mark as CNF?</div>
     <p style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:18px;">CNF = time entered into SAP</p>
     <div class="row">
@@ -474,6 +457,7 @@ const DB_KEY = 'po-tracker-v1';
 let db = { orders: [], archive: [] };
 let draft = { tags: [], notes: '', po: '' };
 let activeOrderId = null;
+let splitOrderIds = [];
 let timerStart = null;
 let timerInterval = null;
 let fourPmTimeout = null;
@@ -536,7 +520,7 @@ function showStep(s) {
 
 // ── NEW ORDER FLOW ─────────────────────────────────────────────────────────
 function resetDraft() {
-  draft = { tags: [], notes: '', po: '' };
+  draft = { tags: [], notes: '', po: '', splitMode: false, splitPOs: [] };
   document.getElementById('new-notes').value = '';
   document.getElementById('manual-po').value = '';
   document.getElementById('scan-status').textContent = '';
@@ -557,6 +541,7 @@ function toggleTag(t) {
 function goToScan() {
   draft.notes = document.getElementById('new-notes').value.trim();
   showStep('scan');
+  setSplitMode(false);
 }
 
 function backToTags() {
@@ -564,19 +549,106 @@ function backToTags() {
   showStep('tags');
 }
 
+// ── SPLIT TIME MODE ────────────────────────────────────────────────────────
+function setSplitMode(enabled) {
+  draft.splitMode = enabled;
+  document.getElementById('opt-single').classList.toggle('active', !enabled);
+  document.getElementById('opt-split').classList.toggle('active', enabled);
+  document.getElementById('split-po-list').style.display = enabled ? 'block' : 'none';
+  document.getElementById('split-start-wrap').style.display = enabled ? 'block' : 'none';
+  document.getElementById('manual-po-btn').textContent = enabled ? 'Add' : 'Use';
+  if (enabled) renderSplitList();
+}
+
+function addPOToSplit(po) {
+  if (!po || draft.splitPOs.includes(po)) return;
+  draft.splitPOs.push(po);
+  renderSplitList();
+}
+
+function removePOFromSplit(idx) {
+  draft.splitPOs.splice(idx, 1);
+  renderSplitList();
+}
+
+function renderSplitList() {
+  const el = document.getElementById('split-po-list');
+  if (!el) return;
+  if (draft.splitPOs.length === 0) {
+    el.innerHTML = '<div style="font-size:10px;color:var(--text-muted);letter-spacing:1px;text-align:center;padding:10px 0;">No POs added yet — scan or type below</div>';
+  } else {
+    el.innerHTML = draft.splitPOs.map((po, i) => `
+      <div class="split-po-item">
+        <div class="split-po-num">${escHtml(po)}</div>
+        <button class="split-po-remove" onclick="removePOFromSplit(${i})">✕</button>
+      </div>`).join('');
+  }
+  const btn = document.getElementById('split-start-btn');
+  if (btn) {
+    const n = draft.splitPOs.length;
+    btn.textContent = `▶ Start Timer — Split ${n} PO${n !== 1 ? 's' : ''}`;
+    btn.disabled = n < 1;
+  }
+}
+
+function startSplitTimer() {
+  if (draft.splitPOs.length === 0) return;
+  stopScanner();
+  const baseId = Date.now();
+  splitOrderIds = draft.splitPOs.map((po, i) => {
+    const order = {
+      id: baseId + i,
+      po,
+      tags: [...draft.tags],
+      notes: draft.notes,
+      sessions: [],
+      created: baseId + i,
+      finished: false
+    };
+    db.orders.unshift(order);
+    return order.id;
+  });
+  saveDB();
+  timerStart = Date.now();
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    const el = document.getElementById('timer-display');
+    if (el) el.textContent = fmt(Date.now() - timerStart);
+  }, 500);
+  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+  scheduleFourPmAlert();
+  showStep('timer');
+  const n = draft.splitPOs.length;
+  document.getElementById('timer-po-label').textContent = `Split — ${n} Orders`;
+  document.getElementById('timer-po').innerHTML = draft.splitPOs.map(po =>
+    `<div style="font-size:18px;line-height:1.5;">${escHtml(po)}</div>`
+  ).join('');
+}
+
 function activateScanner(ctx) {
   startScanner('scan-video', 'scan-crosshair', 'scan-idle', 'scan-status', val => {
-    draft.po = val;
-    showConfirm();
+    if (draft.splitMode) {
+      addPOToSplit(val);
+      document.getElementById('scan-status').textContent = `+ Added: ${val}`;
+      stopScanner();
+    } else {
+      draft.po = val;
+      showConfirm();
+    }
   });
 }
 
 function useManualPO() {
   const v = document.getElementById('manual-po').value.trim();
   if (!v) return;
-  draft.po = v;
-  stopScanner();
-  showConfirm();
+  if (draft.splitMode) {
+    addPOToSplit(v);
+    document.getElementById('manual-po').value = '';
+  } else {
+    draft.po = v;
+    stopScanner();
+    showConfirm();
+  }
 }
 
 function showConfirm() {
@@ -654,7 +726,15 @@ function beginTimer(orderId) {
 }
 
 function openStopModal() {
-  document.getElementById('stop-elapsed').textContent = fmt(Date.now() - timerStart);
+  const elapsed = Date.now() - timerStart;
+  document.getElementById('stop-elapsed').textContent = fmt(elapsed);
+  const splitInfo = document.getElementById('stop-split-info');
+  if (splitOrderIds.length > 1) {
+    splitInfo.textContent = `÷ ${splitOrderIds.length} orders = ${fmt(Math.floor(elapsed / splitOrderIds.length))} each`;
+    splitInfo.style.display = 'block';
+  } else {
+    splitInfo.style.display = 'none';
+  }
   openModal('modal-stop');
 }
 
@@ -665,21 +745,31 @@ function stopSession(cnf) {
   clearFourPmAlert();
   dismissFourPmToast();
 
-  const order = db.orders.find(o => o.id === activeOrderId);
-  if (order) {
-    order.sessions.push({ start: timerStart, duration, cnf, date: timerStart });
+  if (splitOrderIds.length > 0) {
+    const splitDuration = Math.floor(duration / splitOrderIds.length);
+    splitOrderIds.forEach(oid => {
+      const order = db.orders.find(o => o.id === oid);
+      if (order) order.sessions.push({ start: timerStart, duration: splitDuration, cnf, date: timerStart });
+    });
     saveDB();
+    splitOrderIds = [];
+    activeOrderId = null;
+    timerStart = null;
+    closeModal('modal-stop');
+    switchView('orders');
+  } else {
+    const order = db.orders.find(o => o.id === activeOrderId);
+    if (order) {
+      order.sessions.push({ start: timerStart, duration, cnf, date: timerStart });
+      saveDB();
+    }
+    const savedId = activeOrderId;
+    activeOrderId = null;
+    timerStart = null;
+    closeModal('modal-stop');
+    switchView('orders');
+    setTimeout(() => showOrderDetail(savedId), 80);
   }
-
-  const savedId = activeOrderId;
-  activeOrderId = null;
-  timerStart = null;
-
-  closeModal('modal-stop');
-  switchView('orders');
-
-  // Open detail after short delay so render is ready
-  setTimeout(() => showOrderDetail(savedId), 80);
 }
 
 // ── ORDER DETAIL MODAL ─────────────────────────────────────────────────────
