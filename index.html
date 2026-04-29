@@ -102,6 +102,11 @@
   }
   .tag.selected { border-color: var(--green); color: var(--green); background: var(--green-dim); }
   .tag:active { opacity: 0.7; }
+  .tag.custom { border-color: var(--green); color: var(--green); background: var(--green-dim); gap: 6px; }
+  .tag.custom .tag-x { opacity: 0.55; font-size: 15px; line-height: 1; }
+  .tag-add-row { display: flex; gap: 8px; margin-top: 4px; }
+  .tag-add-row .input-field { flex: 1; margin-bottom: 0; }
+  .tag-add-row .btn { width: auto; }
 
   /* INPUTS */
   .input-field {
@@ -354,6 +359,7 @@
   .ms-bar-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
   .ms-bar-count { font-size: 12px; font-weight: 600; color: var(--green); letter-spacing: 1px; text-transform: uppercase; }
   .ms-bar-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .time-adjust-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 </style>
 </head>
 <body>
@@ -383,6 +389,10 @@
       <div id="step-tags">
         <div class="section-label">Step 1 — Select Tags</div>
         <div class="tags-grid" id="tags-grid"></div>
+        <div class="tag-add-row">
+          <input class="input-field" id="custom-tag-input" type="text" placeholder="Add custom tag…" maxlength="30" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomTag()}">
+          <button class="btn btn-sm" onclick="addCustomTag()">Add</button>
+        </div>
         <div class="gap"></div>
         <div class="section-label">Additional Info</div>
         <textarea class="input-field" id="new-notes" rows="3" placeholder="Optional notes..."></textarea>
@@ -442,6 +452,12 @@
         <div class="timer-display">
           <div class="timer-digits running" id="timer-display">00:00:00</div>
           <div class="timer-status running">● RECORDING</div>
+        </div>
+        <div class="time-adjust-row" style="margin-bottom:12px;">
+          <button class="btn btn-ghost btn-sm" onclick="adjustActiveTimer(-900000)">−15m</button>
+          <button class="btn btn-ghost btn-sm" onclick="adjustActiveTimer(-300000)">−5m</button>
+          <button class="btn btn-ghost btn-sm" onclick="adjustActiveTimer(300000)">+5m</button>
+          <button class="btn btn-ghost btn-sm" onclick="adjustActiveTimer(900000)">+15m</button>
         </div>
         <button class="btn btn-danger" onclick="openStopModal()">■ Stop Timer</button>
       </div>
@@ -561,6 +577,12 @@
     <button class="btn btn-primary btn-sm" onclick="multiSelectBoth()">CNF + Finish</button>
     <button class="btn btn-ghost btn-sm" id="ms-split-btn" onclick="multiSelectSplitTimer()">▶ Split Timer</button>
   </div>
+  <div class="time-adjust-row" style="margin-top:10px;">
+    <button class="btn btn-ghost btn-sm" onclick="adjustMultiSelectTime(-900000)">−15m</button>
+    <button class="btn btn-ghost btn-sm" onclick="adjustMultiSelectTime(-300000)">−5m</button>
+    <button class="btn btn-ghost btn-sm" onclick="adjustMultiSelectTime(300000)">+5m</button>
+    <button class="btn btn-ghost btn-sm" onclick="adjustMultiSelectTime(900000)">+15m</button>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
@@ -652,14 +674,33 @@ function resetDraft() {
 }
 
 function renderTags() {
-  document.getElementById('tags-grid').innerHTML = TAGS.map(t =>
+  const standard = TAGS.map(t =>
     `<button class="tag${draft.tags.includes(t) ? ' selected' : ''}" onclick="toggleTag('${t}')">${t}</button>`
   ).join('');
+  const custom = draft.tags.filter(t => !TAGS.includes(t)).map(t =>
+    `<button class="tag custom">${t}<span class="tag-x" onclick="removeCustomTag(${JSON.stringify(t)})">×</span></button>`
+  ).join('');
+  document.getElementById('tags-grid').innerHTML = standard + custom;
 }
 
 function toggleTag(t) {
   const i = draft.tags.indexOf(t);
   if (i > -1) draft.tags.splice(i, 1); else draft.tags.push(t);
+  renderTags();
+}
+
+function addCustomTag() {
+  const input = document.getElementById('custom-tag-input');
+  const val = input.value.trim();
+  if (!val || draft.tags.includes(val)) { input.value = ''; return; }
+  draft.tags.push(val);
+  input.value = '';
+  renderTags();
+}
+
+function removeCustomTag(t) {
+  const i = draft.tags.indexOf(t);
+  if (i > -1) draft.tags.splice(i, 1);
   renderTags();
 }
 
@@ -810,12 +851,10 @@ function scheduleFourPmAlert() {
   const now = new Date();
   const fourPm = new Date();
   fourPm.setHours(16, 0, 0, 0);
-  const msUntil = fourPm - now;
-  if (msUntil <= 0) return;
+  if (fourPm <= now) fourPm.setDate(fourPm.getDate() + 1);
   fourPmTimeout = setTimeout(() => {
-    if (!timerStart) return;
-    showFourPmAlert();
-  }, msUntil);
+    if (timerStart) showFourPmAlert();
+  }, fourPm - now);
 }
 
 function clearFourPmAlert() {
@@ -953,6 +992,16 @@ function showOrderDetail(id) {
             </div>
           </div>`).join('')}
     </div>
+    ${order.sessions.length > 0 ? `
+      <hr class="divider">
+      <div class="section-label" style="margin-bottom:8px;">Adjust Time</div>
+      <div class="time-adjust-row" style="margin-bottom:4px;">
+        <button class="btn btn-ghost btn-sm" onclick="adjustOrderTime(${id},-900000);showOrderDetail(${id})">−15m</button>
+        <button class="btn btn-ghost btn-sm" onclick="adjustOrderTime(${id},-300000);showOrderDetail(${id})">−5m</button>
+        <button class="btn btn-ghost btn-sm" onclick="adjustOrderTime(${id},300000);showOrderDetail(${id})">+5m</button>
+        <button class="btn btn-ghost btn-sm" onclick="adjustOrderTime(${id},900000);showOrderDetail(${id})">+15m</button>
+      </div>
+    ` : ''}
     ${!order.finished ? `
       <hr class="divider">
       ${hasActiveGroup ? `
@@ -974,6 +1023,24 @@ function showOrderDetail(id) {
     ` : `<div class="alert alert-success" style="margin-top:12px;">✓ Order complete — archived</div>`}
   `;
   openModal('modal-detail');
+}
+
+function adjustActiveTimer(deltaMs) {
+  if (!timerStart) return;
+  timerStart = Math.min(timerStart - deltaMs, Date.now() - 1000);
+}
+
+function adjustOrderTime(orderId, deltaMs) {
+  const order = db.orders.find(o => o.id === orderId) || db.archive.find(o => o.id === orderId);
+  if (!order || !order.sessions.length) return;
+  const last = order.sessions[order.sessions.length - 1];
+  last.duration = Math.max(0, (last.duration || 0) + deltaMs);
+  saveDB();
+}
+
+function adjustMultiSelectTime(deltaMs) {
+  selectedOrderIds.forEach(id => adjustOrderTime(id, deltaMs));
+  renderOrders();
 }
 
 function toggleCNF(orderId, idx) {
@@ -1495,6 +1562,15 @@ loadDB();
 renderTags();
 renderOrders();
 
+// Catch 4pm alert missed while app was in background
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden || !timerStart) return;
+  const now = new Date();
+  const h = now.getHours(), m = now.getMinutes();
+  if (h === 16 && m < 30) showFourPmAlert();
+  scheduleFourPmAlert();
+});
+
 // Prevent rubber-band scroll on iOS
 document.addEventListener('touchmove', e => {
   if (e.target.closest('.content') || e.target.closest('.modal')) return;
@@ -1507,6 +1583,38 @@ window.addEventListener('popstate', () => {
   if (open) { open.classList.remove('open'); history.pushState(null, ''); }
 });
 history.pushState(null, '');
+
+// ── TAB SWIPE NAVIGATION ───────────────────────────────────────────────────
+(function() {
+  const TABS = ['orders', 'new', 'archive', 'stats'];
+  const THRESHOLD = 50;
+  let startX = 0, startY = 0, tracking = false;
+
+  function currentIndex() {
+    const active = document.querySelector('.view.active');
+    if (!active) return 0;
+    return TABS.indexOf(active.id.replace('view-', ''));
+  }
+
+  document.addEventListener('touchstart', e => {
+    if (activeOrderId) return;
+    if (e.target.closest('.swipe-card-wrap') || e.target.closest('.swipe-action')) return;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    tracking = true;
+  }, { passive: true });
+
+  document.addEventListener('touchend', e => {
+    if (!tracking || activeOrderId) { tracking = false; return; }
+    tracking = false;
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = e.changedTouches[0].clientY - startY;
+    if (Math.abs(dx) < THRESHOLD || Math.abs(dx) <= Math.abs(dy)) return;
+    const i = currentIndex();
+    if (dx < 0 && i < TABS.length - 1) switchView(TABS[i + 1]);
+    else if (dx > 0 && i > 0) switchView(TABS[i - 1]);
+  }, { passive: true });
+})();
 </script>
 </body>
 </html>
