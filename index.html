@@ -306,6 +306,27 @@
     margin-bottom: 0 !important; border-radius: 12px;
   }
 
+  /* STATS */
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 12px; }
+  .stat-card.wide { grid-column: 1 / -1; }
+  .stat-value { font-size: 30px; font-weight: 700; color: var(--green); font-family: 'Courier New', monospace; letter-spacing: 2px; line-height: 1; }
+  .stat-label { font-size: 10px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1.2px; margin-top: 5px; }
+  .progress-track { background: var(--bg-input); border-radius: 6px; height: 7px; overflow: hidden; margin-top: 10px; }
+  .progress-fill { height: 100%; border-radius: 6px; background: var(--green); transition: width 0.4s ease; }
+  .progress-fill.complete { background: #4ade80; }
+  .progress-row { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; }
+  .progress-pct { font-size: 13px; font-weight: 700; color: var(--green); font-family: 'Courier New', monospace; }
+  .progress-goal { font-size: 10px; color: var(--text-dim); letter-spacing: 1px; }
+  .cnf-split { display: flex; gap: 10px; margin-top: 8px; }
+  .cnf-half { flex: 1; text-align: center; }
+  .cnf-half-val { font-size: 22px; font-weight: 700; font-family: 'Courier New', monospace; }
+  .cnf-half-label { font-size: 9px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; margin-top: 2px; }
+  .cnf-half.confirmed .cnf-half-val { color: var(--green); }
+  .cnf-half.confirmed .cnf-half-label { color: var(--text-dim); }
+  .cnf-half.pending .cnf-half-val { color: var(--amber); }
+  .cnf-half.pending .cnf-half-label { color: var(--text-dim); }
+
   /* SPLIT BADGE */
   .split-badge {
     display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: 1px;
@@ -343,6 +364,7 @@
       <button class="tab active" id="tab-orders" onclick="switchView('orders')">Orders</button>
       <button class="tab" onclick="switchView('new')">+ New</button>
       <button class="tab" onclick="switchView('archive')">Archive</button>
+      <button class="tab" onclick="switchView('stats')">Stats</button>
     </div>
   </div>
 
@@ -432,6 +454,58 @@
       <div id="archive-list"></div>
     </div>
 
+    <!-- ── STATS VIEW ── -->
+    <div id="view-stats" class="view">
+      <div class="section-label">Today</div>
+      <div class="stat-card wide" style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <div class="stat-value" id="stat-today-min">—</div>
+            <div class="stat-label">Minutes Logged Today</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="progress-pct" id="stat-today-pct">—%</div>
+            <div class="progress-goal">of 450 min</div>
+          </div>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="stat-today-bar" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-finished-today">—</div>
+          <div class="stat-label">POs Finished Today</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-confirmed-orders">—</div>
+          <div class="stat-label">Confirmed Orders</div>
+        </div>
+      </div>
+
+      <div class="section-label">CNF Status — All Sessions</div>
+      <div class="stat-card wide">
+        <div class="cnf-split">
+          <div class="cnf-half confirmed">
+            <div class="cnf-half-val" id="stat-cnf-count">—</div>
+            <div class="cnf-half-label">Confirmed</div>
+          </div>
+          <div class="cnf-half pending">
+            <div class="cnf-half-val" id="stat-pending-count">—</div>
+            <div class="cnf-half-label">Unconfirmed</div>
+          </div>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="stat-cnf-bar" style="width:0%"></div>
+        </div>
+        <div class="progress-row">
+          <div class="progress-pct" id="stat-cnf-pct">—%</div>
+          <div class="progress-goal">CNF rate</div>
+        </div>
+      </div>
+    </div>
+
   </div><!-- /content -->
 </div><!-- /app -->
 
@@ -494,7 +568,7 @@
 'use strict';
 
 // ── STATE ──────────────────────────────────────────────────────────────────
-const TAGS = ['Gantry','Air Prep','Testing','Learning'];
+const TAGS = ['Gantry','Air Prep','Testing','Learning', 'Kit', '3rd Party'];
 const DB_KEY = 'po-tracker-v1';
 
 let db = { orders: [], archive: [] };
@@ -551,12 +625,14 @@ function switchView(v) {
     const label = t.textContent.toLowerCase();
     if ((v === 'orders' && label.includes('order')) ||
         (v === 'new' && label.includes('new')) ||
-        (v === 'archive' && label.includes('archive'))) {
+        (v === 'archive' && label.includes('archive')) ||
+        (v === 'stats' && label.includes('stats'))) {
       t.classList.add('active');
     }
   });
   if (v === 'orders') renderOrders();
   if (v === 'archive') renderArchive();
+  if (v === 'stats') renderStats();
   if (v === 'new') { resetDraft(); showStep('tags'); renderTags(); }
 }
 
@@ -1327,6 +1403,50 @@ function initOrdersLongPress() {
     clearTimeout(pressTimer);
     pressTimer = null;
   });
+}
+
+// ── STATS ──────────────────────────────────────────────────────────────────
+function renderStats() {
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const todayEnd = todayStart + 86400000;
+  const GOAL_MIN = 450;
+
+  const allOrders = [...db.orders, ...db.archive];
+
+  // Today's logged minutes
+  let todayMs = 0;
+  allOrders.forEach(o => o.sessions.forEach(s => {
+    if (s.date >= todayStart && s.date < todayEnd) todayMs += s.duration || 0;
+  }));
+  const todayMin = Math.round(todayMs / 60000);
+  const todayPct = Math.min(100, Math.round((todayMin / GOAL_MIN) * 100));
+
+  // POs finished today
+  const finishedToday = db.archive.filter(o => o.finishedAt >= todayStart && o.finishedAt < todayEnd).length;
+
+  // Fully confirmed orders (all sessions CNF'd, at least one session)
+  const confirmedOrders = allOrders.filter(o => o.sessions.length > 0 && o.sessions.every(s => s.cnf)).length;
+
+  // CNF session split
+  let totalSessions = 0, cnfSessions = 0;
+  allOrders.forEach(o => o.sessions.forEach(s => { totalSessions++; if (s.cnf) cnfSessions++; }));
+  const pendingSessions = totalSessions - cnfSessions;
+  const cnfPct = totalSessions > 0 ? Math.round((cnfSessions / totalSessions) * 100) : 0;
+
+  document.getElementById('stat-today-min').textContent = todayMin + ' min';
+  document.getElementById('stat-today-pct').textContent = todayPct + '%';
+  const bar = document.getElementById('stat-today-bar');
+  bar.style.width = todayPct + '%';
+  bar.classList.toggle('complete', todayPct >= 100);
+
+  document.getElementById('stat-finished-today').textContent = finishedToday;
+  document.getElementById('stat-confirmed-orders').textContent = confirmedOrders;
+
+  document.getElementById('stat-cnf-count').textContent = cnfSessions;
+  document.getElementById('stat-pending-count').textContent = pendingSessions;
+  document.getElementById('stat-cnf-bar').style.width = cnfPct + '%';
+  document.getElementById('stat-cnf-pct').textContent = cnfPct + '%';
 }
 
 // ── SERVICE WORKER ─────────────────────────────────────────────────────────
