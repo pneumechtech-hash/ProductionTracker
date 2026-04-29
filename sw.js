@@ -1,4 +1,4 @@
-const CACHE = 'po-tracker-v4';
+const CACHE = 'po-tracker-v5';
 const ASSETS = [
   './',
   './index.html',
@@ -51,4 +51,51 @@ self.addEventListener('fetch', e => {
       })
     );
   }
+});
+
+// ── TIMER NOTIFICATIONS ────────────────────────────────────────────────────
+self.addEventListener('message', e => {
+  if (!e.data) return;
+  if (e.data.type === 'TIMER_UPDATE') {
+    showTimerNotif(e.data);
+  } else if (e.data.type === 'TIMER_STOP') {
+    self.registration.getNotifications({ tag: 'po-timer-live' })
+      .then(ns => ns.forEach(n => n.close()));
+  }
+});
+
+function showTimerNotif(data) {
+  const elapsed = fmtElapsed(Date.now() - data.startTime);
+  const lines = [elapsed];
+  if (data.tags && data.tags.length) lines.push(data.tags.join(' · '));
+  if (data.notes) lines.push(data.notes);
+  self.registration.showNotification('⏱ ' + data.po, {
+    body: lines.join('\n'),
+    icon: 'icons/icon-192.png',
+    tag: 'po-timer-live',
+    silent: true,
+    data: { url: self.registration.scope }
+  });
+}
+
+function fmtElapsed(ms) {
+  if (!ms || ms < 0) return '00:00:00';
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sc = s % 60;
+  return [h, m, sc].map(n => String(n).padStart(2, '0')).join(':');
+}
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const target = (e.notification.data && e.notification.data.url) || self.registration.scope;
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      for (const c of list) {
+        if ('focus' in c) return c.focus();
+      }
+      return clients.openWindow(target);
+    })
+  );
 });

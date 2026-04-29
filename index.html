@@ -363,8 +363,8 @@
     <div class="tab-bar">
       <button class="tab active" id="tab-orders" onclick="switchView('orders')">Orders</button>
       <button class="tab" onclick="switchView('new')">+ New</button>
-      <button class="tab" onclick="switchView('archive')">Archive</button>
-      <button class="tab" onclick="switchView('stats')">Stats</button>
+      <button class="tab" id="tab-archive" onclick="switchView('archive')">Archive</button>
+      <button class="tab" id="tab-stats" onclick="switchView('stats')">Stats</button>
     </div>
   </div>
 
@@ -581,6 +581,7 @@ let fourPmTimeout = null;
 let codeReader = null;
 let scanStream = null;
 let deferredInstallPrompt = null;
+let notifUpdateInterval = null;
 
 // ── DATABASE ───────────────────────────────────────────────────────────────
 function loadDB() {
@@ -740,9 +741,10 @@ function startSplitTimer() {
     const el = document.getElementById('timer-display');
     if (el) el.textContent = fmt(Date.now() - timerStart);
   }, 500);
-  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
   scheduleFourPmAlert();
   setOrdersTabDisabled(true);
+  const poLabel = draft.splitPOs.length <= 3 ? draft.splitPOs.join(' + ') : `${draft.splitPOs.length} POs`;
+  startLiveNotification(poLabel, draft.tags, draft.notes);
   showStep('timer');
   const n = draft.splitPOs.length;
   document.getElementById('timer-po-label').textContent = `Split — ${n} Orders`;
@@ -839,8 +841,10 @@ function dismissFourPmToast() {
 
 // ── TIMER ─────────────────────────────────────────────────────────────────
 function setOrdersTabDisabled(disabled) {
-  const tab = document.getElementById('tab-orders');
-  if (tab) tab.disabled = disabled;
+  ['tab-orders', 'tab-archive', 'tab-stats'].forEach(id => {
+    const tab = document.getElementById(id);
+    if (tab) tab.disabled = disabled;
+  });
 }
 
 function beginTimer(orderId) {
@@ -851,11 +855,10 @@ function beginTimer(orderId) {
     const el = document.getElementById('timer-display');
     if (el) el.textContent = fmt(Date.now() - timerStart);
   }, 500);
-  if ('Notification' in window && Notification.permission === 'default') {
-    Notification.requestPermission();
-  }
   scheduleFourPmAlert();
   setOrdersTabDisabled(true);
+  const order = db.orders.find(o => o.id === orderId);
+  startLiveNotification(order ? order.po : '?', order ? order.tags : [], order ? order.notes : '');
 }
 
 function openStopModal() {
@@ -878,6 +881,7 @@ function stopSession(cnf) {
   timerInterval = null;
   clearFourPmAlert();
   dismissFourPmToast();
+  stopLiveNotification();
 
   setOrdersTabDisabled(false);
   if (splitOrderIds.length > 0) {
@@ -1002,9 +1006,14 @@ function resumeGroupTimer(splitGroupId) {
     const el = document.getElementById('timer-display');
     if (el) el.textContent = fmt(Date.now() - timerStart);
   }, 500);
-  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
   scheduleFourPmAlert();
   setOrdersTabDisabled(true);
+  const rPos = groupOrders.map(o => o.po);
+  startLiveNotification(
+    rPos.length <= 3 ? rPos.join(' + ') : `${rPos.length} POs`,
+    groupOrders[0] ? groupOrders[0].tags : [],
+    groupOrders[0] ? groupOrders[0].notes : ''
+  );
   switchView('new');
   showStep('timer');
   document.getElementById('timer-po-label').textContent = `Split — ${groupOrders.length} Orders`;
@@ -1361,9 +1370,10 @@ function multiSelectSplitTimer() {
     const el = document.getElementById('timer-display');
     if (el) el.textContent = fmt(Date.now() - timerStart);
   }, 500);
-  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
   scheduleFourPmAlert();
   setOrdersTabDisabled(true);
+  const msPos = orders.map(o => o.po);
+  startLiveNotification(msPos.length <= 3 ? msPos.join(' + ') : `${msPos.length} POs`, [], '');
   switchView('new');
   showStep('timer');
   document.getElementById('timer-po-label').textContent = `Split — ${orders.length} Orders`;
@@ -1447,6 +1457,32 @@ function renderStats() {
   document.getElementById('stat-pending-count').textContent = pendingSessions;
   document.getElementById('stat-cnf-bar').style.width = cnfPct + '%';
   document.getElementById('stat-cnf-pct').textContent = cnfPct + '%';
+}
+
+// ── LIVE TIMER NOTIFICATION ────────────────────────────────────────────────
+function startLiveNotification(po, tags, notes) {
+  stopLiveNotification();
+  if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
+
+  async function send() {
+    if (!timerStart) return;
+    if (Notification.permission === 'default') await Notification.requestPermission();
+    if (Notification.permission !== 'granted') return;
+    const sw = await navigator.serviceWorker.ready;
+    if (!sw.active) return;
+    sw.active.postMessage({ type: 'TIMER_UPDATE', po, tags: tags || [], notes: notes || '', startTime: timerStart });
+  }
+
+  send();
+  notifUpdateInterval = setInterval(send, 30000);
+}
+
+function stopLiveNotification() {
+  if (notifUpdateInterval) { clearInterval(notifUpdateInterval); notifUpdateInterval = null; }
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.ready.then(sw => {
+    if (sw.active) sw.active.postMessage({ type: 'TIMER_STOP' });
+  });
 }
 
 // ── SERVICE WORKER ─────────────────────────────────────────────────────────
