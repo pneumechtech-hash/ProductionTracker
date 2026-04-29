@@ -1,4 +1,4 @@
-const CACHE = 'po-tracker-v2';
+const CACHE = 'po-tracker-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -23,15 +23,32 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  e.respondWith(
-    caches.match(e.request).then(cached => {
-      if (cached) return cached;
-      return fetch(e.request).then(res => {
-        if (!res || res.status !== 200 || res.type === 'opaque') return res;
-        const clone = res.clone();
-        caches.open(CACHE).then(c => c.put(e.request, clone));
+  const url = new URL(e.request.url);
+  const isHTML = e.request.destination === 'document' || url.pathname.endsWith('.html') || url.pathname === '/';
+
+  if (isHTML) {
+    // Network-first for HTML: always try to get the latest, fall back to cache if offline
+    e.respondWith(
+      fetch(e.request).then(res => {
+        if (res && res.status === 200) {
+          const clone = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+        }
         return res;
-      }).catch(() => caches.match('/index.html'));
-    })
-  );
+      }).catch(() => caches.match(e.request).then(cached => cached || caches.match('./index.html')))
+    );
+  } else {
+    // Cache-first for all other assets (images, scripts, etc.)
+    e.respondWith(
+      caches.match(e.request).then(cached => {
+        if (cached) return cached;
+        return fetch(e.request).then(res => {
+          if (!res || res.status !== 200 || res.type === 'opaque') return res;
+          const clone = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+          return res;
+        }).catch(() => caches.match('./index.html'));
+      })
+    );
+  }
 });
