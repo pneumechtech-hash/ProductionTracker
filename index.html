@@ -550,6 +550,12 @@
   </div>
 </div>
 
+<!-- ── NOON TOAST ── -->
+<div id="noon-toast" style="display:none;position:fixed;top:0;left:0;right:0;z-index:400;background:#001a0e;border-bottom:2px solid #4ade80;padding:14px 16px;display:none;align-items:center;justify-content:center;gap:12px;font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;color:#4ade80;text-transform:uppercase;">
+  <span>☀ 12:00 PM — Lunch break?</span>
+  <button onclick="dismissNoonToast()" style="background:transparent;border:1px solid #4ade80;color:#4ade80;font-family:'Courier New',monospace;font-size:9px;letter-spacing:1px;padding:4px 10px;cursor:pointer;border-radius:2px;text-transform:uppercase;">Dismiss</button>
+</div>
+
 <!-- ── 4PM TOAST ── -->
 <div id="four-pm-toast" style="display:none;position:fixed;top:0;left:0;right:0;z-index:400;background:#1a0e00;border-bottom:2px solid var(--amber);padding:14px 16px;display:none;align-items:center;justify-content:center;gap:12px;font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;color:var(--amber);text-transform:uppercase;">
   <span>⚠ 4:00 PM — Timer still running</span>
@@ -600,6 +606,7 @@ let splitOrderIds = [];
 let timerStart = null;
 let timerInterval = null;
 let fourPmTimeout = null;
+let noonTimeout = null;
 let codeReader = null;
 let scanStream = null;
 let deferredInstallPrompt = null;
@@ -783,6 +790,7 @@ function startSplitTimer() {
     if (el) el.textContent = fmt(Date.now() - timerStart);
   }, 500);
   scheduleFourPmAlert();
+  scheduleNoonAlert();
   setOrdersTabDisabled(true);
   const poLabel = draft.splitPOs.length <= 3 ? draft.splitPOs.join(' + ') : `${draft.splitPOs.length} POs`;
   startLiveNotification(poLabel, draft.tags, draft.notes);
@@ -878,6 +886,39 @@ function dismissFourPmToast() {
   if (toast) toast.style.display = 'none';
 }
 
+// ── NOON ALERT ─────────────────────────────────────────────────────────────
+function scheduleNoonAlert() {
+  clearNoonAlert();
+  const now = new Date();
+  const noon = new Date();
+  noon.setHours(12, 0, 0, 0);
+  if (noon <= now) noon.setDate(noon.getDate() + 1);
+  noonTimeout = setTimeout(() => {
+    if (timerStart) showNoonAlert();
+  }, noon - now);
+}
+
+function clearNoonAlert() {
+  if (noonTimeout) { clearTimeout(noonTimeout); noonTimeout = null; }
+}
+
+function showNoonAlert() {
+  const toast = document.getElementById('noon-toast');
+  if (toast) toast.style.display = 'flex';
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification('PO Tracker — Lunch Break?', {
+      body: 'It is 12:00 PM and a timer is still active.',
+      icon: 'icons/icon-192.png',
+      tag: 'noon-alert'
+    });
+  }
+}
+
+function dismissNoonToast() {
+  const toast = document.getElementById('noon-toast');
+  if (toast) toast.style.display = 'none';
+}
+
 // ── TIMER ─────────────────────────────────────────────────────────────────
 function setOrdersTabDisabled(disabled) {
   ['tab-orders', 'tab-archive', 'tab-stats'].forEach(id => {
@@ -895,6 +936,7 @@ function beginTimer(orderId) {
     if (el) el.textContent = fmt(Date.now() - timerStart);
   }, 500);
   scheduleFourPmAlert();
+  scheduleNoonAlert();
   setOrdersTabDisabled(true);
   const order = db.orders.find(o => o.id === orderId);
   startLiveNotification(order ? order.po : '?', order ? order.tags : [], order ? order.notes : '');
@@ -920,6 +962,8 @@ function stopSession(cnf) {
   timerInterval = null;
   clearFourPmAlert();
   dismissFourPmToast();
+  clearNoonAlert();
+  dismissNoonToast();
   stopLiveNotification();
 
   setOrdersTabDisabled(false);
@@ -1074,6 +1118,7 @@ function resumeGroupTimer(splitGroupId) {
     if (el) el.textContent = fmt(Date.now() - timerStart);
   }, 500);
   scheduleFourPmAlert();
+  scheduleNoonAlert();
   setOrdersTabDisabled(true);
   const rPos = groupOrders.map(o => o.po);
   startLiveNotification(
@@ -1438,6 +1483,7 @@ function multiSelectSplitTimer() {
     if (el) el.textContent = fmt(Date.now() - timerStart);
   }, 500);
   scheduleFourPmAlert();
+  scheduleNoonAlert();
   setOrdersTabDisabled(true);
   const msPos = orders.map(o => o.po);
   startLiveNotification(msPos.length <= 3 ? msPos.join(' + ') : `${msPos.length} POs`, [], '');
@@ -1568,7 +1614,9 @@ document.addEventListener('visibilitychange', () => {
   const now = new Date();
   const h = now.getHours(), m = now.getMinutes();
   if (h === 16 && m < 30) showFourPmAlert();
+  if (h === 12 && m < 30) showNoonAlert();
   scheduleFourPmAlert();
+  scheduleNoonAlert();
 });
 
 // Prevent rubber-band scroll on iOS
