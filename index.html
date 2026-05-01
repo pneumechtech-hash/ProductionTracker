@@ -374,7 +374,7 @@
     <div class="logo">PO Tracker</div>
     <div class="tab-bar">
       <button class="tab active" id="tab-orders" onclick="switchView('orders')">Orders</button>
-      <button class="tab" onclick="switchView('new')">+ New</button>
+      <button class="tab" id="tab-new" onclick="switchView('new')">+ New</button>
       <button class="tab" id="tab-archive" onclick="switchView('archive')">Archive</button>
       <button class="tab" id="tab-stats" onclick="switchView('stats')">Stats</button>
     </div>
@@ -454,6 +454,8 @@
         <div class="po-confirm" style="margin-bottom:12px;">
           <div class="po-label" id="timer-po-label">Production Order</div>
           <div class="po-number" id="timer-po">—</div>
+          <div class="po-label" id="timer-tags" style="display:none"></div>
+          <div class="po-label" id="timer-notes" style="font-style:italic;display:none"></div>
         </div>
         <div class="timer-display">
           <div class="timer-digits running" id="timer-display">00:00:00</div>
@@ -809,6 +811,7 @@ function startSplitTimer() {
   document.getElementById('timer-po').innerHTML = draft.splitPOs.map(po =>
     `<div style="font-size:18px;line-height:1.5;">${escHtml(po)}</div>`
   ).join('');
+  updateTimerMeta(draft.tags, draft.notes);
 }
 
 function activateScanner(ctx) {
@@ -860,6 +863,7 @@ function createOrderAndStartTimer() {
   showStep('timer');
   document.getElementById('timer-po-label').textContent = 'Production Order';
   document.getElementById('timer-po').textContent = order.po;
+  updateTimerMeta(draft.tags, draft.notes);
 }
 
 // ── 4PM ALERT ─────────────────────────────────────────────────────────────
@@ -930,10 +934,19 @@ function dismissNoonToast() {
 
 // ── TIMER ─────────────────────────────────────────────────────────────────
 function setOrdersTabDisabled(disabled) {
-  ['tab-orders', 'tab-archive', 'tab-stats'].forEach(id => {
+  ['tab-orders', 'tab-new', 'tab-archive', 'tab-stats'].forEach(id => {
     const tab = document.getElementById(id);
     if (tab) tab.disabled = disabled;
   });
+}
+
+function updateTimerMeta(tags, notes) {
+  const tagsEl = document.getElementById('timer-tags');
+  const notesEl = document.getElementById('timer-notes');
+  tagsEl.textContent = tags && tags.length ? tags.join(' · ') : '';
+  tagsEl.style.display = tags && tags.length ? '' : 'none';
+  notesEl.textContent = notes || '';
+  notesEl.style.display = notes ? '' : 'none';
 }
 
 function beginTimer(orderId) {
@@ -1113,6 +1126,7 @@ function addSessionToOrder(orderId) {
   showStep('timer');
   document.getElementById('timer-po-label').textContent = 'Production Order';
   document.getElementById('timer-po').textContent = order ? order.po : '';
+  updateTimerMeta(order ? order.tags : [], order ? order.notes : '');
 }
 
 function resumeGroupTimer(splitGroupId) {
@@ -1141,6 +1155,7 @@ function resumeGroupTimer(splitGroupId) {
   document.getElementById('timer-po').innerHTML = groupOrders.map(o =>
     `<div style="font-size:18px;line-height:1.5;">${escHtml(o.po)}</div>`
   ).join('');
+  updateTimerMeta(groupOrders[0] ? groupOrders[0].tags : [], groupOrders[0] ? groupOrders[0].notes : '');
 }
 
 function confirmFinish(id) {
@@ -1502,6 +1517,7 @@ function multiSelectSplitTimer() {
   document.getElementById('timer-po').innerHTML = orders.map(o =>
     `<div style="font-size:18px;line-height:1.5;">${escHtml(o.po)}</div>`
   ).join('');
+  updateTimerMeta(orders[0] ? orders[0].tags : [], orders[0] ? orders[0].notes : '');
 }
 
 function initOrdersLongPress() {
