@@ -582,6 +582,18 @@
   </div>
 </div>
 
+<!-- ── ARCHIVE MULTI-SELECT BAR ── -->
+<div id="archive-multiselect-bar" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#15151b;border-top:2px solid var(--red);padding:12px 16px;z-index:150;padding-bottom:calc(12px + var(--safe-bottom));">
+  <div class="ms-bar-top">
+    <span class="ms-bar-count" id="archive-multiselect-count">0 selected</span>
+    <button class="btn btn-ghost btn-sm" onclick="exitArchiveMultiSelect()">Cancel</button>
+  </div>
+  <div class="ms-bar-grid">
+    <button class="btn btn-primary btn-sm" onclick="unarchiveSelected()">↩ Unarchive</button>
+    <button class="btn btn-danger btn-sm" onclick="deleteSelectedArchive()">Delete</button>
+  </div>
+</div>
+
 <!-- ── MULTI-SELECT BAR ── -->
 <div id="multiselect-bar">
   <div class="ms-bar-top">
@@ -658,6 +670,7 @@ function totalTime(order) {
 // ── VIEW NAVIGATION ────────────────────────────────────────────────────────
 function switchView(v) {
   if (v !== 'orders') resetMultiSelect();
+  if (v !== 'archive') resetArchiveMultiSelect();
   stopScanner();
   document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
@@ -1058,7 +1071,7 @@ function showOrderDetail(id) {
             </div>
           </div>`).join('')}
     </div>
-    ${order.sessions.length > 0 ? `
+    ${order.sessions.length > 0 && !order.finished ? `
       <hr class="divider">
       <div class="section-label" style="margin-bottom:8px;">Adjust Time</div>
       <div class="time-adjust-row" style="margin-bottom:4px;">
@@ -1086,7 +1099,11 @@ function showOrderDetail(id) {
         </div>
       `}
       ${pendingCount > 0 ? `<div style="font-size:11px;color:var(--amber);text-align:center;">${pendingCount} session${pendingCount>1?'s':''} pending CNF</div>` : ''}
-    ` : `<div class="alert alert-success" style="margin-top:12px;">✓ Order complete — archived</div>`}
+    ` : `
+      <hr class="divider">
+      <div class="alert alert-success" style="margin-bottom:12px;">✓ Order complete — archived</div>
+      <button class="btn btn-primary" style="width:100%;" onclick="unarchiveOrder(${id})">↩ Unarchive</button>
+    `}
   `;
   openModal('modal-detail');
 }
@@ -1215,100 +1232,130 @@ function renderArchive() {
   const el = document.getElementById('archive-list');
   if (db.archive.length === 0) {
     el.innerHTML = `<div class="empty-state"><div class="empty-icon">▣</div><div class="empty-text">No archived orders</div></div>`;
+    initArchiveLongPress();
     return;
   }
   el.innerHTML = db.archive.map(o => {
     const total = totalTime(o);
-    return `
-    <div class="swipe-wrapper" data-id="${o.id}">
-      <div class="swipe-action">
-        <span class="swipe-action-label">Delete</span>
-      </div>
-      <div class="swipe-card-wrap order-card finished" onclick="showOrderDetail(${o.id})">
+    const sel = archiveMultiSelectMode && selectedArchiveIds.has(o.id);
+    return `<div class="order-card finished${sel ? ' ms-selected' : ''}" data-id="${o.id}" onclick="${archiveMultiSelectMode ? `toggleArchiveSelection(${o.id})` : `showOrderDetail(${o.id})`}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
         <div class="order-po" style="color:var(--text-dim);">${escHtml(o.po)}</div>
-        <div class="order-meta">Finished ${fmtDate(o.finishedAt)} · ${o.sessions.length} session${o.sessions.length !== 1 ? 's' : ''}</div>
-        ${o.tags.length ? `<div class="order-tags">${o.tags.map(t => `<span class="order-tag">${t}</span>`).join('')}</div>` : ''}
-        <div class="order-total">Total: ${fmt(total)}</div>
+        ${archiveMultiSelectMode
+          ? `<div class="ms-check${sel ? ' on' : ''}" style="margin-top:4px;">${sel ? '✓' : ''}</div>`
+          : ''}
       </div>
+      <div class="order-meta">Finished ${fmtDate(o.finishedAt)} · ${o.sessions.length} session${o.sessions.length !== 1 ? 's' : ''}</div>
+      ${o.tags.length ? `<div class="order-tags">${o.tags.map(t => `<span class="order-tag">${t}</span>`).join('')}</div>` : ''}
+      <div class="order-total">Total: ${fmt(total)}</div>
     </div>`;
   }).join('');
-  initSwipeDelete();
+  initArchiveLongPress();
 }
 
-function initSwipeDelete() {
-  const SNAP = 80;
-  document.querySelectorAll('.swipe-wrapper').forEach(wrapper => {
-    const id = Number(wrapper.dataset.id);
-    const card = wrapper.querySelector('.swipe-card-wrap');
-    const action = wrapper.querySelector('.swipe-action');
-    let startX = 0, startY = 0, moveDx = 0, tracking = false, open = false;
+// ── ARCHIVE MULTI-SELECT ───────────────────────────────────────────────────
+let archiveMultiSelectMode = false;
+let selectedArchiveIds = new Set();
 
-    card.addEventListener('touchstart', e => {
-      if (action.classList.contains('confirming')) return;
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
-      moveDx = 0;
-      tracking = true;
-      card.style.transition = 'none';
-    }, { passive: true });
+function resetArchiveMultiSelect() {
+  archiveMultiSelectMode = false;
+  selectedArchiveIds = new Set();
+  const bar = document.getElementById('archive-multiselect-bar');
+  if (bar) bar.style.display = 'none';
+}
 
-    card.addEventListener('touchmove', e => {
-      if (!tracking) return;
-      moveDx = e.touches[0].clientX - startX;
-      const moveDy = e.touches[0].clientY - startY;
-      if (!open && Math.abs(moveDy) > Math.abs(moveDx)) { tracking = false; card.style.transition = ''; return; }
-      const base = open ? -SNAP : 0;
-      const tx = Math.min(0, Math.max(-SNAP, base + moveDx));
-      card.style.transform = `translateX(${tx}px)`;
-    }, { passive: true });
+function enterArchiveMultiSelect(id) {
+  archiveMultiSelectMode = true;
+  selectedArchiveIds = new Set([id]);
+  renderArchive();
+  document.getElementById('archive-multiselect-bar').style.display = 'block';
+  updateArchiveMultiSelectBar();
+}
 
-    card.addEventListener('touchend', () => {
-      if (!tracking) return;
-      tracking = false;
-      card.style.transition = 'transform 0.2s ease';
-      if (moveDx < -30) {
-        open = true;
-        card.style.transform = `translateX(-${SNAP}px)`;
-      } else if (moveDx > 20 || !open) {
-        open = false;
-        card.style.transform = 'translateX(0)';
-      }
-    });
+function exitArchiveMultiSelect() {
+  resetArchiveMultiSelect();
+  renderArchive();
+}
 
-    action.addEventListener('click', e => {
-      e.stopPropagation();
-      if (action.classList.contains('confirming')) return;
-      action.classList.add('confirming');
-      card.style.transition = 'transform 0.2s ease';
-      card.style.transform = `translateX(-${wrapper.offsetWidth}px)`;
-      action.innerHTML = `
-        <span class="swipe-action-label">Confirm delete?</span>
-        <div class="swipe-confirm-row">
-          <button class="swipe-yes">Yes</button>
-          <button class="swipe-no">Cancel</button>
-        </div>`;
-      action.querySelector('.swipe-yes').addEventListener('click', ev => {
-        ev.stopPropagation();
-        deleteArchiveEntry(id);
-      });
-      action.querySelector('.swipe-no').addEventListener('click', ev => {
-        ev.stopPropagation();
-        open = false;
-        card.style.transition = 'transform 0.2s ease';
-        card.style.transform = 'translateX(0)';
-        action.classList.remove('confirming');
-        action.innerHTML = '<span class="swipe-action-label">Delete</span>';
-      });
-    });
+function toggleArchiveSelection(id) {
+  if (selectedArchiveIds.has(id)) selectedArchiveIds.delete(id);
+  else selectedArchiveIds.add(id);
+  if (selectedArchiveIds.size === 0) { exitArchiveMultiSelect(); return; }
+  updateArchiveMultiSelectBar();
+  renderArchive();
+}
+
+function updateArchiveMultiSelectBar() {
+  const n = selectedArchiveIds.size;
+  const el = document.getElementById('archive-multiselect-count');
+  if (el) el.textContent = `${n} order${n !== 1 ? 's' : ''} selected`;
+}
+
+function unarchiveSelected() {
+  [...selectedArchiveIds].forEach(id => {
+    const idx = db.archive.findIndex(o => o.id === id);
+    if (idx === -1) return;
+    const order = db.archive.splice(idx, 1)[0];
+    order.finished = false;
+    delete order.finishedAt;
+    db.orders.unshift(order);
   });
+  saveDB();
+  exitArchiveMultiSelect();
 }
 
-function deleteArchiveEntry(id) {
+function unarchiveOrder(id) {
   const idx = db.archive.findIndex(o => o.id === id);
   if (idx === -1) return;
-  db.archive.splice(idx, 1);
+  const order = db.archive.splice(idx, 1)[0];
+  order.finished = false;
+  delete order.finishedAt;
+  db.orders.unshift(order);
   saveDB();
+  closeModal('modal-detail');
   renderArchive();
+}
+
+function deleteSelectedArchive() {
+  [...selectedArchiveIds].forEach(id => {
+    const idx = db.archive.findIndex(o => o.id === id);
+    if (idx !== -1) db.archive.splice(idx, 1);
+  });
+  saveDB();
+  exitArchiveMultiSelect();
+}
+
+function initArchiveLongPress() {
+  const list = document.getElementById('archive-list');
+  if (!list || list._lpInit) return;
+  list._lpInit = true;
+  let pressTimer = null;
+  let moved = false;
+  let targetId = null;
+
+  list.addEventListener('touchstart', e => {
+    const card = e.target.closest('[data-id]');
+    if (!card) return;
+    targetId = Number(card.dataset.id);
+    moved = false;
+    pressTimer = setTimeout(() => {
+      if (moved) return;
+      if (navigator.vibrate) navigator.vibrate(40);
+      if (archiveMultiSelectMode) toggleArchiveSelection(targetId);
+      else enterArchiveMultiSelect(targetId);
+    }, 500);
+  }, { passive: true });
+
+  list.addEventListener('touchmove', () => {
+    moved = true;
+    clearTimeout(pressTimer);
+    pressTimer = null;
+  }, { passive: true });
+
+  list.addEventListener('touchend', () => {
+    clearTimeout(pressTimer);
+    pressTimer = null;
+  });
 }
 
 // ── MODAL HELPERS ──────────────────────────────────────────────────────────
