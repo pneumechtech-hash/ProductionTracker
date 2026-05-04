@@ -183,6 +183,11 @@
     color: var(--green); background: var(--green-dim); white-space: nowrap;
   }
   .cnf-badge.pending { border-color: rgba(251,191,36,0.4); color: var(--amber); background: rgba(251,191,36,0.07); }
+  .adj-badge { font-size: 9px; font-weight: 700; letter-spacing: 0.5px; padding: 3px 7px; border-radius: 5px; border: 1px solid rgba(167,139,250,0.4); color: #a78bfa; background: rgba(167,139,250,0.08); white-space: nowrap; }
+  .session-item.manual { border-color: rgba(167,139,250,0.3); background: rgba(167,139,250,0.04); }
+  .session-item.deduction { border-color: rgba(248,113,113,0.3); background: rgba(248,113,113,0.04); }
+  .session-item.deduction .session-time { color: #f87171; }
+  .deduction-badge { font-size: 9px; font-weight: 700; letter-spacing: 0.5px; padding: 3px 7px; border-radius: 5px; border: 1px solid rgba(248,113,113,0.4); color: #f87171; background: rgba(248,113,113,0.08); white-space: nowrap; }
 
   /* ORDER CARDS */
   .order-card {
@@ -460,6 +465,7 @@
         <div class="timer-display">
           <div class="timer-digits running" id="timer-display">00:00:00</div>
           <div class="timer-status running">● RECORDING</div>
+          <div id="timer-total" style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-top:8px;"></div>
         </div>
         <div class="time-adjust-row" style="margin-bottom:12px;">
           <button class="btn btn-ghost btn-sm" onclick="adjustActiveTimer(-900000)">−15m</button>
@@ -809,10 +815,7 @@ function startSplitTimer() {
   saveDB();
   timerStart = Date.now();
   clearInterval(timerInterval);
-  timerInterval = setInterval(() => {
-    const el = document.getElementById('timer-display');
-    if (el) el.textContent = fmt(Date.now() - timerStart);
-  }, 500);
+  timerInterval = setInterval(timerTick, 500);
   scheduleFourPmAlert();
   scheduleNoonAlert();
   setOrdersTabDisabled(true);
@@ -966,10 +969,7 @@ function beginTimer(orderId) {
   activeOrderId = orderId;
   timerStart = Date.now();
   clearInterval(timerInterval);
-  timerInterval = setInterval(() => {
-    const el = document.getElementById('timer-display');
-    if (el) el.textContent = fmt(Date.now() - timerStart);
-  }, 500);
+  timerInterval = setInterval(timerTick, 500);
   scheduleFourPmAlert();
   scheduleNoonAlert();
   setOrdersTabDisabled(true);
@@ -1052,33 +1052,52 @@ function showOrderDetail(id) {
         <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-top:2px;">${fmtMin(total)}</div>
       </div>
     </div>
-    ${order.tags.length ? `<div class="order-tags" style="margin-bottom:12px;">${order.tags.map(t => `<span class="order-tag">${t}</span>`).join('')}</div>` : ''}
+    <div id="detail-tags-${id}" style="margin-bottom:12px;"></div>
     ${order.notes ? `<div style="font-size:11px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">${escHtml(order.notes)}</div>` : ''}
     <hr class="divider">
     <div class="section-label">Sessions (${order.sessions.length})</div>
     <div class="sessions-list">
       ${order.sessions.length === 0
         ? '<div style="font-size:11px;color:var(--text-muted);padding:12px 0;">No sessions recorded yet</div>'
-        : order.sessions.map((s, i) => `
-          <div class="session-item">
+        : order.sessions.map((s, i) => {
+          const neg = s.duration < 0;
+          const abs = Math.abs(s.duration);
+          const cls = neg ? 'deduction' : (s.manual ? 'manual' : '');
+          const timeStr = (neg ? '−' : '') + fmt(abs);
+          const minStr = (neg ? '−' : '') + fmtMin(abs);
+          const badge = neg
+            ? '<span class="deduction-badge">ADJ −</span>'
+            : (s.manual ? '<span class="adj-badge">ADJ +</span>' : '');
+          return `
+          <div class="session-item${cls ? ' ' + cls : ''}">
             <div>
-              <div class="session-time">${fmt(s.duration)}</div>
-              <div class="session-date">${fmtDate(s.date)} · ${fmtMin(s.duration)}</div>
+              <div class="session-time">${timeStr}</div>
+              <div class="session-date">${fmtDate(s.date)} · ${minStr}</div>
             </div>
             <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-              <span class="cnf-badge${s.cnf ? '' : ' pending'}">${s.cnf ? 'CNF' : 'PENDING'}</span>
-              ${!order.finished ? `<button class="btn btn-ghost btn-sm" onclick="toggleCNF(${id},${i})" style="font-size:9px;padding:4px 8px;min-height:30px;">${s.cnf ? 'Undo' : 'CNF'}</button>` : ''}
+              ${badge}
+              ${!neg ? `<span class="cnf-badge${s.cnf ? '' : ' pending'}">${s.cnf ? 'CNF' : 'PENDING'}</span>` : ''}
+              ${!order.finished && !neg ? `<button class="btn btn-ghost btn-sm" onclick="toggleCNF(${id},${i})" style="font-size:9px;padding:4px 8px;min-height:30px;">${s.cnf ? 'Undo' : 'CNF'}</button>` : ''}
             </div>
-          </div>`).join('')}
+          </div>`;
+        }).join('')}
     </div>
     ${order.sessions.length > 0 && !order.finished ? `
       <hr class="divider">
       <div class="section-label" style="margin-bottom:8px;">Adjust Time</div>
-      <div class="time-adjust-row" style="margin-bottom:4px;">
-        <button class="btn btn-ghost btn-sm" onclick="adjustOrderTime(${id},-900000);showOrderDetail(${id})">−15m</button>
-        <button class="btn btn-ghost btn-sm" onclick="adjustOrderTime(${id},-300000);showOrderDetail(${id})">−5m</button>
-        <button class="btn btn-ghost btn-sm" onclick="adjustOrderTime(${id},300000);showOrderDetail(${id})">+5m</button>
-        <button class="btn btn-ghost btn-sm" onclick="adjustOrderTime(${id},900000);showOrderDetail(${id})">+15m</button>
+      <div class="time-adjust-row" style="margin-bottom:6px;">
+        <button class="btn btn-ghost btn-sm" onclick="stageAdjust(${id},-900000)">−15m</button>
+        <button class="btn btn-ghost btn-sm" onclick="stageAdjust(${id},-300000)">−5m</button>
+        <button class="btn btn-ghost btn-sm" onclick="stageAdjust(${id},300000)">+5m</button>
+        <button class="btn btn-ghost btn-sm" onclick="stageAdjust(${id},900000)">+15m</button>
+        <button class="btn btn-ghost btn-sm" onclick="stageAdjust(${id},3600000)">+1h</button>
+      </div>
+      <div id="adj-preview-${id}" style="display:none;margin-bottom:4px;">
+        <div id="adj-label-${id}" style="font-size:11px;text-align:center;margin-bottom:6px;"></div>
+        <div class="row">
+          <button class="btn btn-ghost btn-sm" onclick="clearAdjust(${id})" style="flex:1;">Clear</button>
+          <button id="adj-commit-${id}" class="btn btn-primary btn-sm" onclick="commitAdjust(${id})" style="flex:2;"></button>
+        </div>
       </div>
     ` : ''}
     ${!order.finished ? `
@@ -1106,11 +1125,77 @@ function showOrderDetail(id) {
     `}
   `;
   openModal('modal-detail');
+  renderDetailTags(id);
+}
+
+function timerTick() {
+  const elapsed = Date.now() - timerStart;
+  const disp = document.getElementById('timer-display');
+  if (disp) disp.textContent = fmt(elapsed);
+  const tot = document.getElementById('timer-total');
+  if (tot) {
+    if (activeOrderId) {
+      const order = db.orders.find(o => o.id === activeOrderId);
+      const prev = order ? totalTime(order) : 0;
+      if (prev > 0) {
+        tot.textContent = 'Order total: ' + fmt(prev + elapsed) + ' · ' + fmtMin(prev + elapsed);
+      } else {
+        tot.textContent = '';
+      }
+    } else {
+      tot.textContent = '';
+    }
+  }
 }
 
 function adjustActiveTimer(deltaMs) {
   if (!timerStart) return;
   timerStart = Math.min(timerStart - deltaMs, Date.now() - 1000);
+}
+
+const adjStaging = {};
+
+function stageAdjust(orderId, deltaMs) {
+  adjStaging[orderId] = (adjStaging[orderId] || 0) + deltaMs;
+  const total = adjStaging[orderId];
+  const preview = document.getElementById('adj-preview-' + orderId);
+  const label = document.getElementById('adj-label-' + orderId);
+  const commit = document.getElementById('adj-commit-' + orderId);
+  if (!preview || !label || !commit) return;
+  const abs = fmtMin(Math.abs(total));
+  if (total > 0) {
+    label.style.color = '#a78bfa';
+    label.textContent = '+' + abs + ' — will log as new session';
+    commit.textContent = 'Add Session';
+    commit.className = 'btn btn-primary btn-sm';
+  } else if (total < 0) {
+    label.style.color = '#f87171';
+    label.textContent = '−' + abs + ' — will log as deduction session';
+    commit.textContent = 'Log Deduction';
+    commit.className = 'btn btn-warn btn-sm';
+  } else {
+    preview.style.display = 'none';
+    return;
+  }
+  preview.style.display = 'block';
+}
+
+function clearAdjust(orderId) {
+  delete adjStaging[orderId];
+  const preview = document.getElementById('adj-preview-' + orderId);
+  if (preview) preview.style.display = 'none';
+}
+
+function commitAdjust(orderId) {
+  const ms = adjStaging[orderId];
+  if (!ms) return;
+  const order = db.orders.find(o => o.id === orderId);
+  if (!order) return;
+  const now = Date.now();
+  order.sessions.push({ start: now, duration: ms, cnf: false, date: now, manual: true });
+  saveDB();
+  delete adjStaging[orderId];
+  showOrderDetail(orderId);
 }
 
 function adjustOrderTime(orderId, deltaMs) {
@@ -1135,6 +1220,72 @@ function toggleCNF(orderId, idx) {
   renderOrders();
 }
 
+function renderDetailTags(orderId, editing) {
+  const order = db.orders.find(o => o.id === orderId) || db.archive.find(o => o.id === orderId);
+  const el = document.getElementById('detail-tags-' + orderId);
+  if (!order || !el) return;
+  if (editing && !order.finished) {
+    const standard = TAGS.map(t => {
+      const sel = order.tags.includes(t);
+      return `<button class="tag${sel ? ' selected' : ''}" onclick="toggleDetailTag(${orderId},'${t}')">${t}</button>`;
+    }).join('');
+    const custom = order.tags.filter(t => !TAGS.includes(t)).map(t =>
+      `<button class="tag custom">${escHtml(t)}<span class="tag-x" onclick="removeDetailCustomTag(${orderId},${JSON.stringify(t)})">×</span></button>`
+    ).join('');
+    el.innerHTML = `
+      <div class="tags-grid" style="margin-bottom:8px;">${standard}${custom}</div>
+      <div class="tag-add-row" style="margin-bottom:8px;">
+        <input class="input-field" id="detail-tag-input-${orderId}" type="text" placeholder="Add custom tag…" maxlength="30"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();addDetailCustomTag(${orderId})}">
+        <button class="btn btn-sm" onclick="addDetailCustomTag(${orderId})">Add</button>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="width:100%;" onclick="renderDetailTags(${orderId},false)">Done</button>`;
+  } else {
+    const editBtn = !order.finished
+      ? `<button class="btn btn-ghost btn-sm" onclick="renderDetailTags(${orderId},true)" style="font-size:10px;padding:3px 10px;min-height:26px;">✎ Edit</button>`
+      : '';
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+        ${order.tags.length
+          ? order.tags.map(t => `<span class="order-tag">${escHtml(t)}</span>`).join('')
+          : `<span style="font-size:11px;color:var(--text-muted);">No tags</span>`}
+        ${editBtn}
+      </div>`;
+  }
+}
+
+function toggleDetailTag(orderId, t) {
+  const order = db.orders.find(o => o.id === orderId);
+  if (!order) return;
+  const i = order.tags.indexOf(t);
+  if (i > -1) order.tags.splice(i, 1); else order.tags.push(t);
+  saveDB();
+  renderDetailTags(orderId, true);
+  renderOrders();
+}
+
+function addDetailCustomTag(orderId) {
+  const order = db.orders.find(o => o.id === orderId);
+  const input = document.getElementById('detail-tag-input-' + orderId);
+  if (!order || !input) return;
+  const val = input.value.trim();
+  if (!val || order.tags.includes(val)) { input.value = ''; return; }
+  order.tags.push(val);
+  saveDB();
+  renderDetailTags(orderId, true);
+  renderOrders();
+}
+
+function removeDetailCustomTag(orderId, t) {
+  const order = db.orders.find(o => o.id === orderId);
+  if (!order) return;
+  const i = order.tags.indexOf(t);
+  if (i > -1) order.tags.splice(i, 1);
+  saveDB();
+  renderDetailTags(orderId, true);
+  renderOrders();
+}
+
 function addSessionToOrder(orderId) {
   closeModal('modal-detail');
   beginTimer(orderId);
@@ -1153,10 +1304,7 @@ function resumeGroupTimer(splitGroupId) {
   splitOrderIds = groupOrders.map(o => o.id);
   timerStart = Date.now();
   clearInterval(timerInterval);
-  timerInterval = setInterval(() => {
-    const el = document.getElementById('timer-display');
-    if (el) el.textContent = fmt(Date.now() - timerStart);
-  }, 500);
+  timerInterval = setInterval(timerTick, 500);
   scheduleFourPmAlert();
   scheduleNoonAlert();
   setOrdersTabDisabled(true);
@@ -1549,10 +1697,7 @@ function multiSelectSplitTimer() {
   splitOrderIds = orders.map(o => o.id);
   timerStart = Date.now();
   clearInterval(timerInterval);
-  timerInterval = setInterval(() => {
-    const el = document.getElementById('timer-display');
-    if (el) el.textContent = fmt(Date.now() - timerStart);
-  }, 500);
+  timerInterval = setInterval(timerTick, 500);
   scheduleFourPmAlert();
   scheduleNoonAlert();
   setOrdersTabDisabled(true);
