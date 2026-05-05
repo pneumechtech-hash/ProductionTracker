@@ -551,6 +551,12 @@
           <div class="progress-goal">CNF rate</div>
         </div>
       </div>
+
+      <div class="section-label" style="margin-top:16px;">Notifications</div>
+      <div class="stat-card wide" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;">Test background notification</div>
+        <button id="notif-test-btn" class="btn btn-ghost btn-sm" onclick="scheduleTestNotification()">Send in 1 min</button>
+      </div>
     </div>
 
   </div><!-- /content -->
@@ -929,11 +935,14 @@ function clearFourPmAlert() {
 function showFourPmAlert() {
   const toast = document.getElementById('four-pm-toast');
   if (toast) toast.style.display = 'flex';
-  if ('Notification' in window && Notification.permission === 'granted') {
-    new Notification('PO Tracker — Timer Running', {
-      body: 'It is 4:00 PM and a timer is still active.',
-      icon: 'icons/icon-192.png',
-      tag: 'four-pm-alert'
+  if ('serviceWorker' in navigator && Notification.permission === 'granted') {
+    navigator.serviceWorker.ready.then(reg => {
+      reg.showNotification('PO Tracker — Timer Running', {
+        body: 'It is 4:00 PM and a timer is still active.',
+        icon: 'icons/icon-192.png',
+        tag: 'four-pm-alert',
+        requireInteraction: true
+      });
     });
   }
 }
@@ -962,11 +971,14 @@ function clearNoonAlert() {
 function showNoonAlert() {
   const toast = document.getElementById('noon-toast');
   if (toast) toast.style.display = 'flex';
-  if ('Notification' in window && Notification.permission === 'granted') {
-    new Notification('PO Tracker — Lunch Break?', {
-      body: 'It is 12:00 PM and a timer is still active.',
-      icon: 'icons/icon-192.png',
-      tag: 'noon-alert'
+  if ('serviceWorker' in navigator && Notification.permission === 'granted') {
+    navigator.serviceWorker.ready.then(reg => {
+      reg.showNotification('PO Tracker — Lunch Break?', {
+        body: 'It is 12:00 PM and a timer is still active.',
+        icon: 'icons/icon-192.png',
+        tag: 'noon-alert',
+        requireInteraction: true
+      });
     });
   }
 }
@@ -1928,8 +1940,56 @@ function startLiveNotification(po, tags, notes) {
     sw.active.postMessage({ type: 'TIMER_UPDATE', po, tags: tags || [], notes: notes || '', startTime: timerStart });
   }
 
-  send();
+  send().then(() => scheduleSwAlerts());
   notifUpdateInterval = setInterval(send, 30000);
+}
+
+async function scheduleSwAlerts() {
+  if (!('serviceWorker' in navigator)) return;
+  const sw = await navigator.serviceWorker.ready;
+  if (!sw.active) return;
+  const now = Date.now();
+  const buildDelay = (h, m) => {
+    const t = new Date(); t.setHours(h, m, 0, 0);
+    if (t.getTime() <= now) t.setDate(t.getDate() + 1);
+    return t.getTime() - now;
+  };
+  sw.active.postMessage({
+    type: 'SCHEDULE_ALERTS',
+    alerts: [
+      { delay: buildDelay(12, 0), title: 'PO Tracker — Lunch Break?', body: 'It is 12:00 PM and a timer is still active.', tag: 'noon-alert' },
+      { delay: buildDelay(16, 0), title: 'PO Tracker — Timer Running', body: 'It is 4:00 PM and a timer is still active.', tag: 'four-pm-alert' }
+    ]
+  });
+}
+
+async function scheduleTestNotification() {
+  if (!('serviceWorker' in navigator) || !('Notification' in window)) {
+    alert('Notifications not supported in this browser.');
+    return;
+  }
+  if (Notification.permission === 'default') await Notification.requestPermission();
+  if (Notification.permission !== 'granted') {
+    alert('Notification permission denied.');
+    return;
+  }
+  const sw = await navigator.serviceWorker.ready;
+  if (!sw.active) { alert('Service worker not ready.'); return; }
+  sw.active.postMessage({
+    type: 'SCHEDULE_ALERTS',
+    alerts: [{ delay: 60000, title: 'PO Tracker — Test', body: 'Background notifications are working.', tag: 'notif-test' }]
+  });
+  const btn = document.getElementById('notif-test-btn');
+  if (btn) {
+    btn.textContent = 'Sending in 1:00…';
+    btn.disabled = true;
+    let secs = 59;
+    const tick = setInterval(() => {
+      if (secs <= 0) { clearInterval(tick); btn.textContent = 'Send in 1 min'; btn.disabled = false; return; }
+      btn.textContent = `Sending in 0:${String(secs).padStart(2, '0')}…`;
+      secs--;
+    }, 1000);
+  }
 }
 
 function stopLiveNotification() {

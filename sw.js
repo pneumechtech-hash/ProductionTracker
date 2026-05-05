@@ -1,4 +1,4 @@
-const CACHE = 'po-tracker-v5';
+const CACHE = 'po-tracker-v6';
 const ASSETS = [
   './',
   './index.html',
@@ -54,6 +54,8 @@ self.addEventListener('fetch', e => {
 });
 
 // ── TIMER NOTIFICATIONS ────────────────────────────────────────────────────
+let scheduledAlerts = [];
+
 self.addEventListener('message', e => {
   if (!e.data) return;
   if (e.data.type === 'TIMER_UPDATE') {
@@ -61,6 +63,24 @@ self.addEventListener('message', e => {
   } else if (e.data.type === 'TIMER_STOP') {
     self.registration.getNotifications({ tag: 'po-timer-live' })
       .then(ns => ns.forEach(n => n.close()));
+    scheduledAlerts.forEach(t => clearTimeout(t));
+    scheduledAlerts = [];
+  } else if (e.data.type === 'SCHEDULE_ALERTS') {
+    scheduledAlerts.forEach(t => clearTimeout(t));
+    scheduledAlerts = [];
+    for (const alert of (e.data.alerts || [])) {
+      if (alert.delay > 0) {
+        scheduledAlerts.push(setTimeout(() => {
+          self.registration.showNotification(alert.title, {
+            body: alert.body,
+            icon: 'icons/icon-192.png',
+            tag: alert.tag,
+            requireInteraction: true,
+            data: { url: self.registration.scope }
+          });
+        }, alert.delay));
+      }
+    }
   }
 });
 
