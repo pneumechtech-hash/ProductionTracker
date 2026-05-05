@@ -293,6 +293,14 @@
   }
   .split-po-num { font-size: 15px; color: var(--amber); letter-spacing: 1.5px; font-family: 'Courier New', monospace; }
   .split-po-remove { background: transparent; border: none; color: var(--red); cursor: pointer; font-size: 16px; padding: 0 4px; line-height: 1; }
+  .split-qty-input {
+    width: 58px; background: var(--bg-input, #18181b); border: 1px solid var(--border-mid);
+    border-radius: 6px; color: var(--text); font-size: 13px; text-align: center;
+    padding: 4px 6px; margin: 0 8px; appearance: textfield; -moz-appearance: textfield;
+  }
+  .split-qty-input::-webkit-outer-spin-button,
+  .split-qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .split-qty-label { font-size: 10px; color: var(--text-muted); letter-spacing: 0.5px; margin-right: 2px; }
 
   /* SWIPE-TO-DELETE (archive) */
   .swipe-wrapper { position: relative; overflow: hidden; border-radius: 12px; margin-bottom: 10px; }
@@ -467,11 +475,17 @@
           <div class="timer-status running">● RECORDING</div>
           <div id="timer-total" style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-top:8px;"></div>
         </div>
-        <div class="time-adjust-row" style="margin-bottom:12px;">
+        <div class="time-adjust-row" style="margin-bottom:8px;">
           <button class="btn btn-ghost btn-sm" onclick="adjustActiveTimer(-900000)">−15m</button>
           <button class="btn btn-ghost btn-sm" onclick="adjustActiveTimer(-300000)">−5m</button>
           <button class="btn btn-ghost btn-sm" onclick="adjustActiveTimer(300000)">+5m</button>
           <button class="btn btn-ghost btn-sm" onclick="adjustActiveTimer(900000)">+15m</button>
+        </div>
+        <div id="timer-adj-preview" style="display:none;margin-bottom:10px;">
+          <div id="timer-adj-label" style="font-size:11px;text-align:center;margin-bottom:6px;"></div>
+          <div class="row">
+            <button class="btn btn-ghost btn-sm" onclick="clearTimerAdj()" style="flex:1;">Clear</button>
+          </div>
         </div>
         <button class="btn btn-danger" onclick="openStopModal()">■ Stop Timer</button>
       </div>
@@ -634,6 +648,7 @@ let activeOrderId = null;
 let splitOrderIds = [];
 let timerStart = null;
 let timerInterval = null;
+let activeTimerAdj = 0;
 let fourPmTimeout = null;
 let noonTimeout = null;
 let codeReader = null;
@@ -764,8 +779,8 @@ function setSplitMode(enabled) {
 }
 
 function addPOToSplit(po) {
-  if (!po || draft.splitPOs.includes(po)) return;
-  draft.splitPOs.push(po);
+  if (!po || draft.splitPOs.some(p => p.po === po)) return;
+  draft.splitPOs.push({ po, qty: null });
   renderSplitList();
 }
 
@@ -780,10 +795,17 @@ function renderSplitList() {
   if (draft.splitPOs.length === 0) {
     el.innerHTML = '<div style="font-size:10px;color:var(--text-muted);letter-spacing:1px;text-align:center;padding:10px 0;">No POs added yet — scan or type below</div>';
   } else {
-    el.innerHTML = draft.splitPOs.map((po, i) => `
+    el.innerHTML = draft.splitPOs.map((item, i) => `
       <div class="split-po-item">
-        <div class="split-po-num">${escHtml(po)}</div>
-        <button class="split-po-remove" onclick="removePOFromSplit(${i})">✕</button>
+        <div class="split-po-num">${escHtml(item.po)}</div>
+        <div style="display:flex;align-items:center;gap:0;">
+          <span class="split-qty-label">QTY</span>
+          <input class="split-qty-input" type="number" min="1" placeholder="—"
+            value="${item.qty !== null ? item.qty : ''}"
+            oninput="updateSplitQty(${i}, this.value)"
+            onclick="this.select()">
+          <button class="split-po-remove" onclick="removePOFromSplit(${i})">✕</button>
+        </div>
       </div>`).join('');
   }
   const btn = document.getElementById('split-start-btn');
@@ -794,20 +816,26 @@ function renderSplitList() {
   }
 }
 
+function updateSplitQty(idx, val) {
+  const n = parseInt(val, 10);
+  draft.splitPOs[idx].qty = (val === '' || isNaN(n) || n < 1) ? null : n;
+}
+
 function startSplitTimer() {
   if (draft.splitPOs.length === 0) return;
   stopScanner();
   const baseId = Date.now();
-  splitOrderIds = draft.splitPOs.map((po, i) => {
+  splitOrderIds = draft.splitPOs.map((item, i) => {
     const order = {
       id: baseId + i,
-      po,
+      po: item.po,
       tags: [...draft.tags],
       notes: draft.notes,
       sessions: [],
       created: baseId + i,
       finished: false,
-      splitGroupId: baseId
+      splitGroupId: baseId,
+      splitQty: item.qty || null
     };
     db.orders.unshift(order);
     return order.id;
@@ -819,13 +847,13 @@ function startSplitTimer() {
   scheduleFourPmAlert();
   scheduleNoonAlert();
   setOrdersTabDisabled(true);
-  const poLabel = draft.splitPOs.length <= 3 ? draft.splitPOs.join(' + ') : `${draft.splitPOs.length} POs`;
+  const poLabel = draft.splitPOs.length <= 3 ? draft.splitPOs.map(p => p.po).join(' + ') : `${draft.splitPOs.length} POs`;
   startLiveNotification(poLabel, draft.tags, draft.notes);
   showStep('timer');
   const n = draft.splitPOs.length;
   document.getElementById('timer-po-label').textContent = `Split — ${n} Orders`;
-  document.getElementById('timer-po').innerHTML = draft.splitPOs.map(po =>
-    `<div style="font-size:18px;line-height:1.5;">${escHtml(po)}</div>`
+  document.getElementById('timer-po').innerHTML = draft.splitPOs.map(item =>
+    `<div style="font-size:18px;line-height:1.5;">${escHtml(item.po)}${item.qty ? `<span style="font-size:11px;color:var(--text-muted);letter-spacing:1px;margin-left:8px;">QTY <span style="color:var(--amber);font-family:'Courier New',monospace;">${item.qty}</span></span>` : ''}</div>`
   ).join('');
   updateTimerMeta(draft.tags, draft.notes);
 }
@@ -979,11 +1007,27 @@ function beginTimer(orderId) {
 
 function openStopModal() {
   const elapsed = Date.now() - timerStart;
-  document.getElementById('stop-elapsed').innerHTML = `${fmt(elapsed)}<div style="font-size:13px;color:var(--text-dim);letter-spacing:2px;margin-top:4px;font-family:'Courier New',monospace;">${fmtMin(elapsed)}</div>`;
+  const total = elapsed + activeTimerAdj;
+  const adjLine = activeTimerAdj !== 0
+    ? `<div style="font-size:11px;color:${activeTimerAdj > 0 ? '#a78bfa' : '#f87171'};letter-spacing:1px;margin-top:4px;">${activeTimerAdj > 0 ? '+' : '−'}${fmtMin(Math.abs(activeTimerAdj))} adjustment included</div>`
+    : '';
+  document.getElementById('stop-elapsed').innerHTML = `${fmt(total)}<div style="font-size:13px;color:var(--text-dim);letter-spacing:2px;margin-top:4px;font-family:'Courier New',monospace;">${fmtMin(total)}</div>${adjLine}`;
   const splitInfo = document.getElementById('stop-split-info');
   if (splitOrderIds.length > 1) {
-    const each = Math.floor(elapsed / splitOrderIds.length);
-    splitInfo.textContent = `÷ ${splitOrderIds.length} orders = ${fmt(each)} (${fmtMin(each)}) each`;
+    const splitOrders = splitOrderIds.map(id => db.orders.find(o => o.id === id)).filter(Boolean);
+    const quantities = splitOrders.map(o => o.splitQty);
+    const hasQty = quantities.some(q => q > 0);
+    if (hasQty) {
+      const totalQty = quantities.reduce((s, q) => s + (q || 0), 0);
+      const lines = splitOrders.map(o => {
+        const share = totalQty > 0 ? Math.floor(total * ((o.splitQty || 0) / totalQty)) : 0;
+        return `${escHtml(o.po)}: ${fmt(share)} (qty ${o.splitQty || 0})`;
+      }).join('<br>');
+      splitInfo.innerHTML = `Qty-weighted split:<br><span style="font-size:11px;">${lines}</span>`;
+    } else {
+      const each = Math.floor(total / splitOrderIds.length);
+      splitInfo.textContent = `÷ ${splitOrderIds.length} orders = ${fmt(each)} (${fmtMin(each)}) each`;
+    }
     splitInfo.style.display = 'block';
   } else {
     splitInfo.style.display = 'none';
@@ -1002,12 +1046,25 @@ function stopSession(cnf) {
   stopLiveNotification();
 
   setOrdersTabDisabled(false);
+  const adjNow = Date.now();
   if (splitOrderIds.length > 0) {
-    const splitDuration = Math.floor(duration / splitOrderIds.length);
-    splitOrderIds.forEach(oid => {
-      const order = db.orders.find(o => o.id === oid);
-      if (order) order.sessions.push({ start: timerStart, duration: splitDuration, cnf, date: timerStart });
+    const splitOrders = splitOrderIds.map(id => db.orders.find(o => o.id === id)).filter(Boolean);
+    const totalQty = splitOrders.reduce((s, o) => s + (o.splitQty || 0), 0);
+    const useProportional = totalQty > 0;
+    splitOrders.forEach(order => {
+      const splitDuration = useProportional
+        ? Math.floor(duration * ((order.splitQty || 0) / totalQty))
+        : Math.floor(duration / splitOrders.length);
+      order.sessions.push({ start: timerStart, duration: splitDuration, cnf, date: timerStart });
+      if (activeTimerAdj !== 0) {
+        const adjShare = useProportional
+          ? Math.floor(activeTimerAdj * ((order.splitQty || 0) / totalQty))
+          : Math.floor(activeTimerAdj / splitOrders.length);
+        order.sessions.push({ start: adjNow, duration: adjShare, cnf: false, date: adjNow, manual: true });
+      }
     });
+    activeTimerAdj = 0;
+    renderTimerAdjPreview();
     saveDB();
     splitOrderIds = [];
     activeOrderId = null;
@@ -1018,6 +1075,11 @@ function stopSession(cnf) {
     const order = db.orders.find(o => o.id === activeOrderId);
     if (order) {
       order.sessions.push({ start: timerStart, duration, cnf, date: timerStart });
+      if (activeTimerAdj !== 0) {
+        order.sessions.push({ start: adjNow, duration: activeTimerAdj, cnf: false, date: adjNow, manual: true });
+      }
+      activeTimerAdj = 0;
+      renderTimerAdjPreview();
       saveDB();
     }
     const savedId = activeOrderId;
@@ -1052,6 +1114,7 @@ function showOrderDetail(id) {
         <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-top:2px;">${fmtMin(total)}</div>
       </div>
     </div>
+    ${order.splitQty ? `<div style="font-size:11px;color:var(--text-muted);letter-spacing:1px;margin-bottom:10px;margin-top:-4px;">QTY <span style="color:var(--amber);font-family:'Courier New',monospace;font-size:13px;">${order.splitQty}</span></div>` : ''}
     <div id="detail-tags-${id}" style="margin-bottom:12px;"></div>
     ${order.notes ? `<div style="font-size:11px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">${escHtml(order.notes)}</div>` : ''}
     <hr class="divider">
@@ -1090,7 +1153,6 @@ function showOrderDetail(id) {
         <button class="btn btn-ghost btn-sm" onclick="stageAdjust(${id},-300000)">−5m</button>
         <button class="btn btn-ghost btn-sm" onclick="stageAdjust(${id},300000)">+5m</button>
         <button class="btn btn-ghost btn-sm" onclick="stageAdjust(${id},900000)">+15m</button>
-        <button class="btn btn-ghost btn-sm" onclick="stageAdjust(${id},3600000)">+1h</button>
       </div>
       <div id="adj-preview-${id}" style="display:none;margin-bottom:4px;">
         <div id="adj-label-${id}" style="font-size:11px;text-align:center;margin-bottom:6px;"></div>
@@ -1150,7 +1212,29 @@ function timerTick() {
 
 function adjustActiveTimer(deltaMs) {
   if (!timerStart) return;
-  timerStart = Math.min(timerStart - deltaMs, Date.now() - 1000);
+  activeTimerAdj += deltaMs;
+  renderTimerAdjPreview();
+}
+
+function renderTimerAdjPreview() {
+  const preview = document.getElementById('timer-adj-preview');
+  const label = document.getElementById('timer-adj-label');
+  if (!preview || !label) return;
+  if (activeTimerAdj === 0) { preview.style.display = 'none'; return; }
+  const abs = fmtMin(Math.abs(activeTimerAdj));
+  if (activeTimerAdj > 0) {
+    label.style.color = '#a78bfa';
+    label.textContent = '+' + abs + ' — will log as extra session on stop';
+  } else {
+    label.style.color = '#f87171';
+    label.textContent = '−' + abs + ' — will log as deduction on stop';
+  }
+  preview.style.display = 'block';
+}
+
+function clearTimerAdj() {
+  activeTimerAdj = 0;
+  renderTimerAdjPreview();
 }
 
 const adjStaging = {};
@@ -1318,7 +1402,7 @@ function resumeGroupTimer(splitGroupId) {
   showStep('timer');
   document.getElementById('timer-po-label').textContent = `Split — ${groupOrders.length} Orders`;
   document.getElementById('timer-po').innerHTML = groupOrders.map(o =>
-    `<div style="font-size:18px;line-height:1.5;">${escHtml(o.po)}</div>`
+    `<div style="font-size:18px;line-height:1.5;">${escHtml(o.po)}${o.splitQty ? `<span style="font-size:11px;color:var(--text-muted);letter-spacing:1px;margin-left:8px;">QTY <span style="color:var(--amber);font-family:'Courier New',monospace;">${o.splitQty}</span></span>` : ''}</div>`
   ).join('');
   updateTimerMeta(groupOrders[0] ? groupOrders[0].tags : [], groupOrders[0] ? groupOrders[0].notes : '');
 }
@@ -1359,7 +1443,10 @@ function renderOrders() {
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
         <div>
           <div class="order-po">${escHtml(o.po)}</div>
-          ${isSplit ? `<span class="split-badge">Split ×${splitGroupSize}</span>` : ''}
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            ${isSplit ? `<span class="split-badge">Split ×${splitGroupSize}</span>` : ''}
+            ${o.splitQty ? `<span style="font-size:10px;color:var(--text-muted);letter-spacing:0.5px;">QTY <span style="color:var(--amber);font-family:'Courier New',monospace;">${o.splitQty}</span></span>` : ''}
+          </div>
         </div>
         ${multiSelectMode
           ? `<div class="ms-check${sel ? ' on' : ''}" style="margin-top:4px;">${sel ? '✓' : ''}</div>`
@@ -1707,7 +1794,7 @@ function multiSelectSplitTimer() {
   showStep('timer');
   document.getElementById('timer-po-label').textContent = `Split — ${orders.length} Orders`;
   document.getElementById('timer-po').innerHTML = orders.map(o =>
-    `<div style="font-size:18px;line-height:1.5;">${escHtml(o.po)}</div>`
+    `<div style="font-size:18px;line-height:1.5;">${escHtml(o.po)}${o.splitQty ? `<span style="font-size:11px;color:var(--text-muted);letter-spacing:1px;margin-left:8px;">QTY <span style="color:var(--amber);font-family:'Courier New',monospace;">${o.splitQty}</span></span>` : ''}</div>`
   ).join('');
   updateTimerMeta(orders[0] ? orders[0].tags : [], orders[0] ? orders[0].notes : '');
 }
