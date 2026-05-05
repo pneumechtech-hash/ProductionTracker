@@ -1970,26 +1970,28 @@ async function scheduleTestNotification() {
   }
   if (Notification.permission === 'default') await Notification.requestPermission();
   if (Notification.permission !== 'granted') {
-    alert('Notification permission denied.');
+    alert('Notification permission denied — enable notifications for this site in browser settings.');
     return;
   }
-  const sw = await navigator.serviceWorker.ready;
-  if (!sw.active) { alert('Service worker not ready.'); return; }
-  sw.active.postMessage({
-    type: 'SCHEDULE_ALERTS',
-    alerts: [{ delay: 60000, title: 'PO Tracker — Test', body: 'Background notifications are working.', tag: 'notif-test' }]
-  });
+  const reg = await navigator.serviceWorker.ready;
   const btn = document.getElementById('notif-test-btn');
-  if (btn) {
-    btn.textContent = 'Sending in 1:00…';
-    btn.disabled = true;
-    let secs = 59;
-    const tick = setInterval(() => {
-      if (secs <= 0) { clearInterval(tick); btn.textContent = 'Send in 1 min'; btn.disabled = false; return; }
-      btn.textContent = `Sending in 0:${String(secs).padStart(2, '0')}…`;
-      secs--;
-    }, 1000);
-  }
+  let secs = 60;
+  if (btn) { btn.textContent = `Sending in 1:00…`; btn.disabled = true; }
+  const tick = setInterval(() => {
+    secs--;
+    if (btn) btn.textContent = `Sending in 0:${String(secs).padStart(2, '0')}…`;
+    if (secs <= 0) clearInterval(tick);
+  }, 1000);
+  setTimeout(() => {
+    clearInterval(tick);
+    if (btn) { btn.textContent = 'Send in 1 min'; btn.disabled = false; }
+    reg.showNotification('PO Tracker — Test', {
+      body: 'Background notifications are working.',
+      icon: 'icons/icon-192.png',
+      tag: 'notif-test',
+      requireInteraction: true
+    });
+  }, 60000);
 }
 
 function stopLiveNotification() {
