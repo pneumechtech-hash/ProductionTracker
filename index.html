@@ -472,7 +472,7 @@
         </div>
         <div class="timer-display">
           <div class="timer-digits running" id="timer-display">00:00:00</div>
-          <div class="timer-status running">● RECORDING</div>
+          <div class="timer-status running" id="timer-status">● RECORDING</div>
           <div id="timer-total" style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-top:8px;"></div>
         </div>
         <div class="time-adjust-row" style="margin-bottom:8px;">
@@ -487,6 +487,7 @@
             <button class="btn btn-ghost btn-sm" onclick="clearTimerAdj()" style="flex:1;">Clear</button>
           </div>
         </div>
+        <button class="btn btn-ghost" id="timer-pause-btn" onclick="toggleTimerPause()" style="margin-bottom:8px;width:100%;">⏸ Pause</button>
         <button class="btn btn-danger" onclick="openStopModal()">■ Stop Timer</button>
       </div>
 
@@ -588,15 +589,21 @@
 </div>
 
 <!-- ── NOON TOAST ── -->
-<div id="noon-toast" style="display:none;position:fixed;top:0;left:0;right:0;z-index:400;background:#001a0e;border-bottom:2px solid #4ade80;padding:14px 16px;display:none;align-items:center;justify-content:center;gap:12px;font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;color:#4ade80;text-transform:uppercase;">
-  <span>☀ 12:00 PM — Lunch break?</span>
-  <button onclick="dismissNoonToast()" style="background:transparent;border:1px solid #4ade80;color:#4ade80;font-family:'Courier New',monospace;font-size:9px;letter-spacing:1px;padding:4px 10px;cursor:pointer;border-radius:2px;text-transform:uppercase;">Dismiss</button>
+<div id="noon-toast" style="display:none;position:fixed;top:0;left:0;right:0;z-index:400;background:#001a0e;border-bottom:2px solid #4ade80;padding:12px 16px;display:none;flex-direction:column;align-items:center;gap:8px;font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;color:#4ade80;text-transform:uppercase;">
+  <span>☀ 12:00 PM — Timer paused</span>
+  <div style="display:flex;gap:8px;">
+    <button onclick="resumeAndDismissNoon(false)" style="background:transparent;border:1px solid #4ade80;color:#4ade80;font-family:'Courier New',monospace;font-size:9px;letter-spacing:1px;padding:4px 10px;cursor:pointer;border-radius:2px;text-transform:uppercase;">▶ Resume</button>
+    <button onclick="resumeAndDismissNoon(true)" style="background:#4ade8022;border:1px solid #4ade80;color:#4ade80;font-family:'Courier New',monospace;font-size:9px;letter-spacing:1px;padding:4px 10px;cursor:pointer;border-radius:2px;text-transform:uppercase;">I kept working</button>
+  </div>
 </div>
 
 <!-- ── 4PM TOAST ── -->
-<div id="four-pm-toast" style="display:none;position:fixed;top:0;left:0;right:0;z-index:400;background:#1a0e00;border-bottom:2px solid var(--amber);padding:14px 16px;display:none;align-items:center;justify-content:center;gap:12px;font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;color:var(--amber);text-transform:uppercase;">
-  <span>⚠ 4:00 PM — Timer still running</span>
-  <button onclick="dismissFourPmToast()" style="background:transparent;border:1px solid var(--amber);color:var(--amber);font-family:'Courier New',monospace;font-size:9px;letter-spacing:1px;padding:4px 10px;cursor:pointer;border-radius:2px;text-transform:uppercase;">Dismiss</button>
+<div id="four-pm-toast" style="display:none;position:fixed;top:0;left:0;right:0;z-index:400;background:#1a0e00;border-bottom:2px solid var(--amber);padding:12px 16px;display:none;flex-direction:column;align-items:center;gap:8px;font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;color:var(--amber);text-transform:uppercase;">
+  <span>⚠ 4:00 PM — Timer paused</span>
+  <div style="display:flex;gap:8px;">
+    <button onclick="resumeAndDismissFourPm(false)" style="background:transparent;border:1px solid var(--amber);color:var(--amber);font-family:'Courier New',monospace;font-size:9px;letter-spacing:1px;padding:4px 10px;cursor:pointer;border-radius:2px;text-transform:uppercase;">▶ Resume</button>
+    <button onclick="resumeAndDismissFourPm(true)" style="background:#f59e0b22;border:1px solid var(--amber);color:var(--amber);font-family:'Courier New',monospace;font-size:9px;letter-spacing:1px;padding:4px 10px;cursor:pointer;border-radius:2px;text-transform:uppercase;">I kept working</button>
+  </div>
 </div>
 
 <!-- ── INSTALL BANNER ── -->
@@ -654,6 +661,7 @@ let activeOrderId = null;
 let splitOrderIds = [];
 let timerStart = null;
 let timerInterval = null;
+let timerPausedAt = null;
 let activeTimerAdj = 0;
 let fourPmTimeout = null;
 let noonTimeout = null;
@@ -933,6 +941,7 @@ function clearFourPmAlert() {
 }
 
 function showFourPmAlert() {
+  pauseTimer();
   const toast = document.getElementById('four-pm-toast');
   if (toast) toast.style.display = 'flex';
   if ('serviceWorker' in navigator && Notification.permission === 'granted') {
@@ -969,6 +978,7 @@ function clearNoonAlert() {
 }
 
 function showNoonAlert() {
+  pauseTimer();
   const toast = document.getElementById('noon-toast');
   if (toast) toast.style.display = 'flex';
   if ('serviceWorker' in navigator && Notification.permission === 'granted') {
@@ -1018,7 +1028,7 @@ function beginTimer(orderId) {
 }
 
 function openStopModal() {
-  const elapsed = Date.now() - timerStart;
+  const elapsed = getElapsed();
   const total = elapsed + activeTimerAdj;
   const adjLine = activeTimerAdj !== 0
     ? `<div style="font-size:11px;color:${activeTimerAdj > 0 ? '#a78bfa' : '#f87171'};letter-spacing:1px;margin-top:4px;">${activeTimerAdj > 0 ? '+' : '−'}${fmtMin(Math.abs(activeTimerAdj))} adjustment included</div>`
@@ -1048,7 +1058,7 @@ function openStopModal() {
 }
 
 function stopSession(cnf) {
-  const duration = Date.now() - timerStart;
+  const duration = getElapsed();
   clearInterval(timerInterval);
   timerInterval = null;
   clearFourPmAlert();
@@ -1081,6 +1091,7 @@ function stopSession(cnf) {
     splitOrderIds = [];
     activeOrderId = null;
     timerStart = null;
+    timerPausedAt = null;
     closeModal('modal-stop');
     switchView('orders');
   } else {
@@ -1200,6 +1211,72 @@ function showOrderDetail(id) {
   `;
   openModal('modal-detail');
   renderDetailTags(id);
+}
+
+function getElapsed() {
+  if (!timerStart) return 0;
+  return (timerPausedAt !== null ? timerPausedAt : Date.now()) - timerStart;
+}
+
+function pauseTimer() {
+  if (!timerStart || timerPausedAt !== null) return;
+  timerPausedAt = Date.now();
+  clearInterval(timerInterval);
+  timerInterval = null;
+  const digits = document.getElementById('timer-display');
+  if (digits) digits.classList.remove('running');
+  const status = document.getElementById('timer-status');
+  if (status) { status.textContent = '⏸ PAUSED'; status.classList.remove('running'); status.style.color = 'var(--amber)'; }
+  const btn = document.getElementById('timer-pause-btn');
+  if (btn) btn.textContent = '▶ Resume';
+  stopLiveNotification();
+}
+
+function resumeTimer() {
+  if (!timerStart || timerPausedAt === null) return;
+  timerStart += Date.now() - timerPausedAt;
+  timerPausedAt = null;
+  clearInterval(timerInterval);
+  timerInterval = setInterval(timerTick, 500);
+  const digits = document.getElementById('timer-display');
+  if (digits) digits.classList.add('running');
+  const status = document.getElementById('timer-status');
+  if (status) { status.textContent = '● RECORDING'; status.classList.add('running'); status.style.color = ''; }
+  const btn = document.getElementById('timer-pause-btn');
+  if (btn) btn.textContent = '⏸ Pause';
+  const order = activeOrderId ? db.orders.find(o => o.id === activeOrderId) : null;
+  const po = order ? order.po : (splitOrderIds.length ? `${splitOrderIds.length} POs` : '?');
+  startLiveNotification(po, order ? order.tags : [], order ? order.notes : '');
+}
+
+function resumeTimerIncludePaused() {
+  if (!timerStart || timerPausedAt === null) return;
+  timerPausedAt = null;
+  clearInterval(timerInterval);
+  timerInterval = setInterval(timerTick, 500);
+  const digits = document.getElementById('timer-display');
+  if (digits) digits.classList.add('running');
+  const status = document.getElementById('timer-status');
+  if (status) { status.textContent = '● RECORDING'; status.classList.add('running'); status.style.color = ''; }
+  const btn = document.getElementById('timer-pause-btn');
+  if (btn) btn.textContent = '⏸ Pause';
+  const order = activeOrderId ? db.orders.find(o => o.id === activeOrderId) : null;
+  const po = order ? order.po : (splitOrderIds.length ? `${splitOrderIds.length} POs` : '?');
+  startLiveNotification(po, order ? order.tags : [], order ? order.notes : '');
+}
+
+function toggleTimerPause() {
+  if (timerPausedAt !== null) resumeTimer(); else pauseTimer();
+}
+
+function resumeAndDismissNoon(includeTime) {
+  dismissNoonToast();
+  if (includeTime) resumeTimerIncludePaused(); else resumeTimer();
+}
+
+function resumeAndDismissFourPm(includeTime) {
+  dismissFourPmToast();
+  if (includeTime) resumeTimerIncludePaused(); else resumeTimer();
 }
 
 function timerTick() {
