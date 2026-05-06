@@ -387,7 +387,7 @@
     <div class="logo">PO Tracker</div>
     <div class="tab-bar">
       <button class="tab active" id="tab-orders" onclick="switchView('orders')">Orders</button>
-      <button class="tab" id="tab-new" onclick="switchView('new')">+ New</button>
+      <button class="tab" id="tab-new" onclick="switchView('new')" style="position:relative;">+ New<span id="tab-pause-dot" style="display:none;position:absolute;top:5px;right:5px;width:6px;height:6px;border-radius:50%;background:var(--amber);"></span></button>
       <button class="tab" id="tab-archive" onclick="switchView('archive')">Archive</button>
       <button class="tab" id="tab-stats" onclick="switchView('stats')">Stats</button>
     </div>
@@ -397,6 +397,10 @@
 
     <!-- ── ORDERS VIEW ── -->
     <div id="view-orders" class="view active">
+      <div style="position:relative;margin-bottom:10px;">
+        <input class="input-field" id="orders-search" type="search" placeholder="Search PO…" oninput="ordersFilter=this.value;renderOrders()" style="padding-right:36px;">
+        <button onclick="document.getElementById('orders-search').value='';ordersFilter='';renderOrders()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-dim);font-size:16px;cursor:pointer;line-height:1;">×</button>
+      </div>
       <div class="section-label">Active Orders</div>
       <div id="orders-list"></div>
     </div>
@@ -495,6 +499,10 @@
 
     <!-- ── ARCHIVE VIEW ── -->
     <div id="view-archive" class="view">
+      <div style="position:relative;margin-bottom:10px;">
+        <input class="input-field" id="archive-search" type="search" placeholder="Search PO…" oninput="archiveFilter=this.value;renderArchive()" style="padding-right:36px;">
+        <button onclick="document.getElementById('archive-search').value='';archiveFilter='';renderArchive()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-dim);font-size:16px;cursor:pointer;line-height:1;">×</button>
+      </div>
       <div class="section-label">Finished Orders</div>
       <div id="archive-list"></div>
     </div>
@@ -640,10 +648,17 @@
     <button class="btn btn-ghost btn-sm" id="ms-split-btn" onclick="multiSelectSplitTimer()">▶ Split Timer</button>
   </div>
   <div class="time-adjust-row" style="margin-top:10px;">
-    <button class="btn btn-ghost btn-sm" onclick="adjustMultiSelectTime(-900000)">−15m</button>
-    <button class="btn btn-ghost btn-sm" onclick="adjustMultiSelectTime(-300000)">−5m</button>
-    <button class="btn btn-ghost btn-sm" onclick="adjustMultiSelectTime(300000)">+5m</button>
-    <button class="btn btn-ghost btn-sm" onclick="adjustMultiSelectTime(900000)">+15m</button>
+    <button class="btn btn-ghost btn-sm" onclick="stageMultiSelectAdj(-900000)">−15m</button>
+    <button class="btn btn-ghost btn-sm" onclick="stageMultiSelectAdj(-300000)">−5m</button>
+    <button class="btn btn-ghost btn-sm" onclick="stageMultiSelectAdj(300000)">+5m</button>
+    <button class="btn btn-ghost btn-sm" onclick="stageMultiSelectAdj(900000)">+15m</button>
+  </div>
+  <div id="ms-adj-preview" style="display:none;margin-top:8px;">
+    <div id="ms-adj-label" style="font-size:11px;text-align:center;margin-bottom:6px;"></div>
+    <div class="row">
+      <button class="btn btn-ghost btn-sm" onclick="clearMultiSelectAdj()" style="flex:1;">Clear</button>
+      <button id="ms-adj-commit" class="btn btn-primary btn-sm" onclick="commitMultiSelectAdj()" style="flex:2;"></button>
+    </div>
   </div>
 </div>
 
@@ -874,6 +889,7 @@ function startSplitTimer() {
 
 function activateScanner(ctx) {
   startScanner('scan-video', 'scan-crosshair', 'scan-idle', 'scan-status', val => {
+    if (navigator.vibrate) navigator.vibrate(50);
     if (draft.splitMode) {
       addPOToSplit(val);
       document.getElementById('scan-status').textContent = `+ Added: ${val}`;
@@ -1061,6 +1077,9 @@ function stopSession(cnf) {
   const duration = getElapsed();
   clearInterval(timerInterval);
   timerInterval = null;
+  timerPausedAt = null;
+  const dot = document.getElementById('tab-pause-dot');
+  if (dot) dot.style.display = 'none';
   clearFourPmAlert();
   dismissFourPmToast();
   clearNoonAlert();
@@ -1229,6 +1248,8 @@ function pauseTimer() {
   if (status) { status.textContent = '⏸ PAUSED'; status.classList.remove('running'); status.style.color = 'var(--amber)'; }
   const btn = document.getElementById('timer-pause-btn');
   if (btn) btn.textContent = '▶ Resume';
+  const dot = document.getElementById('tab-pause-dot');
+  if (dot) dot.style.display = 'block';
   stopLiveNotification();
 }
 
@@ -1244,6 +1265,8 @@ function resumeTimer() {
   if (status) { status.textContent = '● RECORDING'; status.classList.add('running'); status.style.color = ''; }
   const btn = document.getElementById('timer-pause-btn');
   if (btn) btn.textContent = '⏸ Pause';
+  const dot = document.getElementById('tab-pause-dot');
+  if (dot) dot.style.display = 'none';
   const order = activeOrderId ? db.orders.find(o => o.id === activeOrderId) : null;
   const po = order ? order.po : (splitOrderIds.length ? `${splitOrderIds.length} POs` : '?');
   startLiveNotification(po, order ? order.tags : [], order ? order.notes : '');
@@ -1260,6 +1283,8 @@ function resumeTimerIncludePaused() {
   if (status) { status.textContent = '● RECORDING'; status.classList.add('running'); status.style.color = ''; }
   const btn = document.getElementById('timer-pause-btn');
   if (btn) btn.textContent = '⏸ Pause';
+  const dot = document.getElementById('tab-pause-dot');
+  if (dot) dot.style.display = 'none';
   const order = activeOrderId ? db.orders.find(o => o.id === activeOrderId) : null;
   const po = order ? order.po : (splitOrderIds.length ? `${splitOrderIds.length} POs` : '?');
   startLiveNotification(po, order ? order.tags : [], order ? order.notes : '');
@@ -1379,8 +1404,47 @@ function adjustOrderTime(orderId, deltaMs) {
   saveDB();
 }
 
-function adjustMultiSelectTime(deltaMs) {
-  selectedOrderIds.forEach(id => adjustOrderTime(id, deltaMs));
+let msAdjStaging = 0;
+
+function stageMultiSelectAdj(deltaMs) {
+  msAdjStaging += deltaMs;
+  const preview = document.getElementById('ms-adj-preview');
+  const label = document.getElementById('ms-adj-label');
+  const commit = document.getElementById('ms-adj-commit');
+  if (!preview || !label || !commit) return;
+  const abs = fmtMin(Math.abs(msAdjStaging));
+  if (msAdjStaging > 0) {
+    label.style.color = '#a78bfa';
+    label.textContent = '+' + abs + ' — will log as new session on each order';
+    commit.textContent = 'Add Session';
+    commit.className = 'btn btn-primary btn-sm';
+  } else if (msAdjStaging < 0) {
+    label.style.color = '#f87171';
+    label.textContent = '−' + abs + ' — will log as deduction on each order';
+    commit.textContent = 'Log Deduction';
+    commit.className = 'btn btn-warn btn-sm';
+  } else {
+    preview.style.display = 'none';
+    return;
+  }
+  preview.style.display = 'block';
+}
+
+function clearMultiSelectAdj() {
+  msAdjStaging = 0;
+  const preview = document.getElementById('ms-adj-preview');
+  if (preview) preview.style.display = 'none';
+}
+
+function commitMultiSelectAdj() {
+  if (!msAdjStaging) return;
+  const now = Date.now();
+  selectedOrderIds.forEach(id => {
+    const order = db.orders.find(o => o.id === id);
+    if (order) order.sessions.push({ start: now, duration: msAdjStaging, cnf: false, date: now, manual: true });
+  });
+  saveDB();
+  clearMultiSelectAdj();
   renderOrders();
 }
 
@@ -1514,14 +1578,30 @@ function finishOrder(id) {
 }
 
 // ── RENDER LISTS ───────────────────────────────────────────────────────────
+let ordersFilter = '';
+let archiveFilter = '';
+
+function matchFilter(query, value) {
+  if (!query) return true;
+  if (query.includes('*')) {
+    const pattern = query.split('*').map(s => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('.*');
+    return new RegExp('^' + pattern + '$', 'i').test(value);
+  }
+  return value.toLowerCase().includes(query.toLowerCase());
+}
+
 function renderOrders() {
   const el = document.getElementById('orders-list');
-  if (db.orders.length === 0) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-icon">▢</div><div class="empty-text">No active orders<br><br>Tap + New to begin</div></div>`;
+  const q = ordersFilter.trim();
+  const list = q ? db.orders.filter(o => matchFilter(q, o.po) || o.tags.some(t => matchFilter(q, t))) : db.orders;
+  if (list.length === 0) {
+    el.innerHTML = db.orders.length === 0
+      ? `<div class="empty-state"><div class="empty-icon">▢</div><div class="empty-text">No active orders<br><br>Tap + New to begin</div></div>`
+      : `<div class="empty-state"><div class="empty-text">No orders match<br>"${escHtml(ordersFilter)}"</div></div>`;
     initOrdersLongPress();
     return;
   }
-  el.innerHTML = db.orders.map(o => {
+  el.innerHTML = list.map(o => {
     const total = totalTime(o);
     const pending = o.sessions.filter(s => !s.cnf).length;
     const dot = o.sessions.length === 0 ? 'dot-gray' : (pending > 0 ? 'dot-amber' : 'dot-green');
@@ -1554,12 +1634,16 @@ function renderOrders() {
 
 function renderArchive() {
   const el = document.getElementById('archive-list');
-  if (db.archive.length === 0) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-icon">▣</div><div class="empty-text">No archived orders</div></div>`;
+  const q = archiveFilter.trim();
+  const list = q ? db.archive.filter(o => matchFilter(q, o.po) || o.tags.some(t => matchFilter(q, t))) : db.archive;
+  if (list.length === 0) {
+    el.innerHTML = db.archive.length === 0
+      ? `<div class="empty-state"><div class="empty-icon">▣</div><div class="empty-text">No archived orders</div></div>`
+      : `<div class="empty-state"><div class="empty-text">No orders match<br>"${escHtml(archiveFilter)}"</div></div>`;
     initArchiveLongPress();
     return;
   }
-  el.innerHTML = db.archive.map(o => {
+  el.innerHTML = list.map(o => {
     const total = totalTime(o);
     const sel = archiveMultiSelectMode && selectedArchiveIds.has(o.id);
     return `<div class="order-card finished${sel ? ' ms-selected' : ''}" data-id="${o.id}" onclick="${archiveMultiSelectMode ? `toggleArchiveSelection(${o.id})` : `showOrderDetail(${o.id})`}">
@@ -1656,12 +1740,16 @@ function initArchiveLongPress() {
   let pressTimer = null;
   let moved = false;
   let targetId = null;
+  let startX = 0, startY = 0;
 
-  list.addEventListener('touchstart', e => {
+  list.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
     const card = e.target.closest('[data-id]');
     if (!card) return;
     targetId = Number(card.dataset.id);
     moved = false;
+    startX = e.clientX;
+    startY = e.clientY;
     pressTimer = setTimeout(() => {
       if (moved) return;
       if (navigator.vibrate) navigator.vibrate(40);
@@ -1670,13 +1758,21 @@ function initArchiveLongPress() {
     }, 500);
   }, { passive: true });
 
-  list.addEventListener('touchmove', () => {
-    moved = true;
-    clearTimeout(pressTimer);
-    pressTimer = null;
+  list.addEventListener('pointermove', e => {
+    if (!pressTimer) return;
+    if (Math.abs(e.clientX - startX) > 8 || Math.abs(e.clientY - startY) > 8) {
+      moved = true;
+      clearTimeout(pressTimer);
+      pressTimer = null;
+    }
   }, { passive: true });
 
-  list.addEventListener('touchend', () => {
+  list.addEventListener('pointerup', () => {
+    clearTimeout(pressTimer);
+    pressTimer = null;
+  });
+
+  list.addEventListener('pointercancel', () => {
     clearTimeout(pressTimer);
     pressTimer = null;
   });
@@ -1798,8 +1894,11 @@ let selectedOrderIds = new Set();
 function resetMultiSelect() {
   multiSelectMode = false;
   selectedOrderIds = new Set();
+  msAdjStaging = 0;
   const bar = document.getElementById('multiselect-bar');
   if (bar) bar.style.display = 'none';
+  const preview = document.getElementById('ms-adj-preview');
+  if (preview) preview.style.display = 'none';
 }
 
 function enterMultiSelect(orderId) {
@@ -1895,12 +1994,16 @@ function initOrdersLongPress() {
   let pressTimer = null;
   let moved = false;
   let targetId = null;
+  let startX = 0, startY = 0;
 
-  list.addEventListener('touchstart', e => {
+  list.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
     const card = e.target.closest('[data-id]');
     if (!card) return;
     targetId = Number(card.dataset.id);
     moved = false;
+    startX = e.clientX;
+    startY = e.clientY;
     pressTimer = setTimeout(() => {
       if (moved) return;
       if (navigator.vibrate) navigator.vibrate(40);
@@ -1909,13 +2012,21 @@ function initOrdersLongPress() {
     }, 500);
   }, { passive: true });
 
-  list.addEventListener('touchmove', () => {
-    moved = true;
-    clearTimeout(pressTimer);
-    pressTimer = null;
+  list.addEventListener('pointermove', e => {
+    if (!pressTimer) return;
+    if (Math.abs(e.clientX - startX) > 8 || Math.abs(e.clientY - startY) > 8) {
+      moved = true;
+      clearTimeout(pressTimer);
+      pressTimer = null;
+    }
   }, { passive: true });
 
-  list.addEventListener('touchend', () => {
+  list.addEventListener('pointerup', () => {
+    clearTimeout(pressTimer);
+    pressTimer = null;
+  });
+
+  list.addEventListener('pointercancel', () => {
     clearTimeout(pressTimer);
     pressTimer = null;
   });
