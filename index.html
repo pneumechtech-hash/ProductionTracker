@@ -566,6 +566,15 @@
         <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;">Test background notification</div>
         <button id="notif-test-btn" class="btn btn-ghost btn-sm" onclick="scheduleTestNotification()">Send in 1 min</button>
       </div>
+
+      <div class="section-label" style="margin-top:16px;">Export Data</div>
+      <div class="stat-card wide">
+        <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:12px;">Download all orders and sessions</div>
+        <div class="row" style="gap:8px;">
+          <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="exportCSV()">↓ CSV</button>
+          <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="exportJSON()">↓ JSON</button>
+        </div>
+      </div>
     </div>
 
   </div><!-- /content -->
@@ -2112,6 +2121,64 @@ function renderStats() {
       </details>
     ` : '<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">All previous sessions confirmed</div>'}
   `;
+}
+
+// ── EXPORT ─────────────────────────────────────────────────────────────────
+function downloadBlob(content, filename, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportDateStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+function exportCSV() {
+  const cols = ['PO','Status','Tags','Notes','Session Date','Duration (min)','Duration (hh:mm:ss)','CNF','Adjustment'];
+  const rows = [cols];
+  const allOrders = [
+    ...db.orders.map(o => ({ ...o, _status: 'Active' })),
+    ...db.archive.map(o => ({ ...o, _status: 'Archived' }))
+  ];
+  for (const o of allOrders) {
+    if (o.sessions.length === 0) {
+      rows.push([o.po, o._status, o.tags.join(';'), o.notes || '', '', '', '', '', ''].map(csvCell));
+    } else {
+      for (const s of o.sessions) {
+        const abs = Math.abs(s.duration || 0);
+        const sign = s.duration < 0 ? '-' : '';
+        rows.push([
+          o.po,
+          o._status,
+          o.tags.join(';'),
+          o.notes || '',
+          new Date(s.date).toISOString(),
+          sign + Math.round(abs / 60000),
+          sign + fmt(abs),
+          s.cnf ? 'Yes' : 'No',
+          s.manual || s.duration < 0 ? 'Yes' : 'No'
+        ].map(csvCell));
+      }
+    }
+  }
+  const csv = rows.map(r => r.join(',')).join('\r\n');
+  downloadBlob(csv, `po-tracker-${exportDateStr()}.csv`, 'text/csv');
+}
+
+function csvCell(v) {
+  const s = String(v);
+  return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function exportJSON() {
+  const payload = JSON.stringify(db, null, 2);
+  downloadBlob(payload, `po-tracker-${exportDateStr()}.json`, 'application/json');
 }
 
 // ── LIVE TIMER NOTIFICATION ────────────────────────────────────────────────
