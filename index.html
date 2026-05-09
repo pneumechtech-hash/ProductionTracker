@@ -580,10 +580,12 @@
       </div>
     </div>
 
-    <div id="view-today" class="view">
+    <div id="view-today" class="view" style="padding-bottom:0;">
       <div class="section-label">Today's Timeline</div>
       <div id="timeline-legend"></div>
-      <div id="timeline-container" style="position:relative;overflow-x:hidden;"></div>
+      <div id="timeline-scroll" style="overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;height:calc(100vh - 178px);margin:0 -16px;padding:0 16px;">
+        <div id="timeline-container" style="position:relative;padding-bottom:24px;"></div>
+      </div>
     </div>
 
   </div><!-- /content -->
@@ -1962,9 +1964,9 @@ function renderTimeline() {
       maxT = Math.max(maxT, t + Math.max(s.duration, 0));
     }
   });
-  // Snap to 15-min boundaries with one-slot padding
+  // Snap to 15-min boundaries with two-slot padding so trailing blocks aren't clipped
   minT = Math.floor((minT - 900000) / 900000) * 900000;
-  maxT = Math.ceil((maxT  + 900000) / 900000) * 900000;
+  maxT = Math.ceil((maxT  + 1800000) / 900000) * 900000;
   const range = maxT - minT;
 
   const PX_PER_MS = 56 / 900000; // 56px per 15 minutes (~4px/min)
@@ -1987,25 +1989,29 @@ function renderTimeline() {
   allSessions.filter(s => !s.manual).forEach(s => {
     const t   = s.start || s.date;
     const top = (t - minT) * PX_PER_MS;
-    const h   = Math.max(s.duration * PX_PER_MS, 20);
+    const h   = Math.max(s.duration * PX_PER_MS, 16);
     const c   = colorMap[s.orderId];
-    const meta = h > 28 ? `<div style="font-size:8px;color:var(--text-dim);margin-top:1px;">${fmtMin(s.duration)}${s.cnf ? ' · CNF' : ''}</div>` : '';
+    const meta = h > 30 ? `<div style="font-size:8px;color:var(--text-dim);margin-top:1px;">${fmtMin(s.duration)}${s.cnf ? ' · CNF' : ''}</div>` : '';
     blocks += `<div style="position:absolute;left:${LEFT + 3}px;right:3px;top:${top}px;height:${h}px;background:${c}1a;border:1px solid ${c}44;border-left:3px solid ${c};border-radius:4px;padding:3px 5px;box-sizing:border-box;overflow:hidden;">
       <div style="font-size:9px;font-weight:700;color:${c};font-family:'Courier New',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(s.po)}</div>
       ${meta}
     </div>`;
   });
 
-  // Adjustment chips (manual sessions) — tappable
+  // Adjustment blocks (manual sessions) — height proportional to duration, tappable
   allSessions.filter(s => s.manual).forEach(s => {
     const t   = s.date || s.start;
     const top = (t - minT) * PX_PER_MS;
+    const h   = Math.max(Math.abs(s.duration) * PX_PER_MS, 16);
     const c   = s.duration >= 0 ? '#a78bfa' : '#f87171';
     const lbl = (s.duration >= 0 ? '+' : '−') + Math.round(Math.abs(s.duration) / 60000) + 'm';
-    blocks += `<div onclick="openAdjEdit(${s.orderId},${s.sessionIdx})" style="position:absolute;left:${LEFT + 3}px;top:${top}px;transform:translateY(-50%);cursor:pointer;background:${c}18;border:1px solid ${c}66;border-radius:10px;padding:2px 8px;display:inline-flex;align-items:center;gap:5px;z-index:5;">
-      <span style="font-size:9px;font-weight:700;color:${c};font-family:'Courier New',monospace;">${lbl}</span>
-      <span style="font-size:8px;color:var(--text-dim);font-family:'Courier New',monospace;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(s.po)}</span>
-      <span style="font-size:9px;color:${c};opacity:0.6;">✎</span>
+    const meta = h > 30 ? `<div style="font-size:8px;color:${c};opacity:0.7;margin-top:1px;">${escHtml(s.po)}</div>` : '';
+    blocks += `<div onclick="openAdjEdit(${s.orderId},${s.sessionIdx})" style="position:absolute;left:${LEFT + 3}px;right:3px;top:${top}px;height:${h}px;background:${c}12;border:1px solid ${c}55;border-left:3px solid ${c};border-radius:4px;padding:3px 5px;box-sizing:border-box;overflow:hidden;cursor:pointer;z-index:5;">
+      <div style="display:flex;align-items:center;gap:4px;">
+        <span style="font-size:9px;font-weight:700;color:${c};font-family:'Courier New',monospace;">${lbl}</span>
+        <span style="font-size:8px;color:${c};opacity:0.6;">✎</span>
+      </div>
+      ${meta}
     </div>`;
   });
 
