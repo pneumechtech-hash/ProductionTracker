@@ -390,6 +390,7 @@
       <button class="tab" id="tab-new" onclick="switchView('new')" style="position:relative;">+ New<span id="tab-pause-dot" style="display:none;position:absolute;top:5px;right:5px;width:6px;height:6px;border-radius:50%;background:var(--amber);"></span></button>
       <button class="tab" id="tab-archive" onclick="switchView('archive')">Archive</button>
       <button class="tab" id="tab-stats" onclick="switchView('stats')">Stats</button>
+      <button class="tab" id="tab-today" onclick="switchView('today')">Timeline</button>
     </div>
   </div>
 
@@ -461,6 +462,8 @@
         </div>
         <div class="gap"></div>
         <button class="btn btn-primary" onclick="createOrderAndStartTimer()">▶ Start Timer</button>
+        <div class="gap"></div>
+        <button class="btn btn-ghost" onclick="createOrderWithoutTimer()">+ Save Without Timer</button>
         <div class="gap"></div>
         <button class="btn btn-ghost" onclick="goToScan()">← Rescan</button>
       </div>
@@ -577,6 +580,14 @@
       </div>
     </div>
 
+    <div id="view-today" class="view">
+      <div class="section-label">Today's Timeline</div>
+      <div id="timeline-legend"></div>
+      <div id="timeline-outer" style="overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+        <div id="timeline-container"></div>
+      </div>
+    </div>
+
   </div><!-- /content -->
 </div><!-- /app -->
 
@@ -602,6 +613,15 @@
       <button class="btn btn-warn" onclick="stopSession(false)">Save — Not CNF</button>
       <button class="btn btn-primary" onclick="stopSession(true)">Save + CNF ✓</button>
     </div>
+  </div>
+</div>
+
+<!-- ── ADJUSTMENT EDIT MODAL ── -->
+<div class="modal-overlay" id="modal-adj-edit">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-adj-edit')">✕</button>
+    <div class="modal-title">Edit Adjustment</div>
+    <div id="adj-edit-body"></div>
   </div>
 </div>
 
@@ -739,13 +759,15 @@ function switchView(v) {
     if ((v === 'orders' && label.includes('order')) ||
         (v === 'new' && label.includes('new')) ||
         (v === 'archive' && label.includes('archive')) ||
-        (v === 'stats' && label.includes('stats'))) {
+        (v === 'stats' && label.includes('stats')) ||
+        (v === 'today' && label.includes('timeline'))) {
       t.classList.add('active');
     }
   });
   if (v === 'orders') renderOrders();
   if (v === 'archive') renderArchive();
   if (v === 'stats') renderStats();
+  if (v === 'today') renderTimeline();
   if (v === 'new') { resetDraft(); showStep('tags'); renderTags(); }
 }
 
@@ -930,6 +952,22 @@ function showConfirm() {
   showStep('confirm');
 }
 
+function createOrderWithoutTimer() {
+  const order = {
+    id: Date.now(),
+    po: draft.po,
+    tags: [...draft.tags],
+    notes: draft.notes,
+    sessions: [],
+    created: Date.now(),
+    finished: false
+  };
+  db.orders.unshift(order);
+  saveDB();
+  resetDraft();
+  switchView('orders');
+}
+
 function createOrderAndStartTimer() {
   const order = {
     id: Date.now(),
@@ -1025,7 +1063,7 @@ function dismissNoonToast() {
 
 // ── TIMER ─────────────────────────────────────────────────────────────────
 function setOrdersTabDisabled(disabled) {
-  ['tab-orders', 'tab-new', 'tab-archive', 'tab-stats'].forEach(id => {
+  ['tab-orders', 'tab-new', 'tab-archive', 'tab-stats', 'tab-today'].forEach(id => {
     const tab = document.getElementById(id);
     if (tab) tab.disabled = disabled;
   });
@@ -1876,6 +1914,209 @@ function stopScanner() {
 }
 
 // ── UTILS ──────────────────────────────────────────────────────────────────
+// ── TIMELINE ───────────────────────────────────────────────────────────────
+let adjEditState = null;
+
+function renderTimeline() {
+  const now = new Date();
+  const dayStart = new Date(now); dayStart.setHours(0, 0, 0, 0);
+  const dayEnd   = new Date(now); dayEnd.setHours(23, 59, 59, 999);
+  const tsStart  = dayStart.getTime();
+  const tsEnd    = dayEnd.getTime();
+
+  const todayOrders = db.orders.filter(o =>
+    o.sessions.some(s => { const t = s.start || s.date; return t >= tsStart && t <= tsEnd; })
+  );
+
+  const legend    = document.getElementById('timeline-legend');
+  const container = document.getElementById('timeline-container');
+
+  if (!todayOrders.length) {
+    legend.innerHTML = '';
+    container.innerHTML = '<div style="text-align:center;padding:48px 0;color:var(--text-dim);font-size:12px;letter-spacing:1px;">No sessions recorded today.</div>';
+    return;
+  }
+
+  const COLORS = ['#4ade80','#60a5fa','#f59e0b','#c084fc','#fb7185','#34d399','#fbbf24','#a78bfa'];
+  const colorMap = {};
+  todayOrders.forEach((o, i) => { colorMap[o.id] = COLORS[i % COLORS.length]; });
+
+  // Collect today's sessions with their order context
+  const allSessions = [];
+  todayOrders.forEach(o => {
+    o.sessions.forEach((s, idx) => {
+      const t = s.start || s.date;
+      if (t >= tsStart && t <= tsEnd) {
+        allSessions.push({ ...s, orderId: o.id, sessionIdx: idx, po: o.po });
+      }
+    });
+  });
+
+  // Compute time range
+  let minT = Infinity, maxT = -Infinity;
+  allSessions.forEach(s => {
+    const t = s.start || s.date;
+    minT = Math.min(minT, t);
+    if (s.manual) {
+      maxT = Math.max(maxT, s.date || s.start);
+    } else {
+      maxT = Math.max(maxT, t + Math.max(s.duration, 0));
+    }
+  });
+  // Snap to 15-min boundaries with one-slot padding
+  minT = Math.floor((minT - 900000) / 900000) * 900000;
+  maxT = Math.ceil((maxT  + 900000) / 900000) * 900000;
+  const range = maxT - minT;
+
+  const PX_PER_MS = 24 / 900000; // 24px per 15 minutes
+  const LEFT      = 42;          // width of time label column
+  const totalH    = Math.ceil(range * PX_PER_MS) + 16;
+
+  // Time axis ticks every 15 min
+  let ticks = '';
+  let tick = minT;
+  while (tick <= maxT) {
+    const top   = (tick - minT) * PX_PER_MS;
+    const label = new Date(tick).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit', hour12: false });
+    ticks += `<div style="position:absolute;left:0;width:${LEFT}px;top:${top}px;transform:translateY(-50%);font-size:8px;color:var(--text-dim);font-family:'Courier New',monospace;text-align:right;padding-right:6px;line-height:1;">${label}</div>
+      <div style="position:absolute;left:${LEFT}px;right:0;top:${top}px;border-top:1px solid rgba(255,255,255,0.05);"></div>`;
+    tick += 900000;
+  }
+
+  // Normal session blocks
+  let blocks = '';
+  allSessions.filter(s => !s.manual).forEach(s => {
+    const t   = s.start || s.date;
+    const top = (t - minT) * PX_PER_MS;
+    const h   = Math.max(s.duration * PX_PER_MS, 20);
+    const c   = colorMap[s.orderId];
+    const meta = h > 28 ? `<div style="font-size:8px;color:var(--text-dim);margin-top:1px;">${fmtMin(s.duration)}${s.cnf ? ' · CNF' : ''}</div>` : '';
+    blocks += `<div style="position:absolute;left:${LEFT + 3}px;right:3px;top:${top}px;height:${h}px;background:${c}1a;border:1px solid ${c}44;border-left:3px solid ${c};border-radius:4px;padding:3px 5px;box-sizing:border-box;overflow:hidden;">
+      <div style="font-size:9px;font-weight:700;color:${c};font-family:'Courier New',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(s.po)}</div>
+      ${meta}
+    </div>`;
+  });
+
+  // Adjustment chips (manual sessions) — tappable
+  allSessions.filter(s => s.manual).forEach(s => {
+    const t   = s.date || s.start;
+    const top = (t - minT) * PX_PER_MS;
+    const c   = s.duration >= 0 ? '#a78bfa' : '#f87171';
+    const lbl = (s.duration >= 0 ? '+' : '−') + Math.round(Math.abs(s.duration) / 60000) + 'm';
+    blocks += `<div onclick="openAdjEdit(${s.orderId},${s.sessionIdx})" style="position:absolute;left:${LEFT + 3}px;top:${top}px;transform:translateY(-50%);cursor:pointer;background:${c}18;border:1px solid ${c}66;border-radius:10px;padding:2px 8px;display:inline-flex;align-items:center;gap:5px;z-index:5;">
+      <span style="font-size:9px;font-weight:700;color:${c};font-family:'Courier New',monospace;">${lbl}</span>
+      <span style="font-size:8px;color:var(--text-dim);font-family:'Courier New',monospace;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(s.po)}</span>
+      <span style="font-size:9px;color:${c};opacity:0.6;">✎</span>
+    </div>`;
+  });
+
+  // Legend
+  legend.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">' +
+    todayOrders.map(o =>
+      `<div style="display:inline-flex;align-items:center;gap:5px;">
+        <div style="width:8px;height:8px;border-radius:2px;background:${colorMap[o.id]};flex-shrink:0;"></div>
+        <span style="font-size:10px;color:var(--text);font-family:'Courier New',monospace;">${escHtml(o.po)}</span>
+      </div>`
+    ).join('') + '</div>';
+
+  container.innerHTML = `<div style="position:relative;height:${totalH}px;">${ticks}${blocks}</div>`;
+}
+
+function openAdjEdit(orderId, sessionIdx) {
+  const order = db.orders.find(o => o.id === orderId);
+  if (!order) return;
+  const session = order.sessions[sessionIdx];
+  if (!session || !session.manual) return;
+
+  adjEditState = { orderId, sessionIdx, tempDuration: session.duration };
+
+  const now      = new Date();
+  const dayStart = new Date(now); dayStart.setHours(0, 0, 0, 0);
+  const dayEnd   = new Date(now); dayEnd.setHours(23, 59, 59, 999);
+  const tsStart  = dayStart.getTime();
+  const tsEnd    = dayEnd.getTime();
+  const todayOrders = db.orders.filter(o =>
+    o.id === orderId ||
+    o.sessions.some(s => { const t = s.start || s.date; return t >= tsStart && t <= tsEnd; })
+  );
+
+  _renderAdjEditBody(order, todayOrders);
+  openModal('modal-adj-edit');
+}
+
+function _renderAdjEditBody(order, todayOrders) {
+  const { tempDuration, orderId } = adjEditState;
+  const c   = tempDuration >= 0 ? '#a78bfa' : '#f87171';
+  const lbl = (tempDuration >= 0 ? '+' : '−') + Math.round(Math.abs(tempDuration) / 60000) + 'm';
+  document.getElementById('adj-edit-body').innerHTML = `
+    <div style="text-align:center;margin-bottom:16px;">
+      <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:6px;">Adjustment Amount</div>
+      <div id="adj-edit-amount" style="font-size:36px;font-family:'Courier New',monospace;font-weight:bold;color:${c};">${lbl}</div>
+      <div style="font-size:10px;color:var(--text-dim);margin-top:4px;">on ${escHtml(order.po)}</div>
+    </div>
+    <div class="section-label" style="margin-bottom:8px;">Adjust Amount</div>
+    <div class="time-adjust-row" style="margin-bottom:14px;">
+      <button class="btn btn-ghost btn-sm" onclick="adjEditChange(-900000)">−15m</button>
+      <button class="btn btn-ghost btn-sm" onclick="adjEditChange(-300000)">−5m</button>
+      <button class="btn btn-ghost btn-sm" onclick="adjEditChange(300000)">+5m</button>
+      <button class="btn btn-ghost btn-sm" onclick="adjEditChange(900000)">+15m</button>
+    </div>
+    <div class="section-label" style="margin-bottom:8px;">Assign to Order</div>
+    <select id="adj-edit-order" class="input-field" style="margin-bottom:16px;cursor:pointer;">
+      ${todayOrders.map(o => `<option value="${o.id}"${o.id === orderId ? ' selected' : ''}>${escHtml(o.po)}</option>`).join('')}
+    </select>
+    <div class="row" style="gap:8px;margin-top:4px;">
+      <button class="btn btn-warn btn-sm" style="flex:1;" onclick="adjEditRemove()">Remove</button>
+      <button class="btn btn-primary" style="flex:2;" onclick="adjEditSave()">Save</button>
+    </div>`;
+}
+
+function adjEditChange(deltaMs) {
+  if (!adjEditState) return;
+  adjEditState.tempDuration += deltaMs;
+  const d   = adjEditState.tempDuration;
+  const c   = d >= 0 ? '#a78bfa' : '#f87171';
+  const lbl = (d >= 0 ? '+' : '−') + Math.round(Math.abs(d) / 60000) + 'm';
+  const el  = document.getElementById('adj-edit-amount');
+  if (el) { el.textContent = lbl; el.style.color = c; }
+}
+
+function adjEditSave() {
+  if (!adjEditState) return;
+  const { orderId, sessionIdx, tempDuration } = adjEditState;
+  const targetId = parseInt(document.getElementById('adj-edit-order').value, 10);
+  const sourceOrder = db.orders.find(o => o.id === orderId);
+  if (!sourceOrder) return;
+  const session = sourceOrder.sessions[sessionIdx];
+  if (!session) return;
+
+  if (targetId !== orderId) {
+    const targetOrder = db.orders.find(o => o.id === targetId);
+    if (targetOrder) {
+      sourceOrder.sessions.splice(sessionIdx, 1);
+      targetOrder.sessions.push({ ...session, duration: tempDuration });
+    }
+  } else {
+    session.duration = tempDuration;
+  }
+
+  saveDB();
+  adjEditState = null;
+  closeModal('modal-adj-edit');
+  renderTimeline();
+}
+
+function adjEditRemove() {
+  if (!adjEditState) return;
+  const { orderId, sessionIdx } = adjEditState;
+  const order = db.orders.find(o => o.id === orderId);
+  if (order) order.sessions.splice(sessionIdx, 1);
+  saveDB();
+  adjEditState = null;
+  closeModal('modal-adj-edit');
+  renderTimeline();
+}
+
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
