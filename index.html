@@ -390,7 +390,6 @@
       <button class="tab" id="tab-new" onclick="switchView('new')" style="position:relative;">+ New<span id="tab-pause-dot" style="display:none;position:absolute;top:5px;right:5px;width:6px;height:6px;border-radius:50%;background:var(--amber);"></span></button>
       <button class="tab" id="tab-archive" onclick="switchView('archive')">Archive</button>
       <button class="tab" id="tab-stats" onclick="switchView('stats')">Stats</button>
-      <button class="tab" id="tab-today" onclick="switchView('today')">Timeline</button>
     </div>
   </div>
 
@@ -402,8 +401,17 @@
         <input class="input-field" id="orders-search" type="search" placeholder="Search PO…" oninput="ordersFilter=this.value;renderOrders()" style="padding-right:36px;">
         <button onclick="document.getElementById('orders-search').value='';ordersFilter='';renderOrders()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-dim);font-size:16px;cursor:pointer;line-height:1;">×</button>
       </div>
-      <div class="section-label">Active Orders</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:6px;">
+        <span id="orders-section-title" style="font-size:10px;font-weight:600;letter-spacing:1.5px;color:var(--text-dim);text-transform:uppercase;">Active Orders</span>
+        <button id="timeline-toggle-btn" onclick="toggleOrdersTimeline()" style="font-size:10px;font-weight:500;letter-spacing:0.5px;padding:3px 10px;border:1px solid var(--border-mid);border-radius:6px;background:transparent;color:var(--text-dim);cursor:pointer;">Timeline</button>
+      </div>
       <div id="orders-list"></div>
+      <div id="orders-timeline" style="display:none;">
+        <div id="timeline-legend"></div>
+        <div id="timeline-scroll" style="overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;height:calc(100vh - 210px);margin:0 -16px;padding:0 16px;">
+          <div id="timeline-container" style="position:relative;padding-bottom:24px;"></div>
+        </div>
+      </div>
     </div>
 
     <!-- ── NEW ORDER VIEW ── -->
@@ -580,14 +588,6 @@
       </div>
     </div>
 
-    <div id="view-today" class="view" style="padding-bottom:0;">
-      <div class="section-label">Today's Timeline</div>
-      <div id="timeline-legend"></div>
-      <div id="timeline-scroll" style="overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;height:calc(100vh - 178px);margin:0 -16px;padding:0 16px;">
-        <div id="timeline-container" style="position:relative;padding-bottom:24px;"></div>
-      </div>
-    </div>
-
   </div><!-- /content -->
 </div><!-- /app -->
 
@@ -759,15 +759,13 @@ function switchView(v) {
     if ((v === 'orders' && label.includes('order')) ||
         (v === 'new' && label.includes('new')) ||
         (v === 'archive' && label.includes('archive')) ||
-        (v === 'stats' && label.includes('stats')) ||
-        (v === 'today' && label.includes('timeline'))) {
+        (v === 'stats' && label.includes('stats'))) {
       t.classList.add('active');
     }
   });
-  if (v === 'orders') renderOrders();
+  if (v === 'orders') { ordersShowTimeline ? renderTimeline() : renderOrders(); }
   if (v === 'archive') renderArchive();
   if (v === 'stats') renderStats();
-  if (v === 'today') renderTimeline();
   if (v === 'new') { resetDraft(); showStep('tags'); renderTags(); }
 }
 
@@ -1063,7 +1061,7 @@ function dismissNoonToast() {
 
 // ── TIMER ─────────────────────────────────────────────────────────────────
 function setOrdersTabDisabled(disabled) {
-  ['tab-orders', 'tab-new', 'tab-archive', 'tab-stats', 'tab-today'].forEach(id => {
+  ['tab-orders', 'tab-new', 'tab-archive', 'tab-stats'].forEach(id => {
     const tab = document.getElementById(id);
     if (tab) tab.disabled = disabled;
   });
@@ -1629,8 +1627,34 @@ function finishOrder(id) {
 }
 
 // ── RENDER LISTS ───────────────────────────────────────────────────────────
-let ordersFilter = '';
-let archiveFilter = '';
+let ordersFilter      = '';
+let archiveFilter     = '';
+let ordersShowTimeline = false;
+
+function toggleOrdersTimeline() {
+  ordersShowTimeline = !ordersShowTimeline;
+  const btn   = document.getElementById('timeline-toggle-btn');
+  const title = document.getElementById('orders-section-title');
+  const list  = document.getElementById('orders-list');
+  const tl    = document.getElementById('orders-timeline');
+  if (ordersShowTimeline) {
+    list.style.display  = 'none';
+    tl.style.display    = 'block';
+    title.textContent   = "Today's Timeline";
+    btn.textContent     = 'Orders';
+    btn.style.color     = 'var(--green)';
+    btn.style.borderColor = 'var(--green)';
+    renderTimeline();
+  } else {
+    tl.style.display    = 'none';
+    list.style.display  = '';
+    title.textContent   = 'Active Orders';
+    btn.textContent     = 'Timeline';
+    btn.style.color       = 'var(--text-dim)';
+    btn.style.borderColor = 'var(--border-mid)';
+    renderOrders();
+  }
+}
 
 function matchFilter(query, value) {
   if (!query) return true;
@@ -1915,7 +1939,13 @@ function stopScanner() {
 
 // ── UTILS ──────────────────────────────────────────────────────────────────
 // ── TIMELINE ───────────────────────────────────────────────────────────────
-let adjEditState = null;
+let adjEditState    = null;
+let tlMinT          = 0;
+const TL_PX_PER_MS  = 56 / 900000; // 56 px per 15 min (~4 px/min)
+let tlDrag          = null;
+let tlDragHoldTimer = null;
+let tlTouchPending  = null;
+let tlTodaySessions = []; // non-manual sessions for snap targets
 
 function renderTimeline() {
   const now = new Date();
@@ -1953,31 +1983,33 @@ function renderTimeline() {
     });
   });
 
-  // Compute time range
+  // Cache non-manual sessions for snap targets during drag
+  tlTodaySessions = allSessions
+    .filter(s => !s.manual)
+    .map(s => ({ t: s.start || s.date, end: (s.start || s.date) + Math.max(s.duration, 0), po: s.po }));
+
+  // Compute time range — use s.date (display position) for manual sessions
   let minT = Infinity, maxT = -Infinity;
   allSessions.forEach(s => {
-    const t = s.start || s.date;
+    const t   = s.manual ? (s.date || s.start) : (s.start || s.date);
+    const end = s.manual ? t + Math.abs(s.duration) : t + Math.max(s.duration, 0);
     minT = Math.min(minT, t);
-    if (s.manual) {
-      maxT = Math.max(maxT, s.date || s.start);
-    } else {
-      maxT = Math.max(maxT, t + Math.max(s.duration, 0));
-    }
+    maxT = Math.max(maxT, end);
   });
   // Snap to 15-min boundaries with two-slot padding so trailing blocks aren't clipped
-  minT = Math.floor((minT - 900000) / 900000) * 900000;
-  maxT = Math.ceil((maxT  + 1800000) / 900000) * 900000;
+  minT = Math.floor((minT - 900000)  / 900000) * 900000;
+  maxT = Math.ceil( (maxT + 1800000) / 900000) * 900000;
   const range = maxT - minT;
+  tlMinT = minT;
 
-  const PX_PER_MS = 56 / 900000; // 56px per 15 minutes (~4px/min)
-  const LEFT      = 42;          // width of time label column
-  const totalH    = Math.ceil(range * PX_PER_MS) + 32;
+  const LEFT   = 42;
+  const totalH = Math.ceil(range * TL_PX_PER_MS) + 32;
 
   // Time axis ticks every 15 min
   let ticks = '';
   let tick = minT;
   while (tick <= maxT) {
-    const top   = (tick - minT) * PX_PER_MS;
+    const top   = (tick - minT) * TL_PX_PER_MS;
     const label = new Date(tick).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit', hour12: false });
     ticks += `<div style="position:absolute;left:0;width:${LEFT}px;top:${top}px;transform:translateY(-50%);font-size:8px;color:var(--text-dim);font-family:'Courier New',monospace;text-align:right;padding-right:6px;line-height:1;">${label}</div>
       <div style="position:absolute;left:${LEFT}px;right:0;top:${top}px;border-top:1px solid rgba(255,255,255,0.05);"></div>`;
@@ -1988,8 +2020,8 @@ function renderTimeline() {
   let blocks = '';
   allSessions.filter(s => !s.manual).forEach(s => {
     const t   = s.start || s.date;
-    const top = (t - minT) * PX_PER_MS;
-    const h   = Math.max(s.duration * PX_PER_MS, 16);
+    const top = (t - minT) * TL_PX_PER_MS;
+    const h   = Math.max(s.duration * TL_PX_PER_MS, 16);
     const c   = colorMap[s.orderId];
     const meta = h > 30 ? `<div style="font-size:8px;color:var(--text-dim);margin-top:1px;">${fmtMin(s.duration)}${s.cnf ? ' · CNF' : ''}</div>` : '';
     blocks += `<div style="position:absolute;left:${LEFT + 3}px;right:3px;top:${top}px;height:${h}px;background:${c}1a;border:1px solid ${c}44;border-left:3px solid ${c};border-radius:4px;padding:3px 5px;box-sizing:border-box;overflow:hidden;">
@@ -1998,18 +2030,18 @@ function renderTimeline() {
     </div>`;
   });
 
-  // Adjustment blocks (manual sessions) — height proportional to duration, tappable
+  // Adjustment blocks — proportional height, hold-to-drag, tap-to-edit
   allSessions.filter(s => s.manual).forEach(s => {
     const t   = s.date || s.start;
-    const top = (t - minT) * PX_PER_MS;
-    const h   = Math.max(Math.abs(s.duration) * PX_PER_MS, 16);
+    const top = (t - tlMinT) * TL_PX_PER_MS;
+    const h   = Math.max(Math.abs(s.duration) * TL_PX_PER_MS, 16);
     const c   = s.duration >= 0 ? '#a78bfa' : '#f87171';
     const lbl = (s.duration >= 0 ? '+' : '−') + Math.round(Math.abs(s.duration) / 60000) + 'm';
     const meta = h > 30 ? `<div style="font-size:8px;color:${c};opacity:0.7;margin-top:1px;">${escHtml(s.po)}</div>` : '';
-    blocks += `<div onclick="openAdjEdit(${s.orderId},${s.sessionIdx})" style="position:absolute;left:${LEFT + 3}px;right:3px;top:${top}px;height:${h}px;background:${c}12;border:1px solid ${c}55;border-left:3px solid ${c};border-radius:4px;padding:3px 5px;box-sizing:border-box;overflow:hidden;cursor:pointer;z-index:5;">
+    blocks += `<div data-adj-oid="${s.orderId}" data-adj-idx="${s.sessionIdx}" style="position:absolute;left:${LEFT + 3}px;right:3px;top:${top}px;height:${h}px;background:${c}12;border:1px solid ${c}55;border-left:3px solid ${c};border-radius:4px;padding:3px 5px;box-sizing:border-box;overflow:hidden;cursor:grab;z-index:5;touch-action:none;">
       <div style="display:flex;align-items:center;gap:4px;">
         <span style="font-size:9px;font-weight:700;color:${c};font-family:'Courier New',monospace;">${lbl}</span>
-        <span style="font-size:8px;color:${c};opacity:0.6;">✎</span>
+        <span style="font-size:8px;color:${c};opacity:0.5;">⠿</span>
       </div>
       ${meta}
     </div>`;
@@ -2070,12 +2102,13 @@ function _renderAdjEditBody(order, todayOrders) {
     </div>
     <div class="section-label" style="margin-bottom:8px;">Timeline Position</div>
     <div style="text-align:center;font-size:13px;font-family:'Courier New',monospace;color:var(--text);margin-bottom:8px;" id="adj-edit-time">${timeLbl}</div>
-    <div class="time-adjust-row" style="margin-bottom:14px;">
+    <div class="time-adjust-row" style="margin-bottom:8px;">
       <button class="btn btn-ghost btn-sm" onclick="adjEditShift(-900000)">−15m</button>
       <button class="btn btn-ghost btn-sm" onclick="adjEditShift(-300000)">−5m</button>
       <button class="btn btn-ghost btn-sm" onclick="adjEditShift(300000)">+5m</button>
       <button class="btn btn-ghost btn-sm" onclick="adjEditShift(900000)">+15m</button>
     </div>
+    ${_adjSnapButtons(tempDate, Math.abs(tempDuration))}
     <div class="section-label" style="margin-bottom:8px;">Assign to Order</div>
     <select id="adj-edit-order" class="input-field" style="margin-bottom:16px;cursor:pointer;">
       ${todayOrders.map(o => `<option value="${o.id}"${o.id === orderId ? ' selected' : ''}>${escHtml(o.po)}</option>`).join('')}
@@ -2084,6 +2117,26 @@ function _renderAdjEditBody(order, todayOrders) {
       <button class="btn btn-warn btn-sm" style="flex:1;" onclick="adjEditRemove()">Remove</button>
       <button class="btn btn-primary" style="flex:2;" onclick="adjEditSave()">Save</button>
     </div>`;
+}
+
+function _adjSnapButtons(tempDate, adjDuration) {
+  // Find the session whose end is closest above and the session whose start is closest below
+  const sorted = [...tlTodaySessions].sort((a, b) => a.t - b.t);
+  const above = sorted.filter(s => s.end <= tempDate).pop();           // session ending before adj
+  const below = sorted.find(s => s.t >= tempDate + adjDuration);      // session starting after adj
+
+  if (!above && !below) return '';
+  const btns = [];
+  if (above) btns.push(`<button class="btn btn-ghost btn-sm" style="flex:1;font-size:10px;" onclick="adjEditSnapTo(${above.end})">↑ After ${escHtml(above.po)}</button>`);
+  if (below) btns.push(`<button class="btn btn-ghost btn-sm" style="flex:1;font-size:10px;" onclick="adjEditSnapTo(${below.t - adjDuration})">↓ Before ${escHtml(below.po)}</button>`);
+  return `<div style="display:flex;gap:6px;margin-bottom:14px;">${btns.join('')}</div>`;
+}
+
+function adjEditSnapTo(targetDate) {
+  if (!adjEditState) return;
+  adjEditState.tempDate = targetDate;
+  const el = document.getElementById('adj-edit-time');
+  if (el) el.textContent = new Date(targetDate).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 function adjEditChange(deltaMs) {
@@ -2138,6 +2191,205 @@ function adjEditRemove() {
   adjEditState = null;
   closeModal('modal-adj-edit');
   renderTimeline();
+}
+
+// ── TIMELINE DRAG ──────────────────────────────────────────────────────────
+// Returns the best-snap date for an adjustment at rawDate with given duration (ms).
+// Priority: snap adj-top or adj-bottom to a session edge within 15px; else 5-min grid.
+function tlApplySnap(rawDate, adjDuration) {
+  const SNAP_MS = 15 / TL_PX_PER_MS; // 15 px → ms threshold
+  for (const s of tlTodaySessions) {
+    if (Math.abs(rawDate - s.end) < SNAP_MS)        return s.end;          // top snaps to session bottom
+    if (Math.abs(rawDate + adjDuration - s.t) < SNAP_MS) return s.t - adjDuration; // bottom snaps to session top
+  }
+  return Math.round(rawDate / 300000) * 300000; // 5-min grid fallback
+}
+let tlMousePending  = null;
+let tlMouseDragging = false;
+
+function initTimelineDrag() {
+  const container = document.getElementById('timeline-container');
+
+  // Touch (mobile)
+  container.addEventListener('touchstart',  tlTouchStart,  { passive: true });
+  container.addEventListener('touchmove',   tlTouchMove,   { passive: false });
+  container.addEventListener('touchend',    tlTouchEnd,    { passive: true });
+  container.addEventListener('touchcancel', tlTouchCancel, { passive: true });
+
+  // Mouse (desktop) — no hold timer, drag starts after 5px movement
+  container.addEventListener('mousedown', tlMouseDown);
+  document.addEventListener('mousemove',  tlMouseMove);
+  document.addEventListener('mouseup',    tlMouseUp);
+
+  // Click fallback (handles both desktop tap and non-drag mouse release)
+  container.addEventListener('click', e => {
+    if (tlMouseDragging) return;
+    const el = e.target.closest('[data-adj-oid]');
+    if (!el) return;
+    openAdjEdit(parseInt(el.dataset.adjOid, 10), parseInt(el.dataset.adjIdx, 10));
+  });
+}
+
+function tlMouseDown(e) {
+  const el = e.target.closest('[data-adj-oid]');
+  if (!el) return;
+  e.preventDefault();
+  tlMousePending  = { orderId: parseInt(el.dataset.adjOid, 10),
+                      sessionIdx: parseInt(el.dataset.adjIdx, 10),
+                      startY: e.clientY, el };
+  tlMouseDragging = false;
+}
+
+function tlMouseMove(e) {
+  if (!tlMousePending) return;
+  const dy = e.clientY - tlMousePending.startY;
+
+  if (!tlMouseDragging) {
+    if (Math.abs(dy) < 5) return;
+    // Cross drag threshold — enter drag mode
+    tlMouseDragging = true;
+    const { orderId, sessionIdx, el } = tlMousePending;
+    const order   = db.orders.find(o => o.id === orderId);
+    const session = order && order.sessions[sessionIdx];
+    if (!session) { tlMousePending = null; return; }
+    const c = session.duration >= 0 ? '#a78bfa' : '#f87171';
+    tlDrag = { orderId, sessionIdx, origDate: session.date || session.start,
+               currentDate: session.date || session.start, adjDuration: Math.abs(session.duration),
+               startY: tlMousePending.startY, el };
+    el.style.outline   = `2px solid ${c}`;
+    el.style.opacity   = '0.85';
+    el.style.zIndex    = '20';
+    el.style.boxShadow = '0 4px 14px rgba(0,0,0,0.45)';
+    el.style.cursor    = 'grabbing';
+    document.body.style.userSelect = 'none';
+  }
+
+  if (!tlDrag) return;
+  tlDrag.currentDate = tlApplySnap(tlDrag.origDate + (dy / TL_PX_PER_MS), tlDrag.adjDuration);
+  tlDrag.el.style.top = ((tlDrag.currentDate - tlMinT) * TL_PX_PER_MS) + 'px';
+
+  const container = document.getElementById('timeline-container');
+  let tip = document.getElementById('tl-drag-tip');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.id = 'tl-drag-tip';
+    tip.style.cssText = 'position:absolute;left:50%;transform:translateX(-50%);background:#1c1c28;border:1px solid #a78bfa66;border-radius:6px;padding:3px 10px;font-size:10px;font-family:\'Courier New\',monospace;color:#a78bfa;z-index:30;pointer-events:none;white-space:nowrap;';
+    container.appendChild(tip);
+  }
+  tip.style.top   = Math.max(4, (tlDrag.currentDate - tlMinT) * TL_PX_PER_MS - 26) + 'px';
+  tip.textContent = new Date(tlDrag.currentDate).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+function tlMouseUp() {
+  document.body.style.userSelect = '';
+  const tip = document.getElementById('tl-drag-tip');
+  if (tip) tip.remove();
+
+  const wasDragging = tlMouseDragging;
+  tlMousePending  = null;
+  tlMouseDragging = false;
+
+  if (!tlDrag) return; // no drag in progress (plain click — click handler fires)
+
+  const { orderId, sessionIdx, currentDate, el } = tlDrag;
+  el.style.outline = el.style.opacity = el.style.zIndex = el.style.boxShadow = el.style.cursor = '';
+  tlDrag = null;
+
+  if (wasDragging) {
+    const order = db.orders.find(o => o.id === orderId);
+    if (order && order.sessions[sessionIdx]) {
+      order.sessions[sessionIdx].date = currentDate;
+      saveDB();
+    }
+    renderTimeline();
+  }
+}
+
+function tlTouchStart(e) {
+  const el = e.target.closest('[data-adj-oid]');
+  if (!el) return;
+  const orderId    = parseInt(el.dataset.adjOid, 10);
+  const sessionIdx = parseInt(el.dataset.adjIdx, 10);
+  const touch      = e.touches[0];
+  tlTouchPending   = { orderId, sessionIdx, startY: touch.clientY, el };
+
+  tlDragHoldTimer = setTimeout(() => {
+    if (!tlTouchPending) return;
+    const order   = db.orders.find(o => o.id === orderId);
+    const session = order && order.sessions[sessionIdx];
+    if (!session) return;
+    const c = session.duration >= 0 ? '#a78bfa' : '#f87171';
+    tlDrag = { orderId, sessionIdx, origDate: session.date || session.start,
+               currentDate: session.date || session.start, adjDuration: Math.abs(session.duration),
+               startY: tlTouchPending.startY, el };
+    el.style.outline    = `2px solid ${c}`;
+    el.style.opacity    = '0.85';
+    el.style.zIndex     = '20';
+    el.style.boxShadow  = '0 4px 14px rgba(0,0,0,0.45)';
+    tlTouchPending = null;
+    if (navigator.vibrate) navigator.vibrate(40);
+  }, 380);
+}
+
+function tlTouchMove(e) {
+  if (!tlDrag) {
+    if (tlTouchPending) {
+      const dy = Math.abs(e.touches[0].clientY - tlTouchPending.startY);
+      if (dy > 8) { clearTimeout(tlDragHoldTimer); tlDragHoldTimer = null; tlTouchPending = null; }
+    }
+    return;
+  }
+  e.preventDefault();
+  const deltaY = e.touches[0].clientY - tlDrag.startY;
+  tlDrag.currentDate = tlApplySnap(tlDrag.origDate + (deltaY / TL_PX_PER_MS), tlDrag.adjDuration);
+  tlDrag.el.style.top = ((tlDrag.currentDate - tlMinT) * TL_PX_PER_MS) + 'px';
+
+  const container = document.getElementById('timeline-container');
+  let tip = document.getElementById('tl-drag-tip');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.id = 'tl-drag-tip';
+    tip.style.cssText = 'position:absolute;left:50%;transform:translateX(-50%);background:#1c1c28;border:1px solid #a78bfa66;border-radius:6px;padding:3px 10px;font-size:10px;font-family:\'Courier New\',monospace;color:#a78bfa;z-index:30;pointer-events:none;white-space:nowrap;';
+    container.appendChild(tip);
+  }
+  const tipTop = Math.max(4, (tlDrag.currentDate - tlMinT) * TL_PX_PER_MS - 26);
+  tip.style.top  = tipTop + 'px';
+  tip.textContent = new Date(tlDrag.currentDate).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+function tlTouchEnd() {
+  clearTimeout(tlDragHoldTimer);
+  tlDragHoldTimer = null;
+  const tip = document.getElementById('tl-drag-tip');
+  if (tip) tip.remove();
+
+  if (tlDrag) {
+    const { orderId, sessionIdx, currentDate, el } = tlDrag;
+    el.style.outline = el.style.opacity = el.style.zIndex = el.style.boxShadow = '';
+    const order = db.orders.find(o => o.id === orderId);
+    if (order && order.sessions[sessionIdx]) {
+      order.sessions[sessionIdx].date = currentDate;
+      saveDB();
+    }
+    tlDrag = null;
+    tlTouchPending = null;
+    renderTimeline();
+    return;
+  }
+  tlTouchPending = null;
+}
+
+function tlTouchCancel() {
+  clearTimeout(tlDragHoldTimer);
+  tlDragHoldTimer = null;
+  const tip = document.getElementById('tl-drag-tip');
+  if (tip) tip.remove();
+  if (tlDrag) {
+    tlDrag.el.style.outline = tlDrag.el.style.opacity = tlDrag.el.style.zIndex = tlDrag.el.style.boxShadow = '';
+    tlDrag = null;
+    renderTimeline();
+  }
+  tlTouchPending = null;
 }
 
 function escHtml(s) {
@@ -2534,6 +2786,7 @@ if ('serviceWorker' in navigator) {
 loadDB();
 renderTags();
 renderOrders();
+initTimelineDrag();
 
 // Catch 4pm alert missed while app was in background
 document.addEventListener('visibilitychange', () => {
