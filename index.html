@@ -1110,7 +1110,7 @@ function stopSession(cnf) {
         const adjShare = useProportional
           ? Math.floor(activeTimerAdj * ((order.splitQty || 0) / totalQty))
           : Math.floor(activeTimerAdj / splitOrders.length);
-        order.sessions.push({ start: adjNow, duration: adjShare, cnf: false, date: adjNow, manual: true });
+        order.sessions.push({ start: timerStart, duration: adjShare, cnf: false, date: adjNow, manual: true });
       }
     });
     activeTimerAdj = 0;
@@ -1127,7 +1127,7 @@ function stopSession(cnf) {
     if (order) {
       order.sessions.push({ start: timerStart, duration, cnf, date: timerStart });
       if (activeTimerAdj !== 0) {
-        order.sessions.push({ start: adjNow, duration: activeTimerAdj, cnf: false, date: adjNow, manual: true });
+        order.sessions.push({ start: timerStart, duration: activeTimerAdj, cnf: false, date: adjNow, manual: true });
       }
       activeTimerAdj = 0;
       renderTimerAdjPreview();
@@ -1399,7 +1399,8 @@ function commitAdjust(orderId) {
   const order = db.orders.find(o => o.id === orderId);
   if (!order) return;
   const now = Date.now();
-  order.sessions.push({ start: now, duration: ms, cnf: false, date: now, manual: true });
+  const anchor = order.sessions.length ? order.sessions[order.sessions.length - 1].start : now;
+  order.sessions.push({ start: anchor, duration: ms, cnf: false, date: now, manual: true });
   saveDB();
   delete adjStaging[orderId];
   showOrderDetail(orderId);
@@ -1450,7 +1451,10 @@ function commitMultiSelectAdj() {
   const now = Date.now();
   selectedOrderIds.forEach(id => {
     const order = db.orders.find(o => o.id === id);
-    if (order) order.sessions.push({ start: now, duration: msAdjStaging, cnf: false, date: now, manual: true });
+    if (order) {
+      const anchor = order.sessions.length ? order.sessions[order.sessions.length - 1].start : now;
+      order.sessions.push({ start: anchor, duration: msAdjStaging, cnf: false, date: now, manual: true });
+    }
   });
   saveDB();
   clearMultiSelectAdj();
