@@ -578,6 +578,9 @@
         <button id="notif-test-btn" class="btn btn-ghost btn-sm" onclick="scheduleTestNotification()">Send in 1 min</button>
       </div>
 
+      <div class="section-label" style="margin-top:16px;">Last 7 Days</div>
+      <div id="stat-daily-breakdown" class="stat-card wide" style="padding:10px 12px;"></div>
+
       <div class="section-label" style="margin-top:16px;">Export Data</div>
       <div class="stat-card wide">
         <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:12px;">Download all orders and sessions</div>
@@ -1217,11 +1220,14 @@ function showOrderDetail(id) {
     <div id="detail-tags-${id}" style="margin-bottom:12px;"></div>
     ${order.notes ? `<div style="font-size:11px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">${escHtml(order.notes)}</div>` : ''}
     <hr class="divider">
-    <div class="section-label">Sessions (${order.sessions.length})</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);">
+      <span class="section-label" style="margin-bottom:0;padding-bottom:0;border-bottom:none;">Sessions (${order.sessions.length})</span>
+      ${pendingCount > 0 && !order.finished ? `<button class="btn btn-ghost btn-sm" onclick="cnfAll(${id})" style="font-size:9px;padding:3px 10px;min-height:26px;color:var(--green);border-color:rgba(96,165,250,0.4);">CNF All (${pendingCount})</button>` : ''}
+    </div>
     <div class="sessions-list">
       ${order.sessions.length === 0
         ? '<div style="font-size:11px;color:var(--text-muted);padding:12px 0;">No sessions recorded yet</div>'
-        : order.sessions.map((s, i) => {
+        : (() => { const sorted = order.sessions.map((s,i) => ({s,i})).sort((a,b) => (a.s.start||a.s.date) - (b.s.start||b.s.date)); return sorted; })().map(({s, i}) => {
           const neg = s.duration < 0;
           const abs = Math.abs(s.duration);
           const cls = neg ? 'deduction' : (s.manual ? 'manual' : '');
@@ -1728,8 +1734,8 @@ function renderQuickPreview(orderId) {
   const s       = quickStaging[orderId];
   const preview = document.getElementById(`quick-add-preview-${orderId}`);
   const label   = document.getElementById(`quick-add-label-${orderId}`);
-  const errEl   = document.getElementById(`quick-add-error-${orderId}`);
-  if (errEl) errEl.textContent = '';
+  const errEl = document.getElementById(`quick-add-error-${orderId}`);
+  if (errEl) { clearTimeout(errEl._dt); errEl.textContent = ''; }
   if (!s) { if (preview) preview.style.display = 'none'; return; }
   if (!preview || !label) return;
   const durMin = Math.round((s.endTs - s.startTs) / 60000);
@@ -1753,9 +1759,16 @@ function commitQuickAdd(orderId) {
   showOrderDetail(orderId);
 }
 
+function _quickErr(orderId, msg) {
+  const el = document.getElementById(`quick-add-error-${orderId}`);
+  if (!el) return;
+  el.textContent = msg;
+  clearTimeout(el._dt);
+  el._dt = setTimeout(() => { el.textContent = ''; }, 3000);
+}
+
 function quickStageSession(orderId, durMs) {
-  const errEl = document.getElementById(`quick-add-error-${orderId}`);
-  const setErr = msg => { if (errEl) errEl.textContent = msg; };
+  const setErr = msg => _quickErr(orderId, msg);
 
   const existing = quickStaging[orderId];
   // New chunk occupies [newChunkStart, newChunkEnd]; tack onto start of any existing window
@@ -1773,8 +1786,7 @@ function quickStageSession(orderId, durMs) {
 }
 
 function quickStageNowToLast(orderId) {
-  const errEl = document.getElementById(`quick-add-error-${orderId}`);
-  const setErr = msg => { if (errEl) errEl.textContent = msg; };
+  const setErr = msg => _quickErr(orderId, msg);
 
   // Find the most recently ended session across all orders
   let latestEnd = null;
@@ -1866,6 +1878,15 @@ function toggleCNF(orderId, idx) {
   const order = db.orders.find(o => o.id === orderId);
   if (!order) return;
   order.sessions[idx].cnf = !order.sessions[idx].cnf;
+  saveDB();
+  showOrderDetail(orderId);
+  renderOrders();
+}
+
+function cnfAll(orderId) {
+  const order = db.orders.find(o => o.id === orderId);
+  if (!order) return;
+  order.sessions.forEach(s => { if (s.duration > 0 && !s.cnf) s.cnf = true; });
   saveDB();
   showOrderDetail(orderId);
   renderOrders();
@@ -2061,10 +2082,10 @@ function renderOrders() {
           ? `<div class="ms-check${sel ? ' on' : ''}" style="margin-top:4px;">${sel ? '✓' : ''}</div>`
           : `<span class="status-dot ${dot}" style="margin-top:6px;"></span>`}
       </div>
-      <div class="order-meta">${fmtDate(o.created)} · ${o.sessions.length} session${o.sessions.length !== 1 ? 's' : ''}</div>
+      <div class="order-meta">${fmtDate(o.created)}</div>
       ${o.tags.length ? `<div class="order-tags">${o.tags.map(t => `<span class="order-tag">${t}</span>`).join('')}</div>` : ''}
       <div class="order-total">
-        Total: ${fmt(total)} · ${fmtMin(total)}
+        ${o.sessions.length} session${o.sessions.length !== 1 ? 's' : ''} · ${fmt(total)} · ${fmtMin(total)}
         ${pending > 0 ? `· <span class="pending-warn">${pending} pending CNF</span>` : ''}
       </div>
     </div>`;
@@ -2411,6 +2432,18 @@ function renderTimeline() {
       ${meta}
     </div>`;
   });
+
+  // Lunch block (12:00–12:30) — always show if it falls within the visible range
+  const todayD = new Date();
+  const lunchS = new Date(todayD.getFullYear(), todayD.getMonth(), todayD.getDate(), 12,  0, 0, 0).getTime();
+  const lunchE = new Date(todayD.getFullYear(), todayD.getMonth(), todayD.getDate(), 12, 30, 0, 0).getTime();
+  if (lunchS >= minT && lunchS <= maxT) {
+    const lTop = (lunchS - minT) * TL_PX_PER_MS;
+    const lH   = (lunchE - lunchS) * TL_PX_PER_MS;
+    blocks += `<div style="position:absolute;left:${LEFT + 3}px;right:3px;top:${lTop}px;height:${lH}px;background:rgba(113,113,122,0.09);border:1px dashed rgba(113,113,122,0.28);border-left:2px dashed rgba(113,113,122,0.45);border-radius:4px;display:flex;align-items:center;justify-content:center;pointer-events:none;">
+      <span style="font-size:8px;color:var(--text-dim);letter-spacing:0.8px;text-transform:uppercase;">Lunch</span>
+    </div>`;
+  }
 
   // Legend
   legend.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">' +
@@ -3006,6 +3039,44 @@ function renderStats() {
       </details>
     ` : '<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">All previous sessions confirmed</div>'}
   `;
+
+  // Daily breakdown — last 7 days
+  const GOAL_MS = GOAL_MIN * 60000;
+  const days7 = [];
+  for (let i = 0; i < 7; i++) {
+    const dStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i).getTime();
+    const dEnd   = dStart + 86400000;
+    let ms = 0;
+    allOrders.forEach(o => o.sessions.forEach(s => {
+      const t = s.start || s.date;
+      if (t >= dStart && t < dEnd && (s.duration || 0) > 0) ms += s.duration;
+    }));
+    days7.push({ dStart, ms });
+  }
+  const maxDayMs = Math.max(GOAL_MS, ...days7.map(d => d.ms));
+  const fmtDayLabel = ts => {
+    const d = new Date(ts);
+    const isToday = ts === new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    if (isToday) return 'Today';
+    return d.toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+  document.getElementById('stat-daily-breakdown').innerHTML = days7.map(d => {
+    const pct  = Math.min(100, Math.round((d.ms / GOAL_MS) * 100));
+    const barW = Math.round((d.ms / maxDayMs) * 100);
+    const atGoal = d.ms >= GOAL_MS;
+    const col  = atGoal ? '#4ade80' : 'var(--green)';
+    const minStr = Math.round(d.ms / 60000) + ' min';
+    return `
+      <div style="margin-bottom:9px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;">
+          <span style="font-size:10px;color:${d.ms > 0 ? 'var(--text)' : 'var(--text-dim)'};font-weight:${d.ms > 0 ? '500' : '400'};">${fmtDayLabel(d.dStart)}</span>
+          <span style="font-size:10px;font-family:'Courier New',monospace;color:${d.ms > 0 ? col : 'var(--text-muted)'};">${d.ms > 0 ? minStr + (atGoal ? ' ✓' : ` · ${pct}%`) : '—'}</span>
+        </div>
+        <div style="background:var(--bg-input);border-radius:4px;height:5px;overflow:hidden;">
+          <div style="height:100%;border-radius:4px;background:${col};width:${barW}%;transition:width 0.3s ease;"></div>
+        </div>
+      </div>`;
+  }).join('');
 }
 
 // ── EXPORT ─────────────────────────────────────────────────────────────────
