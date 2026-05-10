@@ -702,6 +702,7 @@ const DB_KEY = 'po-tracker-v1';
 let db = { orders: [], archive: [] };
 let draft = { tags: [], notes: '', po: '' };
 let activeOrderId = null;
+let sessionHoldTimer = null;
 let splitOrderIds = [];
 let timerStart = null;
 let timerInterval = null;
@@ -741,6 +742,17 @@ function fmtMin(ms) {
 }
 function fmtDate(ts) {
   return new Date(ts).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+function fmtSessionRange(s) {
+  const startTs = s.start || s.date;
+  const d       = new Date(startTs);
+  const datePart = d.toLocaleString('en-CA', { month: 'short', day: 'numeric' });
+  const startPart = d.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
+  if (s.duration > 0) {
+    const endPart = new Date(startTs + s.duration).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
+    return `${datePart}, ${startPart} – ${endPart}`;
+  }
+  return `${datePart}, ${startPart}`;
 }
 function totalTime(order) {
   return order.sessions.reduce((a, s) => a + (s.duration || 0), 0);
@@ -1217,36 +1229,79 @@ function showOrderDetail(id) {
           const minStr = (neg ? '−' : '') + fmtMin(abs);
           const badge = neg
             ? '<span class="deduction-badge">ADJ −</span>'
-            : (s.manual ? '<span class="adj-badge">ADJ +</span>' : '');
+            : (s.manual ? '<span class="adj-badge">MANUAL</span>' : '');
+          const canDeduct = !s.manual && !neg && !order.finished;
+          const deducts = s.deductions || [];
+          const totalDeducted = deducts.reduce((a, d) => a + d.amount, 0);
+          const deductBadge = totalDeducted > 0
+            ? `<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(248,113,113,0.18);color:var(--red);letter-spacing:0.3px;flex-shrink:0;">−${Math.round(totalDeducted/60000)} min</span>`
+            : '';
+          const deductHistory = deducts.map((d, di) => `
+            <div style="display:flex;align-items:center;gap:8px;padding:5px 12px 5px 14px;background:rgba(248,113,113,0.06);border-top:1px solid rgba(248,113,113,0.15);">
+              <span style="font-size:10px;color:var(--red);flex:1;">↳ −${Math.round(d.amount/60000)} min removed at ${fmtTime(d.ts)}</span>
+              ${!order.finished ? `<button class="btn btn-ghost btn-sm" onclick="undoDeduction(${id},${i},${di})" style="font-size:9px;padding:3px 8px;min-height:26px;">↩ Undo</button>` : ''}
+            </div>`).join('');
+          const hasHistory = deducts.length > 0;
+          const holdAttrs = !order.finished
+            ? `onmousedown="startSessionHold(event,${id},${i})" ontouchstart="startSessionHold(event,${id},${i})" onmouseup="cancelSessionHold()" onmouseleave="cancelSessionHold()" ontouchend="cancelSessionHold()" ontouchmove="cancelSessionHold()" style="cursor:pointer;${hasHistory ? 'border-radius:9px 9px 0 0;margin-bottom:0;' : ''}"`
+            : `style="${hasHistory ? 'border-radius:9px 9px 0 0;margin-bottom:0;' : ''}"`;
           return `
-          <div class="session-item${cls ? ' ' + cls : ''}">
-            <div>
-              <div class="session-time">${timeStr}</div>
-              <div class="session-date">${fmtDate(s.date)} · ${minStr}</div>
+          <div style="margin-bottom:6px;">
+            <div class="session-item${cls ? ' ' + cls : ''}" ${holdAttrs}>
+              <div>
+                <div class="session-time">${timeStr}</div>
+                <div class="session-date">${fmtSessionRange(s)} · ${minStr}</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+                ${deductBadge}
+                ${badge}
+                ${!neg ? `<span class="cnf-badge${s.cnf ? '' : ' pending'}">${s.cnf ? 'CNF' : 'PENDING'}</span>` : ''}
+                ${!order.finished && !neg ? `<button class="btn btn-ghost btn-sm" onclick="toggleCNF(${id},${i})" style="font-size:9px;padding:4px 8px;min-height:30px;">${s.cnf ? 'Undo' : 'CNF'}</button>` : ''}
+                ${canDeduct ? `<button class="btn btn-ghost btn-sm" onclick="showDeductForm(${id},${i})" style="font-size:9px;padding:4px 8px;min-height:30px;" title="Deduct time">✎</button>` : ''}
+              </div>
             </div>
-            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-              ${badge}
-              ${!neg ? `<span class="cnf-badge${s.cnf ? '' : ' pending'}">${s.cnf ? 'CNF' : 'PENDING'}</span>` : ''}
-              ${!order.finished && !neg ? `<button class="btn btn-ghost btn-sm" onclick="toggleCNF(${id},${i})" style="font-size:9px;padding:4px 8px;min-height:30px;">${s.cnf ? 'Undo' : 'CNF'}</button>` : ''}
-            </div>
+            ${hasHistory ? `<div style="border:1px solid var(--border);border-top:none;border-radius:0 0 9px 9px;overflow:hidden;">${deductHistory}</div>` : ''}
+            <div id="deduct-form-${id}-${i}" style="display:none;background:var(--bg-card);border:1px solid var(--border);border-top:none;border-radius:0 0 9px 9px;padding:10px 12px;"></div>
+            <div id="session-delete-${id}-${i}" style="display:none;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.35);border-top:none;border-radius:0 0 9px 9px;padding:10px 12px;"></div>
           </div>`;
         }).join('')}
     </div>
-    ${order.sessions.length > 0 && !order.finished ? `
+    ${!order.finished ? `
       <hr class="divider">
-      <div class="section-label" style="margin-bottom:8px;">Adjust Time</div>
-      <div class="time-adjust-row" style="margin-bottom:6px;">
-        <button class="btn btn-ghost btn-sm" onclick="stageAdjust(${id},-900000)">−15m</button>
-        <button class="btn btn-ghost btn-sm" onclick="stageAdjust(${id},-300000)">−5m</button>
-        <button class="btn btn-ghost btn-sm" onclick="stageAdjust(${id},300000)">+5m</button>
-        <button class="btn btn-ghost btn-sm" onclick="stageAdjust(${id},900000)">+15m</button>
+      <div class="section-label" style="margin-bottom:8px;">Quick Add</div>
+      <div style="display:flex;gap:6px;margin-bottom:6px;">
+        <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="quickStageSession(${id},300000)">+5 min</button>
+        <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="quickStageSession(${id},900000)">+15 min</button>
+        <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="quickStageNowToLast(${id})">Now → last</button>
       </div>
-      <div id="adj-preview-${id}" style="display:none;margin-bottom:4px;">
-        <div id="adj-label-${id}" style="font-size:11px;text-align:center;margin-bottom:6px;"></div>
-        <div class="row">
-          <button class="btn btn-ghost btn-sm" onclick="clearAdjust(${id})" style="flex:1;">Clear</button>
-          <button id="adj-commit-${id}" class="btn btn-primary btn-sm" onclick="commitAdjust(${id})" style="flex:2;"></button>
+      <div id="quick-add-preview-${id}" style="display:none;background:var(--bg-card);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:6px;">
+        <div id="quick-add-label-${id}" style="font-size:11px;color:var(--green);text-align:center;margin-bottom:8px;"></div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="clearQuickAdd(${id})">Clear</button>
+          <button class="btn btn-primary btn-sm" style="flex:2;" onclick="commitQuickAdd(${id})">Add Session</button>
         </div>
+      </div>
+      <div id="quick-add-error-${id}" style="font-size:10px;color:var(--red);min-height:14px;margin-bottom:8px;"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:6px;" onclick="toggleManualAddForm(${id})">
+        <span class="section-label" style="margin-bottom:0;">Manual Session</span>
+        <span id="manual-fold-icon-${id}" style="color:var(--text-dim);font-size:12px;">▶ expand</span>
+      </div>
+      <div id="manual-add-form-${id}" style="display:none;">
+        <div style="display:flex;gap:6px;margin-bottom:10px;">
+          <button id="add-mode-dur-${id}" class="btn btn-ghost btn-sm" style="flex:1;border-color:var(--green);color:var(--green);" onclick="setAddSessionMode(${id},'dur')">Start + Duration</button>
+          <button id="add-mode-end-${id}" class="btn btn-ghost btn-sm" style="flex:1;" onclick="setAddSessionMode(${id},'end')">Start + End Time</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
+          <input type="time" id="add-start-${id}" class="input-field" style="flex:1;min-height:40px;padding:8px 10px;" oninput="validateAddSession(${id})">
+          <span id="add-sep-${id}" style="color:var(--text-dim);font-size:12px;flex-shrink:0;">for</span>
+          <div id="add-dur-wrap-${id}" style="flex:1;display:flex;align-items:center;gap:4px;">
+            <input type="number" id="add-dur-${id}" class="input-field" min="1" placeholder="min" style="flex:1;min-height:40px;padding:8px 10px;" oninput="validateAddSession(${id})">
+            <span style="color:var(--text-dim);font-size:11px;flex-shrink:0;">min</span>
+          </div>
+          <input type="time" id="add-end-${id}" class="input-field" style="flex:1;min-height:40px;padding:8px 10px;display:none;" oninput="validateAddSession(${id})">
+        </div>
+        <div id="add-error-${id}" style="font-size:10px;color:var(--red);min-height:16px;margin-bottom:6px;"></div>
+        <button class="btn btn-primary" onclick="submitAddSession(${id})">+ Add Session</button>
       </div>
     ` : ''}
     ${!order.finished ? `
@@ -1275,6 +1330,7 @@ function showOrderDetail(id) {
   `;
   openModal('modal-detail');
   renderDetailTags(id);
+  renderQuickPreview(id);
 }
 
 function getElapsed() {
@@ -1440,6 +1496,315 @@ function commitAdjust(orderId) {
   saveDB();
   delete adjStaging[orderId];
   showOrderDetail(orderId);
+}
+
+// ── DEDUCT FROM SESSION ────────────────────────────────────────────────────
+function showDeductForm(orderId, idx) {
+  const order = db.orders.find(o => o.id === orderId);
+  if (!order) return;
+  const s = order.sessions[idx];
+  const maxMins = Math.floor(s.duration / 60000);
+  const el = document.getElementById(`deduct-form-${orderId}-${idx}`);
+  if (!el) return;
+  el.style.display = 'block';
+  el.innerHTML = `
+    <div style="font-size:10px;color:var(--text-dim);letter-spacing:0.5px;margin-bottom:8px;">Remove time from end of session (max ${maxMins} min)</div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <input type="number" id="deduct-mins-${orderId}-${idx}" class="input-field" min="1" max="${maxMins}" value="5"
+             style="width:80px;min-height:36px;padding:6px 8px;font-size:13px;">
+      <span style="font-size:12px;color:var(--text-dim);flex-shrink:0;">min</span>
+      <button class="btn btn-warn btn-sm" style="flex:1;" onclick="commitDeduction(${orderId},${idx})">Remove</button>
+      <button class="btn btn-ghost btn-sm" onclick="hideDeductForm(${orderId},${idx})">Cancel</button>
+    </div>
+    <div id="deduct-error-${orderId}-${idx}" style="font-size:10px;color:var(--red);margin-top:4px;"></div>`;
+}
+
+function hideDeductForm(orderId, idx) {
+  const el = document.getElementById(`deduct-form-${orderId}-${idx}`);
+  if (el) el.style.display = 'none';
+}
+
+function commitDeduction(orderId, idx) {
+  const order = db.orders.find(o => o.id === orderId);
+  if (!order) return;
+  const s = order.sessions[idx];
+  const input = document.getElementById(`deduct-mins-${orderId}-${idx}`);
+  const errorEl = document.getElementById(`deduct-error-${orderId}-${idx}`);
+  const mins = parseInt(input.value, 10);
+  const maxMins = Math.floor(s.duration / 60000);
+  if (isNaN(mins) || mins < 1) { errorEl.textContent = 'Enter at least 1 minute.'; return; }
+  if (mins > maxMins) { errorEl.textContent = `Max is ${maxMins} min.`; return; }
+  const amount = mins * 60000;
+  s.duration -= amount;
+  s.deductions = s.deductions || [];
+  s.deductions.push({ amount, ts: Date.now() });
+  saveDB();
+  showOrderDetail(orderId);
+}
+
+function undoDeduction(orderId, sessionIdx, deductIdx) {
+  const order = db.orders.find(o => o.id === orderId);
+  if (!order) return;
+  const s = order.sessions[sessionIdx];
+  if (!s || !s.deductions || !s.deductions[deductIdx]) return;
+  s.duration += s.deductions[deductIdx].amount;
+  s.deductions.splice(deductIdx, 1);
+  saveDB();
+  showOrderDetail(orderId);
+}
+
+// ── SESSION LONG-PRESS DELETE ───────────────────────────────────────────────
+function startSessionHold(e, orderId, idx) {
+  cancelSessionHold();
+  sessionHoldTimer = setTimeout(() => {
+    sessionHoldTimer = null;
+    if (navigator.vibrate) navigator.vibrate(40);
+    showSessionDeleteConfirm(orderId, idx);
+  }, 500);
+}
+
+function cancelSessionHold() {
+  if (sessionHoldTimer) { clearTimeout(sessionHoldTimer); sessionHoldTimer = null; }
+}
+
+function showSessionDeleteConfirm(orderId, idx) {
+  // Close deduct form if open
+  const df = document.getElementById(`deduct-form-${orderId}-${idx}`);
+  if (df) df.style.display = 'none';
+  const el = document.getElementById(`session-delete-${orderId}-${idx}`);
+  if (!el) return;
+  el.style.display = 'block';
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-size:11px;color:var(--red);flex:1;">Delete this session?</span>
+      <button class="btn btn-ghost btn-sm" onclick="hideSessionDeleteConfirm(${orderId},${idx})">Cancel</button>
+      <button class="btn btn-warn btn-sm" onclick="deleteSession(${orderId},${idx})">Delete</button>
+    </div>`;
+}
+
+function hideSessionDeleteConfirm(orderId, idx) {
+  const el = document.getElementById(`session-delete-${orderId}-${idx}`);
+  if (el) el.style.display = 'none';
+}
+
+function deleteSession(orderId, idx) {
+  const order = db.orders.find(o => o.id === orderId);
+  if (!order) return;
+  order.sessions.splice(idx, 1);
+  saveDB();
+  showOrderDetail(orderId);
+}
+
+// ── ADD MANUAL SESSION ──────────────────────────────────────────────────────
+function fmtTime(ts) {
+  return new Date(ts).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
+}
+
+function timeInputToTs(timeStr) {
+  const [h, m] = timeStr.split(':').map(Number);
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d.getTime();
+}
+
+function getLunchInterval() {
+  const now  = Date.now();
+  const d    = new Date();
+  const lunchStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12,  0, 0, 0).getTime();
+  const lunchEnd   = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 30, 0, 0).getTime();
+  return now > lunchEnd ? { start: lunchStart, end: lunchEnd } : null;
+}
+
+function detectSessionConflict(startMs, endMs) {
+  // Check stored sessions
+  for (const o of db.orders) {
+    for (const s of o.sessions) {
+      if (!s.duration || s.duration <= 0) continue;
+      const sStart = s.start || s.date;
+      const sEnd = sStart + s.duration;
+      if (startMs < sEnd && endMs > sStart)
+        return `Overlaps with ${o.po} (${fmtTime(sStart)}–${fmtTime(sEnd)})`;
+    }
+  }
+  // Check the currently-running timer (not yet stored as a session)
+  if (timerStart && activeOrderId != null) {
+    const runningOrder = db.orders.find(o => o.id === activeOrderId);
+    const poName = runningOrder ? runningOrder.po : 'active timer';
+    if (startMs < Date.now() && endMs > timerStart)
+      return `Overlaps with running timer (${poName}, started ${fmtTime(timerStart)})`;
+  }
+  // Check lunch break (12:00–12:30)
+  const lunch = getLunchInterval();
+  if (lunch && startMs < lunch.end && endMs > lunch.start)
+    return `Overlaps with lunch break (12:00–12:30)`;
+  return null;
+}
+
+function setAddSessionMode(orderId, mode) {
+  const durWrap  = document.getElementById(`add-dur-wrap-${orderId}`);
+  const endInput = document.getElementById(`add-end-${orderId}`);
+  const sep      = document.getElementById(`add-sep-${orderId}`);
+  const durBtn   = document.getElementById(`add-mode-dur-${orderId}`);
+  const endBtn   = document.getElementById(`add-mode-end-${orderId}`);
+  if (!durWrap) return;
+  if (mode === 'dur') {
+    durWrap.style.display  = 'flex';
+    endInput.style.display = 'none';
+    sep.textContent        = 'for';
+    durBtn.style.color = durBtn.style.borderColor = 'var(--green)';
+    endBtn.style.color = endBtn.style.borderColor = '';
+  } else {
+    durWrap.style.display  = 'none';
+    endInput.style.display = '';
+    sep.textContent        = 'to';
+    endBtn.style.color = endBtn.style.borderColor = 'var(--green)';
+    durBtn.style.color = durBtn.style.borderColor = '';
+  }
+  validateAddSession(orderId);
+}
+
+function validateAddSession(orderId) {
+  const errorEl  = document.getElementById(`add-error-${orderId}`);
+  const startEl  = document.getElementById(`add-start-${orderId}`);
+  const durWrap  = document.getElementById(`add-dur-wrap-${orderId}`);
+  if (!errorEl || !startEl) return null;
+  const clear = msg => { errorEl.textContent = msg || ''; return null; };
+
+  if (!startEl.value) return clear();
+  const startTs = timeInputToTs(startEl.value);
+  const now     = Date.now();
+  if (startTs >= now) return clear('Start time must be in the past.');
+
+  let endTs;
+  const isDur = durWrap && durWrap.style.display !== 'none';
+  if (isDur) {
+    const durEl = document.getElementById(`add-dur-${orderId}`);
+    const mins  = parseInt(durEl ? durEl.value : '', 10);
+    if (!durEl || !durEl.value || isNaN(mins) || mins < 1) return clear();
+    endTs = startTs + mins * 60000;
+  } else {
+    const endEl = document.getElementById(`add-end-${orderId}`);
+    if (!endEl || !endEl.value) return clear();
+    endTs = timeInputToTs(endEl.value);
+    if (endTs <= startTs) return clear('End time must be after start time.');
+  }
+
+  if (endTs > now) return clear('End time must not be in the future.');
+  const conflict = detectSessionConflict(startTs, endTs);
+  if (conflict) return clear(conflict);
+
+  errorEl.textContent = '';
+  return { startTs, endTs };
+}
+
+function submitAddSession(orderId) {
+  const result = validateAddSession(orderId);
+  if (!result) {
+    const errorEl = document.getElementById(`add-error-${orderId}`);
+    if (errorEl && !errorEl.textContent) errorEl.textContent = 'Please fill in all fields.';
+    return;
+  }
+  const { startTs, endTs } = result;
+  const order = db.orders.find(o => o.id === orderId);
+  if (!order) return;
+  order.sessions.push({ start: startTs, duration: endTs - startTs, cnf: false, date: startTs, manual: true });
+  saveDB();
+  showOrderDetail(orderId);
+}
+
+function toggleManualAddForm(orderId) {
+  const form    = document.getElementById(`manual-add-form-${orderId}`);
+  const icon    = document.getElementById(`manual-fold-icon-${orderId}`);
+  if (!form) return;
+  const open = form.style.display === 'none';
+  form.style.display = open ? '' : 'none';
+  if (icon) icon.textContent = open ? '▼ collapse' : '▶ expand';
+}
+
+// ── QUICK ADD (staging) ─────────────────────────────────────────────────────
+const quickStaging = {};
+
+function renderQuickPreview(orderId) {
+  const s       = quickStaging[orderId];
+  const preview = document.getElementById(`quick-add-preview-${orderId}`);
+  const label   = document.getElementById(`quick-add-label-${orderId}`);
+  const errEl   = document.getElementById(`quick-add-error-${orderId}`);
+  if (errEl) errEl.textContent = '';
+  if (!s) { if (preview) preview.style.display = 'none'; return; }
+  if (!preview || !label) return;
+  const durMin = Math.round((s.endTs - s.startTs) / 60000);
+  label.textContent = `${fmtTime(s.startTs)} – ${fmtTime(s.endTs)} · ${durMin} min`;
+  preview.style.display = 'block';
+}
+
+function clearQuickAdd(orderId) {
+  delete quickStaging[orderId];
+  renderQuickPreview(orderId);
+}
+
+function commitQuickAdd(orderId) {
+  const s = quickStaging[orderId];
+  if (!s) return;
+  const order = db.orders.find(o => o.id === orderId);
+  if (!order) return;
+  order.sessions.push({ start: s.startTs, duration: s.endTs - s.startTs, cnf: false, date: s.startTs, manual: true });
+  delete quickStaging[orderId];
+  saveDB();
+  showOrderDetail(orderId);
+}
+
+function quickStageSession(orderId, durMs) {
+  const errEl = document.getElementById(`quick-add-error-${orderId}`);
+  const setErr = msg => { if (errEl) errEl.textContent = msg; };
+
+  const existing = quickStaging[orderId];
+  // New chunk occupies [newChunkStart, newChunkEnd]; tack onto start of any existing window
+  const newChunkEnd   = existing ? existing.startTs : Date.now();
+  const newChunkStart = newChunkEnd - durMs;
+
+  const conflict = detectSessionConflict(newChunkStart, newChunkEnd);
+  if (conflict) return setErr(conflict);
+
+  quickStaging[orderId] = {
+    startTs: newChunkStart,
+    endTs:   existing ? existing.endTs : newChunkEnd,
+  };
+  renderQuickPreview(orderId);
+}
+
+function quickStageNowToLast(orderId) {
+  const errEl = document.getElementById(`quick-add-error-${orderId}`);
+  const setErr = msg => { if (errEl) errEl.textContent = msg; };
+
+  // Find the most recently ended session across all orders
+  let latestEnd = null;
+  for (const o of db.orders) {
+    for (const s of o.sessions) {
+      if (!s.duration || s.duration <= 0) continue;
+      const sEnd = (s.start || s.date) + s.duration;
+      if (latestEnd === null || sEnd > latestEnd) latestEnd = sEnd;
+    }
+  }
+  if (timerStart) {
+    if (latestEnd === null || timerStart > latestEnd) latestEnd = timerStart;
+  }
+  // Treat lunch (12:00–12:30) as a session — stop there if it's the most recent boundary
+  const lunch = getLunchInterval();
+  if (lunch && (latestEnd === null || lunch.end > latestEnd)) latestEnd = lunch.end;
+  if (!latestEnd) return setErr('No previous session found.');
+
+  const existing    = quickStaging[orderId];
+  const newChunkEnd = existing ? existing.startTs : Date.now();
+  if (latestEnd >= newChunkEnd) return setErr('Last session already reaches this point.');
+
+  const conflict = detectSessionConflict(latestEnd, newChunkEnd);
+  if (conflict) return setErr(conflict);
+
+  quickStaging[orderId] = {
+    startTs: latestEnd,
+    endTs:   existing ? existing.endTs : newChunkEnd,
+  };
+  renderQuickPreview(orderId);
 }
 
 function adjustOrderTime(orderId, deltaMs) {
