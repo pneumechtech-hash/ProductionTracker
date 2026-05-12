@@ -1152,11 +1152,13 @@ function stopSession(cnf) {
     const splitOrders = splitOrderIds.map(id => db.orders.find(o => o.id === id)).filter(Boolean);
     const totalQty = splitOrders.reduce((s, o) => s + (o.splitQty || 0), 0);
     const useProportional = totalQty > 0;
+    let cursor = timerStart;
     splitOrders.forEach(order => {
       const splitDuration = useProportional
         ? Math.floor(duration * ((order.splitQty || 0) / totalQty))
         : Math.floor(duration / splitOrders.length);
-      order.sessions.push({ start: timerStart, duration: splitDuration, cnf, date: timerStart });
+      order.sessions.push({ start: cursor, duration: splitDuration, cnf, date: cursor });
+      cursor += splitDuration;
       if (activeTimerAdj !== 0) {
         const adjShare = useProportional
           ? Math.floor(activeTimerAdj * ((order.splitQty || 0) / totalQty))
@@ -2364,22 +2366,39 @@ function renderTimeline() {
     o.sessions.forEach((s, idx) => {
       const t = s.start || s.date;
       if (t >= tsStart && t <= tsEnd) {
-        allSessions.push({ ...s, orderId: o.id, sessionIdx: idx, po: o.po });
+        allSessions.push({ ...s, orderId: o.id, sessionIdx: idx, po: o.po, splitGroupId: o.splitGroupId || null });
       }
     });
   });
 
-  // Cache non-manual sessions for snap targets during drag
+  // Spread co-timed split sessions proportionally within their combined span
+  // Group non-manual sessions that share both a splitGroupId and the same start timestamp
+  const _splitMap = {};
+  allSessions.filter(s => !s.manual && s.splitGroupId).forEach(s => {
+    const key = `${s.splitGroupId}:${s.start || s.date}`;
+    (_splitMap[key] = _splitMap[key] || []).push(s);
+  });
+  Object.values(_splitMap).forEach(grp => {
+    if (grp.length < 2) return;
+    grp.sort((a, b) => a.orderId - b.orderId);
+    let cursor = grp[0].start || grp[0].date;
+    grp.forEach(s => { s._dispStart = cursor; cursor += Math.max(s.duration, 0); });
+  });
+  // All sessions without a spread position use their real start
+  allSessions.forEach(s => {
+    if (s._dispStart === undefined) s._dispStart = s.manual ? (s.date || s.start) : (s.start || s.date);
+  });
+
+  // Cache non-manual sessions for snap targets during drag (using display positions)
   tlTodaySessions = allSessions
     .filter(s => !s.manual)
-    .map(s => ({ t: s.start || s.date, end: (s.start || s.date) + Math.max(s.duration, 0), po: s.po }));
+    .map(s => ({ t: s._dispStart, end: s._dispStart + Math.max(s.duration, 0), po: s.po }));
 
-  // Compute time range — use s.date (display position) for manual sessions
+  // Compute time range from display positions
   let minT = Infinity, maxT = -Infinity;
   allSessions.forEach(s => {
-    const t   = s.manual ? (s.date || s.start) : (s.start || s.date);
-    const end = s.manual ? t + Math.abs(s.duration) : t + Math.max(s.duration, 0);
-    minT = Math.min(minT, t);
+    const end = s._dispStart + (s.manual ? Math.abs(s.duration) : Math.max(s.duration, 0));
+    minT = Math.min(minT, s._dispStart);
     maxT = Math.max(maxT, end);
   });
   // Snap to 15-min boundaries with two-slot padding so trailing blocks aren't clipped
@@ -2402,15 +2421,40 @@ function renderTimeline() {
     tick += 900000;
   }
 
+  // Assign columns to any remaining overlapping normal sessions
+  const normalSessions = allSessions.filter(s => !s.manual).map((s, i) => ({
+    ...s, _i: i,
+    t: s._dispStart,
+    sEnd: s._dispStart + Math.max(s.duration, 0),
+    col: 0, totalCols: 1
+  }));
+  normalSessions.sort((a, b) => a.t - b.t);
+  const _colEnds = [];
+  normalSessions.forEach(s => {
+    let col = _colEnds.findIndex(e => e <= s.t);
+    if (col === -1) col = _colEnds.length;
+    _colEnds[col] = s.sEnd;
+    s.col = col;
+  });
+  normalSessions.forEach(s => {
+    s.totalCols = normalSessions
+      .filter(o => o.t < s.sEnd && o.sEnd > s.t)
+      .reduce((m, o) => Math.max(m, o.col), 0) + 1;
+  });
+
   // Normal session blocks
   let blocks = '';
-  allSessions.filter(s => !s.manual).forEach(s => {
-    const t   = s.start || s.date;
-    const top = (t - minT) * TL_PX_PER_MS;
+  normalSessions.forEach(s => {
+    const top = (s.t - minT) * TL_PX_PER_MS;
     const h   = Math.max(s.duration * TL_PX_PER_MS, 16);
     const c   = colorMap[s.orderId];
     const meta = h > 30 ? `<div style="font-size:8px;color:var(--text-dim);margin-top:1px;">${fmtMin(s.duration)}${s.cnf ? ' · CNF' : ''}</div>` : '';
-    blocks += `<div style="position:absolute;left:${LEFT + 3}px;right:3px;top:${top}px;height:${h}px;background:${c}1a;border:1px solid ${c}44;border-left:3px solid ${c};border-radius:4px;padding:3px 5px;box-sizing:border-box;overflow:hidden;">
+    const avail   = `(100% - ${LEFT + 6}px)`;
+    const lf      = (s.col / s.totalCols).toFixed(4);
+    const rf      = ((s.totalCols - s.col - 1) / s.totalCols).toFixed(4);
+    const colLeft  = s.col === 0              ? `${LEFT + 3}px`   : `calc(${LEFT + 3}px + ${lf} * ${avail})`;
+    const colRight = s.col === s.totalCols-1  ? '3px'             : `calc(3px + ${rf} * ${avail})`;
+    blocks += `<div style="position:absolute;left:${colLeft};right:${colRight};top:${top}px;height:${h}px;background:${c}1a;border:1px solid ${c}44;border-left:3px solid ${c};border-radius:4px;padding:3px 5px;box-sizing:border-box;overflow:hidden;">
       <div style="font-size:9px;font-weight:700;color:${c};font-family:'Courier New',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(s.po)}</div>
       ${meta}
     </div>`;
@@ -2418,8 +2462,7 @@ function renderTimeline() {
 
   // Adjustment blocks — proportional height, hold-to-drag, tap-to-edit
   allSessions.filter(s => s.manual).forEach(s => {
-    const t   = s.date || s.start;
-    const top = (t - tlMinT) * TL_PX_PER_MS;
+    const top = (s._dispStart - tlMinT) * TL_PX_PER_MS;
     const h   = Math.max(Math.abs(s.duration) * TL_PX_PER_MS, 16);
     const c   = s.duration >= 0 ? '#a78bfa' : '#f87171';
     const lbl = (s.duration >= 0 ? '+' : '−') + Math.round(Math.abs(s.duration) / 60000) + 'm';
