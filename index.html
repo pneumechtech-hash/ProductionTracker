@@ -17,7 +17,7 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
   :root {
-    --green: #60a5fa;
+    --accent: #60a5fa;
     --green-dim: #0c1929;
     --green-mid: #3b82f6;
     --green-dark: #0f1e33;
@@ -50,7 +50,7 @@
     display: flex; align-items: center; justify-content: space-between;
     z-index: 100;
   }
-  .logo { font-size: 13px; font-weight: 700; letter-spacing: 1.5px; color: var(--green); text-transform: uppercase; }
+  .logo { font-size: 13px; font-weight: 700; letter-spacing: 1.5px; color: var(--accent); text-transform: uppercase; }
   .tab-bar { display: flex; gap: 6px; }
   .tab {
     font-size: 12px; font-weight: 500; letter-spacing: 0.2px; padding: 6px 13px;
@@ -58,7 +58,7 @@
     background: transparent; color: var(--text-dim);
     transition: all 0.15s; min-height: 34px; display: flex; align-items: center;
   }
-  .tab.active { background: var(--green); color: #09090b; border-color: var(--green); font-weight: 600; }
+  .tab.active { background: var(--accent); color: #09090b; border-color: var(--accent); font-weight: 600; }
   .tab:disabled { opacity: 0.35; cursor: not-allowed; }
 
   /* SCROLLABLE CONTENT AREA */
@@ -82,7 +82,7 @@
     border: 1px solid var(--border-mid); border-radius: 10px;
     cursor: pointer; transition: all 0.15s; min-height: 46px;
   }
-  .btn-primary { background: var(--green); color: #09090b; border-color: var(--green); font-weight: 600; }
+  .btn-primary { background: var(--accent); color: #09090b; border-color: var(--accent); font-weight: 600; }
   .btn-primary:active { opacity: 0.85; transform: scale(0.98); }
   .btn-ghost { background: transparent; color: var(--text-dim); }
   .btn-ghost:active { background: var(--bg-card); }
@@ -100,9 +100,9 @@
     cursor: pointer; color: var(--text-dim); background: transparent;
     min-height: 36px; display: flex; align-items: center; transition: all 0.1s;
   }
-  .tag.selected { border-color: var(--green); color: var(--green); background: var(--green-dim); }
+  .tag.selected { border-color: var(--accent); color: var(--accent); background: var(--green-dim); }
   .tag:active { opacity: 0.7; }
-  .tag.custom { border-color: var(--green); color: var(--green); background: var(--green-dim); gap: 6px; }
+  .tag.custom { border-color: var(--accent); color: var(--accent); background: var(--green-dim); gap: 6px; }
   .tag.custom .tag-x { opacity: 0.55; font-size: 15px; line-height: 1; }
   .tag-add-row { display: flex; gap: 8px; margin-top: 4px; }
   .tag-add-row .input-field { flex: 1; margin-bottom: 0; }
@@ -116,7 +116,7 @@
     -webkit-appearance: none; appearance: none; transition: border-color 0.15s;
     font-family: inherit;
   }
-  .input-field:focus { border-color: var(--green); }
+  .input-field:focus { border-color: var(--accent); }
   .input-field::placeholder { color: var(--text-muted); }
   textarea.input-field { min-height: 80px; resize: none; }
 
@@ -131,11 +131,11 @@
   .scan-zone video.active { display: block; }
   .scan-idle-inner { text-align: center; padding: 24px 16px; }
   .scan-icon { font-size: 32px; color: var(--border-mid); margin-bottom: 8px; }
-  .scan-tap-hint { font-size: 12px; font-weight: 500; color: var(--green); }
+  .scan-tap-hint { font-size: 12px; font-weight: 500; color: var(--accent); }
   .scan-hint { font-size: 11px; color: var(--text-dim); padding: 6px; text-align: center; }
   .scan-crosshair {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
-    width: 200px; height: 120px; border: 2px solid var(--green);
+    width: 200px; height: 120px; border: 2px solid var(--accent);
     border-radius: 8px; pointer-events: none; display: none;
     box-shadow: 0 0 0 2000px rgba(0,0,0,0.45);
   }
@@ -147,7 +147,7 @@
     border-radius: 12px; padding: 20px 16px; margin-bottom: 16px;
   }
   .po-number {
-    font-size: 26px; font-weight: 700; color: var(--green);
+    font-size: 26px; font-weight: 700; color: var(--accent);
     letter-spacing: 3px; text-align: center; font-family: 'Courier New', monospace;
     margin-bottom: 6px; word-break: break-all;
   }
@@ -160,13 +160,13 @@
     border-radius: 14px; margin-bottom: 16px;
   }
   .timer-digits {
-    font-size: 48px; font-weight: 700; color: var(--green);
+    font-size: 48px; font-weight: 700; color: var(--accent);
     letter-spacing: 4px; font-family: 'Courier New', monospace;
   }
   .timer-digits.running { animation: pulse 2s ease-in-out infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
   .timer-status { font-size: 10px; font-weight: 600; letter-spacing: 2px; color: var(--text-dim); margin-top: 12px; text-transform: uppercase; }
-  .timer-status.running { color: var(--green); }
+  .timer-status.running { color: var(--accent); }
 
   /* SESSIONS */
   .sessions-list { margin-bottom: 16px; }
@@ -180,7 +180,7 @@
   .cnf-badge {
     font-size: 10px; font-weight: 600; letter-spacing: 0.3px; padding: 4px 9px;
     border-radius: 6px; border: 1px solid rgba(96,165,250,0.4);
-    color: var(--green); background: var(--green-dim); white-space: nowrap;
+    color: var(--accent); background: var(--green-dim); white-space: nowrap;
   }
   .cnf-badge.pending { border-color: rgba(251,191,36,0.4); color: var(--amber); background: rgba(251,191,36,0.07); }
   .adj-badge { font-size: 9px; font-weight: 700; letter-spacing: 0.5px; padding: 3px 7px; border-radius: 5px; border: 1px solid rgba(167,139,250,0.4); color: #a78bfa; background: rgba(167,139,250,0.08); white-space: nowrap; }
@@ -197,7 +197,7 @@
   }
   .order-card:active { border-color: var(--border-mid); background: #16161e; }
   .order-card.finished { opacity: 0.45; border-style: dashed; }
-  .order-po { font-size: 18px; font-weight: 700; color: var(--green); letter-spacing: 2px; font-family: 'Courier New', monospace; word-break: break-all; }
+  .order-po { font-size: 18px; font-weight: 700; color: var(--accent); letter-spacing: 2px; font-family: 'Courier New', monospace; word-break: break-all; }
   .order-meta { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
   .order-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
   .order-tag {
@@ -254,10 +254,10 @@
     display: flex; justify-content: space-between; align-items: center;
   }
   .total-bar span { font-size: 10px; font-weight: 600; letter-spacing: 1px; color: var(--text-dim); text-transform: uppercase; }
-  .total-bar strong { font-size: 20px; color: var(--green); letter-spacing: 2px; font-family: 'Courier New', monospace; }
+  .total-bar strong { font-size: 20px; color: var(--accent); letter-spacing: 2px; font-family: 'Courier New', monospace; }
 
   .alert { padding: 11px 14px; border-radius: 9px; font-size: 12px; font-weight: 500; letter-spacing: 0.2px; margin-bottom: 12px; }
-  .alert-success { background: var(--green-dim); border: 1px solid rgba(96,165,250,0.25); color: var(--green); }
+  .alert-success { background: var(--green-dim); border: 1px solid rgba(96,165,250,0.25); color: var(--accent); }
   .alert-error { background: rgba(248,113,113,0.07); border: 1px solid rgba(248,113,113,0.4); color: var(--red); }
 
   .pending-warn { color: var(--amber); }
@@ -272,7 +272,7 @@
   #install-banner.show { display: flex; }
   #install-banner p { font-size: 12px; font-weight: 500; color: var(--text); }
   #install-banner button { font-size: 11px; font-weight: 500; padding: 7px 14px; border-radius: 7px; cursor: pointer; }
-  #install-btn { background: var(--green); color: #09090b; border: none; font-weight: 600; }
+  #install-btn { background: var(--accent); color: #09090b; border: none; font-weight: 600; }
   #dismiss-btn { background: transparent; color: var(--text-dim); border: 1px solid var(--border-mid); }
 
   canvas { display: none; }
@@ -328,13 +328,13 @@
   .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
   .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 12px; }
   .stat-card.wide { grid-column: 1 / -1; }
-  .stat-value { font-size: 30px; font-weight: 700; color: var(--green); font-family: 'Courier New', monospace; letter-spacing: 2px; line-height: 1; }
+  .stat-value { font-size: 30px; font-weight: 700; color: var(--accent); font-family: 'Courier New', monospace; letter-spacing: 2px; line-height: 1; }
   .stat-label { font-size: 10px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1.2px; margin-top: 5px; }
   .progress-track { background: var(--bg-input); border-radius: 6px; height: 7px; overflow: hidden; margin-top: 10px; }
-  .progress-fill { height: 100%; border-radius: 6px; background: var(--green); transition: width 0.4s ease; }
+  .progress-fill { height: 100%; border-radius: 6px; background: var(--accent); transition: width 0.4s ease; }
   .progress-fill.complete { background: #4ade80; }
   .progress-row { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; }
-  .progress-pct { font-size: 13px; font-weight: 700; color: var(--green); font-family: 'Courier New', monospace; }
+  .progress-pct { font-size: 13px; font-weight: 700; color: var(--accent); font-family: 'Courier New', monospace; }
   .progress-goal { font-size: 10px; color: var(--text-dim); letter-spacing: 1px; }
   .pending-days-details { margin-top: 10px; }
   .pending-days-details summary { list-style: none; cursor: pointer; font-size: 10px; font-weight: 600; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; display: flex; align-items: center; gap: 6px; user-select: none; }
@@ -346,7 +346,7 @@
   .cnf-half { flex: 1; text-align: center; }
   .cnf-half-val { font-size: 22px; font-weight: 700; font-family: 'Courier New', monospace; }
   .cnf-half-label { font-size: 9px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; margin-top: 2px; }
-  .cnf-half.confirmed .cnf-half-val { color: var(--green); }
+  .cnf-half.confirmed .cnf-half-val { color: var(--accent); }
   .cnf-half.confirmed .cnf-half-label { color: var(--text-dim); }
   .cnf-half.pending .cnf-half-val { color: var(--amber); }
   .cnf-half.pending .cnf-half-label { color: var(--text-dim); }
@@ -361,22 +361,22 @@
   .order-card.split-order { border-left: 3px solid var(--amber); }
 
   /* MULTI-SELECT */
-  .order-card.ms-selected { border-color: var(--green); background: var(--green-dim); }
+  .order-card.ms-selected { border-color: var(--accent); background: var(--green-dim); }
   .ms-check {
     width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
     border: 2px solid var(--border-mid);
     display: flex; align-items: center; justify-content: center;
     font-size: 12px; font-weight: 700; color: transparent; transition: all 0.15s;
   }
-  .ms-check.on { background: var(--green); border-color: var(--green); color: #09090b; }
+  .ms-check.on { background: var(--accent); border-color: var(--accent); color: #09090b; }
   #multiselect-bar {
     display: none; position: fixed; bottom: 0; left: 0; right: 0;
-    background: #15151b; border-top: 2px solid var(--green);
+    background: #15151b; border-top: 2px solid var(--accent);
     padding: 12px 16px; z-index: 150;
     padding-bottom: calc(12px + var(--safe-bottom));
   }
   .ms-bar-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-  .ms-bar-count { font-size: 12px; font-weight: 600; color: var(--green); letter-spacing: 1px; text-transform: uppercase; }
+  .ms-bar-count { font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: 1px; text-transform: uppercase; }
   .ms-bar-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .time-adjust-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 </style>
@@ -608,7 +608,7 @@
   <div class="modal">
     <button class="modal-close" onclick="closeModal('modal-stop')">✕</button>
     <div class="modal-title">Stop Timer</div>
-    <div id="stop-elapsed" style="text-align:center;font-size:36px;color:var(--green);letter-spacing:4px;margin:16px 0;font-family:'Courier New',monospace;font-weight:bold;"></div>
+    <div id="stop-elapsed" style="text-align:center;font-size:36px;color:var(--accent);letter-spacing:4px;margin:16px 0;font-family:'Courier New',monospace;font-weight:bold;"></div>
     <div id="stop-split-info" style="display:none;text-align:center;font-size:10px;color:var(--amber);letter-spacing:2px;margin-top:-8px;margin-bottom:16px;font-family:'Courier New',monospace;"></div>
     <div class="section-label" style="margin-bottom:8px;">Mark as CNF?</div>
     <p style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:18px;">CNF = time entered into SAP</p>
@@ -701,6 +701,7 @@
 // ── STATE ──────────────────────────────────────────────────────────────────
 const TAGS = ['Gantry','Air Prep','Testing','Learning', 'Kit', '3rd Party'];
 const DB_KEY = 'po-tracker-v1';
+const GOAL_MIN = 450;
 
 let db = { orders: [], archive: [] };
 let draft = { tags: [], notes: '', po: '' };
@@ -894,41 +895,35 @@ function updateSplitQty(idx, val) {
   draft.splitPOs[idx].qty = (val === '' || isNaN(n) || n < 1) ? null : n;
 }
 
-function startSplitTimer() {
-  if (draft.splitPOs.length === 0) return;
-  stopScanner();
-  const baseId = Date.now();
-  splitOrderIds = draft.splitPOs.map((item, i) => {
-    const order = {
-      id: baseId + i,
-      po: item.po,
-      tags: [...draft.tags],
-      notes: draft.notes,
-      sessions: [],
-      created: baseId + i,
-      finished: false,
-      splitGroupId: baseId,
-      splitQty: item.qty || null
-    };
-    db.orders.unshift(order);
-    return order.id;
-  });
-  saveDB();
+function beginSplitTimerCore(orders, tags, notes) {
   timerStart = Date.now();
   clearInterval(timerInterval);
   timerInterval = setInterval(timerTick, 500);
   scheduleFourPmAlert();
   scheduleNoonAlert();
   setOrdersTabDisabled(true);
-  const poLabel = draft.splitPOs.length <= 3 ? draft.splitPOs.map(p => p.po).join(' + ') : `${draft.splitPOs.length} POs`;
-  startLiveNotification(poLabel, draft.tags, draft.notes);
+  const poLabel = orders.length <= 3 ? orders.map(o => o.po).join(' + ') : `${orders.length} POs`;
+  startLiveNotification(poLabel, tags, notes);
   showStep('timer');
-  const n = draft.splitPOs.length;
-  document.getElementById('timer-po-label').textContent = `Split — ${n} Orders`;
-  document.getElementById('timer-po').innerHTML = draft.splitPOs.map(item =>
-    `<div style="font-size:18px;line-height:1.5;">${escHtml(item.po)}${item.qty ? `<span style="font-size:11px;color:var(--text-muted);letter-spacing:1px;margin-left:8px;">QTY <span style="color:var(--amber);font-family:'Courier New',monospace;">${item.qty}</span></span>` : ''}</div>`
+  document.getElementById('timer-po-label').textContent = `Split — ${orders.length} Orders`;
+  document.getElementById('timer-po').innerHTML = orders.map(o =>
+    `<div style="font-size:18px;line-height:1.5;">${escHtml(o.po)}${o.splitQty ? `<span style="font-size:11px;color:var(--text-muted);letter-spacing:1px;margin-left:8px;">QTY <span style="color:var(--amber);font-family:'Courier New',monospace;">${o.splitQty}</span></span>` : ''}</div>`
   ).join('');
-  updateTimerMeta(draft.tags, draft.notes);
+  updateTimerMeta(tags, notes);
+}
+
+function startSplitTimer() {
+  if (draft.splitPOs.length === 0) return;
+  stopScanner();
+  const baseId = Date.now();
+  const newOrders = draft.splitPOs.map((item, i) => ({
+    id: baseId + i, po: item.po, tags: [...draft.tags], notes: draft.notes,
+    sessions: [], created: baseId + i, finished: false, splitGroupId: baseId, splitQty: item.qty || null
+  }));
+  newOrders.forEach(o => db.orders.unshift(o));
+  splitOrderIds = newOrders.map(o => o.id);
+  saveDB();
+  beginSplitTimerCore(newOrders, draft.tags, draft.notes);
 }
 
 function activateScanner(ctx) {
@@ -965,16 +960,13 @@ function showConfirm() {
   showStep('confirm');
 }
 
+function buildOrderFromDraft() {
+  const now = Date.now();
+  return { id: now, po: draft.po, tags: [...draft.tags], notes: draft.notes, sessions: [], created: now, finished: false };
+}
+
 function createOrderWithoutTimer() {
-  const order = {
-    id: Date.now(),
-    po: draft.po,
-    tags: [...draft.tags],
-    notes: draft.notes,
-    sessions: [],
-    created: Date.now(),
-    finished: false
-  };
+  const order = buildOrderFromDraft();
   db.orders.unshift(order);
   saveDB();
   resetDraft();
@@ -982,15 +974,7 @@ function createOrderWithoutTimer() {
 }
 
 function createOrderAndStartTimer() {
-  const order = {
-    id: Date.now(),
-    po: draft.po,
-    tags: [...draft.tags],
-    notes: draft.notes,
-    sessions: [],
-    created: Date.now(),
-    finished: false
-  };
+  const order = buildOrderFromDraft();
   db.orders.unshift(order);
   saveDB();
   beginTimer(order.id);
@@ -1000,79 +984,35 @@ function createOrderAndStartTimer() {
   updateTimerMeta(draft.tags, draft.notes);
 }
 
-// ── 4PM ALERT ─────────────────────────────────────────────────────────────
-function scheduleFourPmAlert() {
-  clearFourPmAlert();
+// ── TIMED ALERTS ───────────────────────────────────────────────────────────
+function scheduleAlert(h, m, showFn) {
   const now = new Date();
-  const fourPm = new Date();
-  fourPm.setHours(16, 0, 0, 0);
-  if (fourPm <= now) fourPm.setDate(fourPm.getDate() + 1);
-  fourPmTimeout = setTimeout(() => {
-    if (timerStart) showFourPmAlert();
-  }, fourPm - now);
+  const target = new Date();
+  target.setHours(h, m, 0, 0);
+  if (target <= now) target.setDate(target.getDate() + 1);
+  return setTimeout(() => { if (timerStart) showFn(); }, target - now);
 }
 
-function clearFourPmAlert() {
-  if (fourPmTimeout) { clearTimeout(fourPmTimeout); fourPmTimeout = null; }
-}
-
-function showFourPmAlert() {
+function showTimedAlert(toastId, notifTitle, notifBody, notifTag) {
   pauseTimer();
-  const toast = document.getElementById('four-pm-toast');
+  const toast = document.getElementById(toastId);
   if (toast) toast.style.display = 'flex';
   if ('serviceWorker' in navigator && Notification.permission === 'granted') {
     navigator.serviceWorker.ready.then(reg => {
-      reg.showNotification('PO Tracker — Timer Running', {
-        body: 'It is 4:00 PM and a timer is still active.',
-        icon: 'icons/icon-192.png',
-        tag: 'four-pm-alert',
-        requireInteraction: true
-      });
+      reg.showNotification(notifTitle, { body: notifBody, icon: 'icons/icon-192.png', tag: notifTag, requireInteraction: true });
     });
   }
 }
 
-function dismissFourPmToast() {
-  const toast = document.getElementById('four-pm-toast');
-  if (toast) toast.style.display = 'none';
-}
+function scheduleFourPmAlert() { clearFourPmAlert(); fourPmTimeout = scheduleAlert(16, 0, showFourPmAlert); }
+function clearFourPmAlert() { if (fourPmTimeout) { clearTimeout(fourPmTimeout); fourPmTimeout = null; } }
+function showFourPmAlert() { showTimedAlert('four-pm-toast', 'PO Tracker — Timer Running', 'It is 4:00 PM and a timer is still active.', 'four-pm-alert'); }
+function dismissFourPmToast() { const t = document.getElementById('four-pm-toast'); if (t) t.style.display = 'none'; }
 
-// ── NOON ALERT ─────────────────────────────────────────────────────────────
-function scheduleNoonAlert() {
-  clearNoonAlert();
-  const now = new Date();
-  const noon = new Date();
-  noon.setHours(12, 0, 0, 0);
-  if (noon <= now) noon.setDate(noon.getDate() + 1);
-  noonTimeout = setTimeout(() => {
-    if (timerStart) showNoonAlert();
-  }, noon - now);
-}
-
-function clearNoonAlert() {
-  if (noonTimeout) { clearTimeout(noonTimeout); noonTimeout = null; }
-}
-
-function showNoonAlert() {
-  pauseTimer();
-  const toast = document.getElementById('noon-toast');
-  if (toast) toast.style.display = 'flex';
-  if ('serviceWorker' in navigator && Notification.permission === 'granted') {
-    navigator.serviceWorker.ready.then(reg => {
-      reg.showNotification('PO Tracker — Lunch Break?', {
-        body: 'It is 12:00 PM and a timer is still active.',
-        icon: 'icons/icon-192.png',
-        tag: 'noon-alert',
-        requireInteraction: true
-      });
-    });
-  }
-}
-
-function dismissNoonToast() {
-  const toast = document.getElementById('noon-toast');
-  if (toast) toast.style.display = 'none';
-}
+function scheduleNoonAlert() { clearNoonAlert(); noonTimeout = scheduleAlert(12, 0, showNoonAlert); }
+function clearNoonAlert() { if (noonTimeout) { clearTimeout(noonTimeout); noonTimeout = null; } }
+function showNoonAlert() { showTimedAlert('noon-toast', 'PO Tracker — Lunch Break?', 'It is 12:00 PM and a timer is still active.', 'noon-alert'); }
+function dismissNoonToast() { const t = document.getElementById('noon-toast'); if (t) t.style.display = 'none'; }
 
 // ── TIMER ─────────────────────────────────────────────────────────────────
 function setOrdersTabDisabled(disabled) {
@@ -1224,7 +1164,7 @@ function showOrderDetail(id) {
     <hr class="divider">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);">
       <span class="section-label" style="margin-bottom:0;padding-bottom:0;border-bottom:none;">Sessions (${order.sessions.length})</span>
-      ${pendingCount > 0 && !order.finished ? `<button class="btn btn-ghost btn-sm" onclick="cnfAll(${id})" style="font-size:9px;padding:3px 10px;min-height:26px;color:var(--green);border-color:rgba(96,165,250,0.4);">CNF All (${pendingCount})</button>` : ''}
+      ${pendingCount > 0 && !order.finished ? `<button class="btn btn-ghost btn-sm" onclick="cnfAll(${id})" style="font-size:9px;padding:3px 10px;min-height:26px;color:var(--accent);border-color:rgba(96,165,250,0.4);">CNF All (${pendingCount})</button>` : ''}
     </div>
     <div class="sessions-list">
       ${order.sessions.length === 0
@@ -1283,7 +1223,7 @@ function showOrderDetail(id) {
         <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="quickStageNowToLast(${id})">Now → last</button>
       </div>
       <div id="quick-add-preview-${id}" style="display:none;background:var(--bg-card);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:6px;">
-        <div id="quick-add-label-${id}" style="font-size:11px;color:var(--green);text-align:center;margin-bottom:8px;"></div>
+        <div id="quick-add-label-${id}" style="font-size:11px;color:var(--accent);text-align:center;margin-bottom:8px;"></div>
         <div style="display:flex;gap:6px;">
           <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="clearQuickAdd(${id})">Clear</button>
           <button class="btn btn-primary btn-sm" style="flex:2;" onclick="commitQuickAdd(${id})">Add Session</button>
@@ -1296,7 +1236,7 @@ function showOrderDetail(id) {
       </div>
       <div id="manual-add-form-${id}" style="display:none;">
         <div style="display:flex;gap:6px;margin-bottom:10px;">
-          <button id="add-mode-dur-${id}" class="btn btn-ghost btn-sm" style="flex:1;border-color:var(--green);color:var(--green);" onclick="setAddSessionMode(${id},'dur')">Start + Duration</button>
+          <button id="add-mode-dur-${id}" class="btn btn-ghost btn-sm" style="flex:1;border-color:var(--accent);color:var(--accent);" onclick="setAddSessionMode(${id},'dur')">Start + Duration</button>
           <button id="add-mode-end-${id}" class="btn btn-ghost btn-sm" style="flex:1;" onclick="setAddSessionMode(${id},'end')">Start + End Time</button>
         </div>
         <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
@@ -1362,27 +1302,9 @@ function pauseTimer() {
   stopLiveNotification();
 }
 
-function resumeTimer() {
+function resumeTimer(includeTime = false) {
   if (!timerStart || timerPausedAt === null) return;
-  timerStart += Date.now() - timerPausedAt;
-  timerPausedAt = null;
-  clearInterval(timerInterval);
-  timerInterval = setInterval(timerTick, 500);
-  const digits = document.getElementById('timer-display');
-  if (digits) digits.classList.add('running');
-  const status = document.getElementById('timer-status');
-  if (status) { status.textContent = '● RECORDING'; status.classList.add('running'); status.style.color = ''; }
-  const btn = document.getElementById('timer-pause-btn');
-  if (btn) btn.textContent = '⏸ Pause';
-  const dot = document.getElementById('tab-pause-dot');
-  if (dot) dot.style.display = 'none';
-  const order = activeOrderId ? db.orders.find(o => o.id === activeOrderId) : null;
-  const po = order ? order.po : (splitOrderIds.length ? `${splitOrderIds.length} POs` : '?');
-  startLiveNotification(po, order ? order.tags : [], order ? order.notes : '');
-}
-
-function resumeTimerIncludePaused() {
-  if (!timerStart || timerPausedAt === null) return;
+  if (!includeTime) timerStart += Date.now() - timerPausedAt;
   timerPausedAt = null;
   clearInterval(timerInterval);
   timerInterval = setInterval(timerTick, 500);
@@ -1405,12 +1327,12 @@ function toggleTimerPause() {
 
 function resumeAndDismissNoon(includeTime) {
   dismissNoonToast();
-  if (includeTime) resumeTimerIncludePaused(); else resumeTimer();
+  resumeTimer(includeTime);
 }
 
 function resumeAndDismissFourPm(includeTime) {
   dismissFourPmToast();
-  if (includeTime) resumeTimerIncludePaused(); else resumeTimer();
+  resumeTimer(includeTime);
 }
 
 function timerTick() {
@@ -1659,13 +1581,13 @@ function setAddSessionMode(orderId, mode) {
     durWrap.style.display  = 'flex';
     endInput.style.display = 'none';
     sep.textContent        = 'for';
-    durBtn.style.color = durBtn.style.borderColor = 'var(--green)';
+    durBtn.style.color = durBtn.style.borderColor = 'var(--accent)';
     endBtn.style.color = endBtn.style.borderColor = '';
   } else {
     durWrap.style.display  = 'none';
     endInput.style.display = '';
     sep.textContent        = 'to';
-    endBtn.style.color = endBtn.style.borderColor = 'var(--green)';
+    endBtn.style.color = endBtn.style.borderColor = 'var(--accent)';
     durBtn.style.color = durBtn.style.borderColor = '';
   }
   validateAddSession(orderId);
@@ -1976,25 +1898,8 @@ function resumeGroupTimer(splitGroupId) {
   if (groupOrders.length === 0) return;
   closeModal('modal-detail');
   splitOrderIds = groupOrders.map(o => o.id);
-  timerStart = Date.now();
-  clearInterval(timerInterval);
-  timerInterval = setInterval(timerTick, 500);
-  scheduleFourPmAlert();
-  scheduleNoonAlert();
-  setOrdersTabDisabled(true);
-  const rPos = groupOrders.map(o => o.po);
-  startLiveNotification(
-    rPos.length <= 3 ? rPos.join(' + ') : `${rPos.length} POs`,
-    groupOrders[0] ? groupOrders[0].tags : [],
-    groupOrders[0] ? groupOrders[0].notes : ''
-  );
   switchView('new');
-  showStep('timer');
-  document.getElementById('timer-po-label').textContent = `Split — ${groupOrders.length} Orders`;
-  document.getElementById('timer-po').innerHTML = groupOrders.map(o =>
-    `<div style="font-size:18px;line-height:1.5;">${escHtml(o.po)}${o.splitQty ? `<span style="font-size:11px;color:var(--text-muted);letter-spacing:1px;margin-left:8px;">QTY <span style="color:var(--amber);font-family:'Courier New',monospace;">${o.splitQty}</span></span>` : ''}</div>`
-  ).join('');
-  updateTimerMeta(groupOrders[0] ? groupOrders[0].tags : [], groupOrders[0] ? groupOrders[0].notes : '');
+  beginSplitTimerCore(groupOrders, groupOrders[0]?.tags || [], groupOrders[0]?.notes || '');
 }
 
 function confirmFinish(id) {
@@ -2030,8 +1935,8 @@ function toggleOrdersTimeline() {
     tl.style.display    = 'block';
     title.textContent   = "Today's Timeline";
     btn.textContent     = 'Orders';
-    btn.style.color     = 'var(--green)';
-    btn.style.borderColor = 'var(--green)';
+    btn.style.color     = 'var(--accent)';
+    btn.style.borderColor = 'var(--accent)';
     renderTimeline();
   } else {
     tl.style.display    = 'none';
@@ -2088,7 +1993,7 @@ function renderOrders() {
       ${o.tags.length ? `<div class="order-tags">${o.tags.map(t => `<span class="order-tag">${t}</span>`).join('')}</div>` : ''}
       <div class="order-total">
         ${o.sessions.length} session${o.sessions.length !== 1 ? 's' : ''} · ${fmt(total)} · ${fmtMin(total)}
-        ${pending > 0 ? `· <span class="pending-warn">${pending} pending CNF</span>` : ''}
+        ${pending > 0 ? `<br><span class="pending-warn">${pending} pending CNF</span>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -2196,49 +2101,35 @@ function deleteSelectedArchive() {
   exitArchiveMultiSelect();
 }
 
-function initArchiveLongPress() {
-  const list = document.getElementById('archive-list');
+function initLongPress(listId, onLongPress) {
+  const list = document.getElementById(listId);
   if (!list || list._lpInit) return;
   list._lpInit = true;
-  let pressTimer = null;
-  let moved = false;
-  let targetId = null;
-  let startX = 0, startY = 0;
-
+  let pressTimer = null, moved = false, targetId = null, startX = 0, startY = 0;
   list.addEventListener('pointerdown', e => {
     if (e.button !== 0) return;
     const card = e.target.closest('[data-id]');
     if (!card) return;
     targetId = Number(card.dataset.id);
-    moved = false;
-    startX = e.clientX;
-    startY = e.clientY;
+    moved = false; startX = e.clientX; startY = e.clientY;
     pressTimer = setTimeout(() => {
       if (moved) return;
       if (navigator.vibrate) navigator.vibrate(40);
-      if (archiveMultiSelectMode) toggleArchiveSelection(targetId);
-      else enterArchiveMultiSelect(targetId);
+      onLongPress(targetId);
     }, 500);
   }, { passive: true });
-
   list.addEventListener('pointermove', e => {
     if (!pressTimer) return;
     if (Math.abs(e.clientX - startX) > 8 || Math.abs(e.clientY - startY) > 8) {
-      moved = true;
-      clearTimeout(pressTimer);
-      pressTimer = null;
+      moved = true; clearTimeout(pressTimer); pressTimer = null;
     }
   }, { passive: true });
+  list.addEventListener('pointerup',     () => { clearTimeout(pressTimer); pressTimer = null; });
+  list.addEventListener('pointercancel', () => { clearTimeout(pressTimer); pressTimer = null; });
+}
 
-  list.addEventListener('pointerup', () => {
-    clearTimeout(pressTimer);
-    pressTimer = null;
-  });
-
-  list.addEventListener('pointercancel', () => {
-    clearTimeout(pressTimer);
-    pressTimer = null;
-  });
+function initArchiveLongPress() {
+  initLongPress('archive-list', id => archiveMultiSelectMode ? toggleArchiveSelection(id) : enterArchiveMultiSelect(id));
 }
 
 // ── MODAL HELPERS ──────────────────────────────────────────────────────────
@@ -2342,7 +2233,7 @@ function renderTimeline() {
   const tsStart  = dayStart.getTime();
   const tsEnd    = dayEnd.getTime();
 
-  const todayOrders = db.orders.filter(o =>
+  const todayOrders = [...db.orders, ...db.archive].filter(o =>
     o.sessions.some(s => { const t = s.start || s.date; return t >= tsStart && t <= tsEnd; })
   );
 
@@ -2467,10 +2358,13 @@ function renderTimeline() {
     const c   = s.duration >= 0 ? '#a78bfa' : '#f87171';
     const lbl = (s.duration >= 0 ? '+' : '−') + Math.round(Math.abs(s.duration) / 60000) + 'm';
     const meta = h > 30 ? `<div style="font-size:8px;color:${c};opacity:0.7;margin-top:1px;">${escHtml(s.po)}</div>` : '';
-    blocks += `<div data-adj-oid="${s.orderId}" data-adj-idx="${s.sessionIdx}" style="position:absolute;left:${LEFT + 3}px;right:3px;top:${top}px;height:${h}px;background:${c}12;border:1px solid ${c}55;border-left:3px solid ${c};border-radius:4px;padding:3px 5px;box-sizing:border-box;overflow:hidden;cursor:grab;z-index:5;touch-action:none;">
+    const isArchived = db.archive.some(o => o.id === s.orderId);
+    const dragAttrs  = isArchived ? '' : `data-adj-oid="${s.orderId}" data-adj-idx="${s.sessionIdx}"`;
+    const dragStyle  = isArchived ? 'pointer-events:none;opacity:0.6;' : 'cursor:grab;z-index:5;touch-action:none;';
+    blocks += `<div ${dragAttrs} style="position:absolute;left:${LEFT + 3}px;right:3px;top:${top}px;height:${h}px;background:${c}12;border:1px solid ${c}55;border-left:3px solid ${c};border-radius:4px;padding:3px 5px;box-sizing:border-box;overflow:hidden;${dragStyle}">
       <div style="display:flex;align-items:center;gap:4px;">
         <span style="font-size:9px;font-weight:700;color:${c};font-family:'Courier New',monospace;">${lbl}</span>
-        <span style="font-size:8px;color:${c};opacity:0.5;">⠿</span>
+        ${isArchived ? '' : `<span style="font-size:8px;color:${c};opacity:0.5;">⠿</span>`}
       </div>
       ${meta}
     </div>`;
@@ -2737,7 +2631,7 @@ function tlMouseUp() {
   tlDrag = null;
 
   if (wasDragging) {
-    const order = db.orders.find(o => o.id === orderId);
+    const order = db.orders.find(o => o.id === orderId) || db.archive.find(o => o.id === orderId);
     if (order && order.sessions[sessionIdx]) {
       order.sessions[sessionIdx].date = currentDate;
       saveDB();
@@ -2807,7 +2701,7 @@ function tlTouchEnd() {
   if (tlDrag) {
     const { orderId, sessionIdx, currentDate, el } = tlDrag;
     el.style.outline = el.style.opacity = el.style.zIndex = el.style.boxShadow = '';
-    const order = db.orders.find(o => o.id === orderId);
+    const order = db.orders.find(o => o.id === orderId) || db.archive.find(o => o.id === orderId);
     if (order && order.sessions[sessionIdx]) {
       order.sessions[sessionIdx].date = currentDate;
       saveDB();
@@ -2940,66 +2834,12 @@ function multiSelectSplitTimer() {
   if (orders.length === 0) return;
   resetMultiSelect();
   splitOrderIds = orders.map(o => o.id);
-  timerStart = Date.now();
-  clearInterval(timerInterval);
-  timerInterval = setInterval(timerTick, 500);
-  scheduleFourPmAlert();
-  scheduleNoonAlert();
-  setOrdersTabDisabled(true);
-  const msPos = orders.map(o => o.po);
-  startLiveNotification(msPos.length <= 3 ? msPos.join(' + ') : `${msPos.length} POs`, [], '');
   switchView('new');
-  showStep('timer');
-  document.getElementById('timer-po-label').textContent = `Split — ${orders.length} Orders`;
-  document.getElementById('timer-po').innerHTML = orders.map(o =>
-    `<div style="font-size:18px;line-height:1.5;">${escHtml(o.po)}${o.splitQty ? `<span style="font-size:11px;color:var(--text-muted);letter-spacing:1px;margin-left:8px;">QTY <span style="color:var(--amber);font-family:'Courier New',monospace;">${o.splitQty}</span></span>` : ''}</div>`
-  ).join('');
-  updateTimerMeta(orders[0] ? orders[0].tags : [], orders[0] ? orders[0].notes : '');
+  beginSplitTimerCore(orders, [], '');
 }
 
 function initOrdersLongPress() {
-  const list = document.getElementById('orders-list');
-  if (!list || list._lpInit) return;
-  list._lpInit = true;
-  let pressTimer = null;
-  let moved = false;
-  let targetId = null;
-  let startX = 0, startY = 0;
-
-  list.addEventListener('pointerdown', e => {
-    if (e.button !== 0) return;
-    const card = e.target.closest('[data-id]');
-    if (!card) return;
-    targetId = Number(card.dataset.id);
-    moved = false;
-    startX = e.clientX;
-    startY = e.clientY;
-    pressTimer = setTimeout(() => {
-      if (moved) return;
-      if (navigator.vibrate) navigator.vibrate(40);
-      if (multiSelectMode) toggleOrderSelection(targetId);
-      else enterMultiSelect(targetId);
-    }, 500);
-  }, { passive: true });
-
-  list.addEventListener('pointermove', e => {
-    if (!pressTimer) return;
-    if (Math.abs(e.clientX - startX) > 8 || Math.abs(e.clientY - startY) > 8) {
-      moved = true;
-      clearTimeout(pressTimer);
-      pressTimer = null;
-    }
-  }, { passive: true });
-
-  list.addEventListener('pointerup', () => {
-    clearTimeout(pressTimer);
-    pressTimer = null;
-  });
-
-  list.addEventListener('pointercancel', () => {
-    clearTimeout(pressTimer);
-    pressTimer = null;
-  });
+  initLongPress('orders-list', id => multiSelectMode ? toggleOrderSelection(id) : enterMultiSelect(id));
 }
 
 // ── STATS ──────────────────────────────────────────────────────────────────
@@ -3007,14 +2847,14 @@ function renderStats() {
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const todayEnd = todayStart + 86400000;
-  const GOAL_MIN = 450;
 
   const allOrders = [...db.orders, ...db.archive];
 
   // Today's logged minutes
   let todayMs = 0;
   allOrders.forEach(o => o.sessions.forEach(s => {
-    if (s.date >= todayStart && s.date < todayEnd) todayMs += s.duration || 0;
+    const t = s.start || s.date;
+    if (t >= todayStart && t < todayEnd) todayMs += s.duration || 0;
   }));
   const todayMin = Math.round(todayMs / 60000);
   const todayPct = Math.min(100, Math.round((todayMin / GOAL_MIN) * 100));
@@ -3048,15 +2888,17 @@ function renderStats() {
   // Unconfirmed time from previous days grouped by day
   const pendingByDay = {};
   allOrders.forEach(o => o.sessions.forEach(s => {
-    if (!s.cnf && (s.date || 0) < todayStart) {
-      const d = new Date(s.date);
+    const t = s.date || s.start;
+    if (!s.cnf && t && t < todayStart) {
+      const d = new Date(t);
       d.setHours(0, 0, 0, 0);
       const k = d.getTime();
-      pendingByDay[k] = (pendingByDay[k] || 0) + (s.duration || 0);
+      if (!isNaN(k)) pendingByDay[k] = (pendingByDay[k] || 0) + (s.duration || 0);
     }
   }));
   const pendingDays = Object.entries(pendingByDay)
     .map(([k, ms]) => ({ ts: +k, ms }))
+    .filter(d => d.ms > 0)
     .sort((a, b) => b.ts - a.ts);
   const totalPrevPendingMs = pendingDays.reduce((s, d) => s + d.ms, 0);
 
@@ -3107,7 +2949,7 @@ function renderStats() {
     const pct  = Math.min(100, Math.round((d.ms / GOAL_MS) * 100));
     const barW = Math.round((d.ms / maxDayMs) * 100);
     const atGoal = d.ms >= GOAL_MS;
-    const col  = atGoal ? '#4ade80' : 'var(--green)';
+    const col  = atGoal ? '#4ade80' : 'var(--accent)';
     const minStr = Math.round(d.ms / 60000) + ' min';
     return `
       <div style="margin-bottom:9px;">
@@ -3129,7 +2971,9 @@ function downloadBlob(content, filename, mime) {
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
 
