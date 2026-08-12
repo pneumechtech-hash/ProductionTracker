@@ -379,6 +379,35 @@
   .ms-bar-count { font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: 1px; text-transform: uppercase; }
   .ms-bar-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .time-adjust-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+
+  /* ACTIVE TIMER CARD */
+  .order-card.timer-active { border-color: var(--accent) !important; background: var(--green-dim) !important; }
+  .timer-active-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px rgba(96,165,250,0.8); animation: pulse 1.5s ease-in-out infinite; flex-shrink: 0; }
+
+  /* FLOATING TIMER BAR */
+  #floating-timer {
+    display: none; flex-shrink: 0;
+    background: rgba(0,14,28,0.97);
+    border-bottom: 2px solid var(--accent);
+    padding: 7px 16px;
+    align-items: center; justify-content: space-between; gap: 8px;
+  }
+  #floating-timer.show { display: flex; }
+  #ft-po { font-size: 11px; font-family: 'Courier New', monospace; color: var(--accent); font-weight: 600; letter-spacing: 1.5px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #ft-elapsed { font-size: 14px; font-family: 'Courier New', monospace; color: var(--accent); font-weight: 700; letter-spacing: 3px; }
+  .ft-return-btn { font-size: 10px; font-weight: 600; padding: 4px 12px; background: var(--accent); color: #09090b; border: none; border-radius: 6px; cursor: pointer; letter-spacing: 0.5px; white-space: nowrap; }
+
+  /* SETTINGS */
+  .gear-btn { background: transparent; border: none; color: var(--text-dim); cursor: pointer; font-size: 17px; padding: 4px; line-height: 1; border-radius: 6px; min-height: 34px; min-width: 34px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .gear-btn:active { background: var(--bg-input); color: var(--text); }
+  .settings-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); gap: 12px; }
+  .settings-label { font-size: 13px; color: var(--text); }
+  .settings-hint { font-size: 10px; color: var(--text-dim); letter-spacing: 0.3px; margin-top: 2px; }
+  .settings-input { background: var(--bg-input); border: 1px solid var(--border-mid); border-radius: 7px; padding: 7px 10px; font-size: 13px; color: var(--text); outline: none; text-align: right; font-family: inherit; min-width: 80px; }
+  .settings-input[type="number"] { width: 90px; }
+  .settings-input[type="time"] { width: 110px; }
+  .settings-input:focus { border-color: var(--accent); }
+  .settings-tag-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border); }
 </style>
 </head>
 <body>
@@ -390,6 +419,19 @@
       <button class="tab" id="tab-new" onclick="switchView('new')" style="position:relative;">+ New<span id="tab-pause-dot" style="display:none;position:absolute;top:5px;right:5px;width:6px;height:6px;border-radius:50%;background:var(--amber);"></span></button>
       <button class="tab" id="tab-archive" onclick="switchView('archive')">Archive</button>
       <button class="tab" id="tab-stats" onclick="switchView('stats')">Stats</button>
+    </div>
+    <button class="gear-btn" onclick="openSettingsModal()" title="Settings">⚙</button>
+  </div>
+
+  <!-- FLOATING TIMER BAR — shown when timer runs in background -->
+  <div id="floating-timer">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span class="timer-active-dot"></span>
+      <span id="ft-po"></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span id="ft-elapsed">00:00:00</span>
+      <button class="ft-return-btn" onclick="switchView('new')">▶ Return</button>
     </div>
   </div>
 
@@ -450,7 +492,8 @@
         </div>
         <div class="section-label">Or Enter Manually</div>
         <div class="row" style="margin-bottom:10px;">
-          <input class="input-field" id="manual-po" type="text" placeholder="Type PO number..." style="flex:1;">
+          <input class="input-field" id="manual-po" type="text" placeholder="Type PO number..." style="flex:1;"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();useManualPO()}">
           <button class="btn btn-ghost btn-sm" id="manual-po-btn" onclick="useManualPO()">Use</button>
         </div>
         <div id="split-po-list" style="display:none;margin-bottom:10px;"></div>
@@ -496,11 +539,11 @@
           <button class="btn btn-ghost btn-sm" onclick="adjustActiveTimer(300000)">+5m</button>
           <button class="btn btn-ghost btn-sm" onclick="adjustActiveTimer(900000)">+15m</button>
         </div>
-        <div id="timer-adj-preview" style="display:none;margin-bottom:10px;">
-          <div id="timer-adj-label" style="font-size:11px;text-align:center;margin-bottom:6px;"></div>
-          <div class="row">
-            <button class="btn btn-ghost btn-sm" onclick="clearTimerAdj()" style="flex:1;">Clear</button>
-          </div>
+        <div id="timer-adj-preview" style="display:none;margin-bottom:10px;text-align:center;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;">
+          <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:4px;">Adjustment pending</div>
+          <div id="timer-adj-amount" style="font-size:36px;font-family:'Courier New',monospace;font-weight:bold;letter-spacing:2px;">+0m</div>
+          <div id="timer-adj-label" style="font-size:10px;letter-spacing:0.5px;margin-top:4px;margin-bottom:10px;"></div>
+          <button class="btn btn-ghost btn-sm" onclick="clearTimerAdj()" style="width:100%;">Clear adjustment</button>
         </div>
         <button class="btn btn-ghost" id="timer-pause-btn" onclick="toggleTimerPause()" style="margin-bottom:8px;width:100%;">⏸ Pause</button>
         <button class="btn btn-danger" onclick="openStopModal()">■ Stop Timer</button>
@@ -529,7 +572,7 @@
           </div>
           <div style="text-align:right;">
             <div class="progress-pct" id="stat-today-pct">—%</div>
-            <div class="progress-goal">of 450 min</div>
+            <div class="progress-goal" id="stat-goal-text">of 450 min</div>
           </div>
         </div>
         <div class="progress-track">
@@ -619,6 +662,61 @@
   </div>
 </div>
 
+<!-- ── CONFIRM MODAL ── -->
+<div class="modal-overlay" id="modal-confirm">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-confirm')">✕</button>
+    <div class="modal-title" id="confirm-modal-title">Confirm</div>
+    <p id="confirm-modal-body" style="font-size:13px;color:var(--text-dim);margin-bottom:20px;line-height:1.6;letter-spacing:0.2px;"></p>
+    <div class="row">
+      <button class="btn btn-ghost" onclick="closeModal('modal-confirm')">Cancel</button>
+      <button class="btn btn-warn" id="confirm-modal-ok" onclick="confirmModalOk()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── SETTINGS MODAL ── -->
+<div class="modal-overlay" id="modal-settings">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-settings')">✕</button>
+    <div class="modal-title">Settings</div>
+
+    <div class="section-label">Daily Goal</div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Goal (minutes)</div>
+        <div class="settings-hint">450 = 7.5 hr shift</div>
+      </div>
+      <input type="number" id="settings-goal" class="settings-input" min="1" max="1440" value="450">
+    </div>
+
+    <div class="section-label" style="margin-top:16px;">Lunch Break</div>
+    <div class="settings-row">
+      <div class="settings-label">Start time</div>
+      <input type="time" id="settings-lunch-start" class="settings-input" value="12:00">
+    </div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Duration (minutes)</div>
+        <div class="settings-hint">Used for conflict detection &amp; quick-add</div>
+      </div>
+      <input type="number" id="settings-lunch-dur" class="settings-input" min="0" max="120" value="30">
+    </div>
+
+    <div class="section-label" style="margin-top:16px;">Tags</div>
+    <div id="settings-tags-list" style="margin-bottom:8px;"></div>
+    <div class="tag-add-row" style="margin-bottom:16px;">
+      <input class="input-field" id="settings-tag-input" type="text" placeholder="Add tag…" maxlength="30"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();settingsAddTag()}">
+      <button class="btn btn-sm" onclick="settingsAddTag()">Add</button>
+    </div>
+
+    <button class="btn btn-primary" onclick="saveSettingsModal()">Save Settings</button>
+    <div class="gap"></div>
+    <button class="btn btn-ghost btn-sm" style="color:var(--red);border-color:rgba(248,113,113,0.3);width:100%;" onclick="resetSettings()">Reset to defaults</button>
+  </div>
+</div>
+
 <!-- ── ADJUSTMENT EDIT MODAL ── -->
 <div class="modal-overlay" id="modal-adj-edit">
   <div class="modal">
@@ -699,10 +797,12 @@
 'use strict';
 
 // ── STATE ──────────────────────────────────────────────────────────────────
-const TAGS = ['Gantry','Air Prep','Testing','Learning', 'Kit', '3rd Party'];
-const DB_KEY = 'po-tracker-v1';
-const GOAL_MIN = 450;
+const DEFAULT_TAGS = ['Gantry','Air Prep','Testing','Learning', 'Kit', '3rd Party'];
+const DB_KEY       = 'po-tracker-v1';
+const SETTINGS_KEY = 'po-tracker-settings-v1';
+const TIMER_KEY    = 'po-tracker-timer-v1';
 
+let settings = { goalMin: 450, lunchStart: '12:00', lunchDur: 30, tags: [...DEFAULT_TAGS] };
 let db = { orders: [], archive: [] };
 let draft = { tags: [], notes: '', po: '' };
 let activeOrderId = null;
@@ -712,12 +812,15 @@ let timerStart = null;
 let timerInterval = null;
 let timerPausedAt = null;
 let activeTimerAdj = 0;
+let _origTimerStart = null;
 let fourPmTimeout = null;
 let noonTimeout = null;
 let codeReader = null;
 let scanStream = null;
 let deferredInstallPrompt = null;
 let notifUpdateInterval = null;
+let _idSeq = 0;
+function genId() { return Date.now() * 1000 + (++_idSeq % 1000); }
 
 // ── DATABASE ───────────────────────────────────────────────────────────────
 function loadDB() {
@@ -728,6 +831,156 @@ function loadDB() {
 }
 function saveDB() {
   try { localStorage.setItem(DB_KEY, JSON.stringify(db)); } catch(e) { console.warn('DB save error', e); }
+}
+
+// ── SETTINGS ───────────────────────────────────────────────────────────────
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if (s.goalMin  > 0) settings.goalMin   = s.goalMin;
+    if (s.lunchStart)   settings.lunchStart = s.lunchStart;
+    if (s.lunchDur >= 0) settings.lunchDur  = s.lunchDur;
+    if (Array.isArray(s.tags) && s.tags.length) settings.tags = s.tags;
+  } catch(e) {}
+}
+function saveSettings() {
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch(e) {}
+}
+
+function openSettingsModal() {
+  document.getElementById('settings-goal').value       = settings.goalMin;
+  document.getElementById('settings-lunch-start').value = settings.lunchStart;
+  document.getElementById('settings-lunch-dur').value  = settings.lunchDur;
+  renderSettingsTags();
+  openModal('modal-settings');
+}
+function renderSettingsTags() {
+  const el = document.getElementById('settings-tags-list');
+  if (!el) return;
+  if (!settings.tags.length) { el.innerHTML = '<div style="font-size:11px;color:var(--text-muted);padding:8px 0;">No tags — add one below</div>'; return; }
+  el.innerHTML = settings.tags.map((t, i) => `
+    <div class="settings-tag-row">
+      <span style="font-size:13px;color:var(--text);">${escHtml(t)}</span>
+      <button class="btn btn-ghost btn-sm" onclick="settingsRemoveTag(${i})" style="color:var(--red);border-color:rgba(248,113,113,0.3);padding:3px 10px;min-height:28px;">✕</button>
+    </div>`).join('');
+}
+function settingsAddTag() {
+  const input = document.getElementById('settings-tag-input');
+  const val = input.value.trim();
+  if (!val || settings.tags.includes(val)) { input.value = ''; return; }
+  settings.tags.push(val);
+  input.value = '';
+  renderSettingsTags();
+}
+function settingsRemoveTag(idx) {
+  settings.tags.splice(idx, 1);
+  renderSettingsTags();
+}
+function saveSettingsModal() {
+  const g = parseInt(document.getElementById('settings-goal').value, 10);
+  const ls = document.getElementById('settings-lunch-start').value;
+  const ld = parseInt(document.getElementById('settings-lunch-dur').value, 10);
+  if (g > 0)          settings.goalMin    = g;
+  if (ls)             settings.lunchStart = ls;
+  if (!isNaN(ld) && ld >= 0) settings.lunchDur = ld;
+  saveSettings();
+  closeModal('modal-settings');
+  // Re-render anything that uses these settings
+  const gtEl = document.getElementById('stat-goal-text');
+  if (gtEl) gtEl.textContent = `of ${settings.goalMin} min`;
+  if (document.getElementById('view-stats').classList.contains('active')) renderStats();
+  if (document.getElementById('view-new').classList.contains('active')) renderTags();
+}
+function resetSettings() {
+  settings = { goalMin: 450, lunchStart: '12:00', lunchDur: 30, tags: [...DEFAULT_TAGS] };
+  saveSettings();
+  document.getElementById('settings-goal').value       = settings.goalMin;
+  document.getElementById('settings-lunch-start').value = settings.lunchStart;
+  document.getElementById('settings-lunch-dur').value  = settings.lunchDur;
+  renderSettingsTags();
+}
+
+// ── TIMER PERSISTENCE ──────────────────────────────────────────────────────
+function saveTimerState() {
+  if (!timerStart) { clearTimerState(); return; }
+  try {
+    localStorage.setItem(TIMER_KEY, JSON.stringify({
+      timerStart, activeOrderId,
+      splitOrderIds: [...splitOrderIds],
+      timerPausedAt, activeTimerAdj, _origTimerStart
+    }));
+  } catch(e) {}
+}
+function clearTimerState() {
+  try { localStorage.removeItem(TIMER_KEY); } catch(e) {}
+}
+function restoreTimerState() {
+  try {
+    const raw = localStorage.getItem(TIMER_KEY);
+    if (!raw) return false;
+    const s = JSON.parse(raw);
+    if (!s || !s.timerStart) return false;
+    // Validate orders still exist
+    if (s.activeOrderId && !db.orders.find(o => o.id === s.activeOrderId)) return false;
+    if (Array.isArray(s.splitOrderIds) && s.splitOrderIds.length) {
+      const stillExist = s.splitOrderIds.every(id => db.orders.find(o => o.id === id));
+      if (!stillExist) return false;
+    }
+    timerStart     = s.timerStart;
+    activeOrderId  = s.activeOrderId  || null;
+    splitOrderIds  = Array.isArray(s.splitOrderIds) ? s.splitOrderIds : [];
+    timerPausedAt   = s.timerPausedAt  || null;
+    activeTimerAdj  = s.activeTimerAdj || 0;
+    _origTimerStart = s._origTimerStart || (s.timerStart + (s.activeTimerAdj || 0));
+    return true;
+  } catch(e) { return false; }
+}
+function restoreTimerUI() {
+  // Activate the New view without resetting draft
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('view-new').classList.add('active');
+  document.getElementById('tab-new').classList.add('active');
+  showStep('timer');
+
+  // Populate PO display
+  if (splitOrderIds.length > 0) {
+    const orders = splitOrderIds.map(id => db.orders.find(o => o.id === id)).filter(Boolean);
+    document.getElementById('timer-po-label').textContent = `Split — ${orders.length} Orders`;
+    document.getElementById('timer-po').innerHTML = orders.map(o =>
+      `<div style="font-size:18px;line-height:1.5;">${escHtml(o.po)}${o.splitQty ? `<span style="font-size:11px;color:var(--text-muted);letter-spacing:1px;margin-left:8px;">QTY <span style="color:var(--amber);font-family:'Courier New',monospace;">${o.splitQty}</span></span>` : ''}</div>`
+    ).join('');
+    updateTimerMeta(orders[0]?.tags || [], orders[0]?.notes || '');
+  } else if (activeOrderId) {
+    const order = db.orders.find(o => o.id === activeOrderId);
+    document.getElementById('timer-po-label').textContent = 'Production Order';
+    document.getElementById('timer-po').textContent = order ? order.po : '';
+    updateTimerMeta(order?.tags || [], order?.notes || '');
+  }
+  renderTimerAdjPreview();
+
+  if (timerPausedAt !== null) {
+    const digits = document.getElementById('timer-display');
+    if (digits) { digits.textContent = fmt(timerPausedAt - timerStart); digits.classList.remove('running'); }
+    const status = document.getElementById('timer-status');
+    if (status) { status.textContent = '⏸ PAUSED'; status.classList.remove('running'); status.style.color = 'var(--amber)'; }
+    const btn = document.getElementById('timer-pause-btn');
+    if (btn) btn.textContent = '▶ Resume';
+    const dot = document.getElementById('tab-pause-dot');
+    if (dot) dot.style.display = 'block';
+  } else {
+    timerInterval = setInterval(timerTick, 500);
+    scheduleFourPmAlert();
+    scheduleNoonAlert();
+    const order = activeOrderId ? db.orders.find(o => o.id === activeOrderId) : null;
+    const orders = splitOrderIds.map(id => db.orders.find(o => o.id === id)).filter(Boolean);
+    const po = orders.length > 0
+      ? (orders.length <= 3 ? orders.map(o => o.po).join(' + ') : `${orders.length} POs`)
+      : (order ? order.po : '?');
+    startLiveNotification(po, order?.tags || orders[0]?.tags || [], order?.notes || orders[0]?.notes || '');
+  }
 }
 
 // ── FORMATTERS ─────────────────────────────────────────────────────────────
@@ -782,7 +1035,14 @@ function switchView(v) {
   if (v === 'orders') { ordersShowTimeline ? renderTimeline() : renderOrders(); }
   if (v === 'archive') renderArchive();
   if (v === 'stats') renderStats();
-  if (v === 'new') { resetDraft(); showStep('tags'); renderTags(); }
+  if (v === 'new') {
+    if (timerStart) {
+      showStep('timer'); // return to running timer without resetting
+    } else {
+      resetDraft(); showStep('tags'); renderTags();
+    }
+  }
+  updateFloatingTimer();
 }
 
 function showStep(s) {
@@ -800,11 +1060,11 @@ function resetDraft() {
 }
 
 function renderTags() {
-  const standard = TAGS.map(t =>
-    `<button class="tag${draft.tags.includes(t) ? ' selected' : ''}" onclick="toggleTag('${t}')">${t}</button>`
+  const standard = settings.tags.map(t =>
+    `<button class="tag${draft.tags.includes(t) ? ' selected' : ''}" onclick="toggleTag('${escHtml(t)}')">${escHtml(t)}</button>`
   ).join('');
-  const custom = draft.tags.filter(t => !TAGS.includes(t)).map(t =>
-    `<button class="tag custom">${t}<span class="tag-x" onclick="removeCustomTag(${JSON.stringify(t)})">×</span></button>`
+  const custom = draft.tags.filter(t => !settings.tags.includes(t)).map(t =>
+    `<button class="tag custom">${escHtml(t)}<span class="tag-x" onclick="removeCustomTag(${JSON.stringify(t)})">×</span></button>`
   ).join('');
   document.getElementById('tags-grid').innerHTML = standard + custom;
 }
@@ -834,6 +1094,10 @@ function goToScan() {
   draft.notes = document.getElementById('new-notes').value.trim();
   showStep('scan');
   setSplitMode(false);
+  setTimeout(() => {
+    const el = document.getElementById('manual-po');
+    if (el) el.focus();
+  }, 120);
 }
 
 function backToTags() {
@@ -897,11 +1161,14 @@ function updateSplitQty(idx, val) {
 
 function beginSplitTimerCore(orders, tags, notes) {
   timerStart = Date.now();
+  _origTimerStart = timerStart;
+  timerPausedAt = null;
+  activeTimerAdj = 0;
   clearInterval(timerInterval);
   timerInterval = setInterval(timerTick, 500);
   scheduleFourPmAlert();
   scheduleNoonAlert();
-  setOrdersTabDisabled(true);
+  saveTimerState();
   const poLabel = orders.length <= 3 ? orders.map(o => o.po).join(' + ') : `${orders.length} POs`;
   startLiveNotification(poLabel, tags, notes);
   showStep('timer');
@@ -915,10 +1182,11 @@ function beginSplitTimerCore(orders, tags, notes) {
 function startSplitTimer() {
   if (draft.splitPOs.length === 0) return;
   stopScanner();
-  const baseId = Date.now();
-  const newOrders = draft.splitPOs.map((item, i) => ({
-    id: baseId + i, po: item.po, tags: [...draft.tags], notes: draft.notes,
-    sessions: [], created: baseId + i, finished: false, splitGroupId: baseId, splitQty: item.qty || null
+  const groupId = genId();
+  const now = Date.now();
+  const newOrders = draft.splitPOs.map(item => ({
+    id: genId(), po: item.po, tags: [...draft.tags], notes: draft.notes,
+    sessions: [], created: now, finished: false, splitGroupId: groupId, splitQty: item.qty || null
   }));
   newOrders.forEach(o => db.orders.unshift(o));
   splitOrderIds = newOrders.map(o => o.id);
@@ -962,7 +1230,7 @@ function showConfirm() {
 
 function buildOrderFromDraft() {
   const now = Date.now();
-  return { id: now, po: draft.po, tags: [...draft.tags], notes: draft.notes, sessions: [], created: now, finished: false };
+  return { id: genId(), po: draft.po, tags: [...draft.tags], notes: draft.notes, sessions: [], created: now, finished: false };
 }
 
 function createOrderWithoutTimer() {
@@ -1009,18 +1277,18 @@ function clearFourPmAlert() { if (fourPmTimeout) { clearTimeout(fourPmTimeout); 
 function showFourPmAlert() { showTimedAlert('four-pm-toast', 'PO Tracker — Timer Running', 'It is 4:00 PM and a timer is still active.', 'four-pm-alert'); }
 function dismissFourPmToast() { const t = document.getElementById('four-pm-toast'); if (t) t.style.display = 'none'; }
 
-function scheduleNoonAlert() { clearNoonAlert(); noonTimeout = scheduleAlert(12, 0, showNoonAlert); }
+function scheduleNoonAlert() {
+  clearNoonAlert();
+  const [h, m] = settings.lunchStart.split(':').map(Number);
+  noonTimeout = scheduleAlert(h, m, showNoonAlert);
+}
 function clearNoonAlert() { if (noonTimeout) { clearTimeout(noonTimeout); noonTimeout = null; } }
-function showNoonAlert() { showTimedAlert('noon-toast', 'PO Tracker — Lunch Break?', 'It is 12:00 PM and a timer is still active.', 'noon-alert'); }
+function showNoonAlert() { showTimedAlert('noon-toast', 'PO Tracker — Lunch Break?', 'Timer is still active during lunch.', 'noon-alert'); }
 function dismissNoonToast() { const t = document.getElementById('noon-toast'); if (t) t.style.display = 'none'; }
 
 // ── TIMER ─────────────────────────────────────────────────────────────────
-function setOrdersTabDisabled(disabled) {
-  ['tab-orders', 'tab-new', 'tab-archive', 'tab-stats'].forEach(id => {
-    const tab = document.getElementById(id);
-    if (tab) tab.disabled = disabled;
-  });
-}
+// Tabs are no longer locked during timing — users can freely navigate
+function setOrdersTabDisabled(_disabled) {}
 
 function updateTimerMeta(tags, notes) {
   const tagsEl = document.getElementById('timer-tags');
@@ -1034,20 +1302,24 @@ function updateTimerMeta(tags, notes) {
 function beginTimer(orderId) {
   activeOrderId = orderId;
   timerStart = Date.now();
+  _origTimerStart = timerStart;
+  timerPausedAt = null;
+  activeTimerAdj = 0;
   clearInterval(timerInterval);
   timerInterval = setInterval(timerTick, 500);
   scheduleFourPmAlert();
   scheduleNoonAlert();
-  setOrdersTabDisabled(true);
+  saveTimerState();
   const order = db.orders.find(o => o.id === orderId);
   startLiveNotification(order ? order.po : '?', order ? order.tags : [], order ? order.notes : '');
 }
 
 function openStopModal() {
   const elapsed = getElapsed();
-  const total = elapsed + activeTimerAdj;
+  const total = elapsed;
+  const adjMins = Math.round(Math.abs(activeTimerAdj) / 60000);
   const adjLine = activeTimerAdj !== 0
-    ? `<div style="font-size:11px;color:${activeTimerAdj > 0 ? '#a78bfa' : '#f87171'};letter-spacing:1px;margin-top:4px;">${activeTimerAdj > 0 ? '+' : '−'}${fmtMin(Math.abs(activeTimerAdj))} adjustment included</div>`
+    ? `<div style="font-size:11px;color:${activeTimerAdj > 0 ? '#a78bfa' : '#f87171'};letter-spacing:1px;margin-top:4px;">${activeTimerAdj > 0 ? `started ${adjMins}m earlier` : `started ${adjMins}m later`}</div>`
     : '';
   document.getElementById('stop-elapsed').innerHTML = `${fmt(total)}<div style="font-size:13px;color:var(--text-dim);letter-spacing:2px;margin-top:4px;font-family:'Courier New',monospace;">${fmtMin(total)}</div>${adjLine}`;
   const splitInfo = document.getElementById('stop-split-info');
@@ -1086,8 +1358,8 @@ function stopSession(cnf) {
   dismissNoonToast();
   stopLiveNotification();
 
-  setOrdersTabDisabled(false);
-  const adjNow = Date.now();
+  clearTimerState();
+  updateFloatingTimer();
   if (splitOrderIds.length > 0) {
     const splitOrders = splitOrderIds.map(id => db.orders.find(o => o.id === id)).filter(Boolean);
     const totalQty = splitOrders.reduce((s, o) => s + (o.splitQty || 0), 0);
@@ -1099,14 +1371,9 @@ function stopSession(cnf) {
         : Math.floor(duration / splitOrders.length);
       order.sessions.push({ start: cursor, duration: splitDuration, cnf, date: cursor });
       cursor += splitDuration;
-      if (activeTimerAdj !== 0) {
-        const adjShare = useProportional
-          ? Math.floor(activeTimerAdj * ((order.splitQty || 0) / totalQty))
-          : Math.floor(activeTimerAdj / splitOrders.length);
-        order.sessions.push({ start: timerStart, duration: adjShare, cnf: false, date: adjNow, manual: true });
-      }
     });
     activeTimerAdj = 0;
+    _origTimerStart = null;
     renderTimerAdjPreview();
     saveDB();
     splitOrderIds = [];
@@ -1119,10 +1386,8 @@ function stopSession(cnf) {
     const order = db.orders.find(o => o.id === activeOrderId);
     if (order) {
       order.sessions.push({ start: timerStart, duration, cnf, date: timerStart });
-      if (activeTimerAdj !== 0) {
-        order.sessions.push({ start: timerStart, duration: activeTimerAdj, cnf: false, date: adjNow, manual: true });
-      }
       activeTimerAdj = 0;
+      _origTimerStart = null;
       renderTimerAdjPreview();
       saveDB();
     }
@@ -1235,6 +1500,12 @@ function showOrderDetail(id) {
         <span id="manual-fold-icon-${id}" style="color:var(--text-dim);font-size:12px;">▶ expand</span>
       </div>
       <div id="manual-add-form-${id}" style="display:none;">
+        <div style="margin-bottom:8px;">
+          <input type="date" id="add-date-${id}" class="input-field"
+            value="${new Date().toISOString().split('T')[0]}"
+            max="${new Date().toISOString().split('T')[0]}"
+            style="min-height:40px;padding:8px 10px;" oninput="validateAddSession(${id})">
+        </div>
         <div style="display:flex;gap:6px;margin-bottom:10px;">
           <button id="add-mode-dur-${id}" class="btn btn-ghost btn-sm" style="flex:1;border-color:var(--accent);color:var(--accent);" onclick="setAddSessionMode(${id},'dur')">Start + Duration</button>
           <button id="add-mode-end-${id}" class="btn btn-ghost btn-sm" style="flex:1;" onclick="setAddSessionMode(${id},'end')">Start + End Time</button>
@@ -1300,6 +1571,8 @@ function pauseTimer() {
   const dot = document.getElementById('tab-pause-dot');
   if (dot) dot.style.display = 'block';
   stopLiveNotification();
+  saveTimerState();
+  updateFloatingTimer();
 }
 
 function resumeTimer(includeTime = false) {
@@ -1319,6 +1592,8 @@ function resumeTimer(includeTime = false) {
   const order = activeOrderId ? db.orders.find(o => o.id === activeOrderId) : null;
   const po = order ? order.po : (splitOrderIds.length ? `${splitOrderIds.length} POs` : '?');
   startLiveNotification(po, order ? order.tags : [], order ? order.notes : '');
+  saveTimerState();
+  updateFloatingTimer();
 }
 
 function toggleTimerPause() {
@@ -1353,32 +1628,68 @@ function timerTick() {
       tot.textContent = '';
     }
   }
+  // Update floating timer bar
+  const ftEl = document.getElementById('ft-elapsed');
+  if (ftEl) ftEl.textContent = fmt(elapsed);
+  // Save state every ~30 seconds
+  const sec = Math.floor(elapsed / 1000);
+  if (sec > 0 && sec % 30 === 0) saveTimerState();
+}
+
+function updateFloatingTimer() {
+  const bar = document.getElementById('floating-timer');
+  if (!bar) return;
+  if (!timerStart) { bar.classList.remove('show'); return; }
+  // Hide when on the timer step of the New view
+  const newActive  = document.getElementById('view-new')?.classList.contains('active');
+  const timerStep  = document.getElementById('step-timer')?.style.display !== 'none';
+  if (newActive && timerStep) { bar.classList.remove('show'); return; }
+  bar.classList.add('show');
+  const poEl = document.getElementById('ft-po');
+  if (poEl) {
+    if (splitOrderIds.length > 0) {
+      const orders = splitOrderIds.map(id => db.orders.find(o => o.id === id)).filter(Boolean);
+      poEl.textContent = orders.length <= 2
+        ? orders.map(o => o.po).join(' + ')
+        : `${orders.length} POs`;
+    } else if (activeOrderId) {
+      const order = db.orders.find(o => o.id === activeOrderId);
+      poEl.textContent = order ? order.po : '';
+    }
+  }
+  const elapsed = timerPausedAt !== null
+    ? timerPausedAt - timerStart
+    : Date.now() - timerStart;
+  const ftEl = document.getElementById('ft-elapsed');
+  if (ftEl) ftEl.textContent = fmt(elapsed);
 }
 
 function adjustActiveTimer(deltaMs) {
   if (!timerStart) return;
-  activeTimerAdj += deltaMs;
+  timerStart -= deltaMs;
+  activeTimerAdj = _origTimerStart - timerStart;
+  saveTimerState();
   renderTimerAdjPreview();
 }
 
 function renderTimerAdjPreview() {
-  const preview = document.getElementById('timer-adj-preview');
-  const label = document.getElementById('timer-adj-label');
-  if (!preview || !label) return;
+  const preview   = document.getElementById('timer-adj-preview');
+  const amountEl  = document.getElementById('timer-adj-amount');
+  const label     = document.getElementById('timer-adj-label');
+  if (!preview) return;
   if (activeTimerAdj === 0) { preview.style.display = 'none'; return; }
-  const abs = fmtMin(Math.abs(activeTimerAdj));
-  if (activeTimerAdj > 0) {
-    label.style.color = '#a78bfa';
-    label.textContent = '+' + abs + ' — will log as extra session on stop';
-  } else {
-    label.style.color = '#f87171';
-    label.textContent = '−' + abs + ' — will log as deduction on stop';
-  }
+  const mins  = Math.round(Math.abs(activeTimerAdj) / 60000);
+  const sign  = activeTimerAdj > 0 ? '+' : '−';
+  const color = activeTimerAdj > 0 ? '#a78bfa' : '#f87171';
+  if (amountEl) { amountEl.textContent = sign + mins + 'm'; amountEl.style.color = color; }
+  if (label)    { label.textContent = activeTimerAdj > 0 ? `started ${mins}m earlier — included in session` : `started ${mins}m later — removed from session`; label.style.color = color; }
   preview.style.display = 'block';
 }
 
 function clearTimerAdj() {
+  timerStart = _origTimerStart;
   activeTimerAdj = 0;
+  saveTimerState();
   renderTimerAdjPreview();
 }
 
@@ -1538,11 +1849,19 @@ function timeInputToTs(timeStr) {
 }
 
 function getLunchInterval() {
-  const now  = Date.now();
-  const d    = new Date();
-  const lunchStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12,  0, 0, 0).getTime();
-  const lunchEnd   = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 30, 0, 0).getTime();
-  return now > lunchEnd ? { start: lunchStart, end: lunchEnd } : null;
+  const now = Date.now();
+  const [lh, lm] = settings.lunchStart.split(':').map(Number);
+  const d = new Date();
+  const lunchStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), lh, lm, 0, 0).getTime();
+  const lunchEnd   = lunchStart + settings.lunchDur * 60000;
+  return (settings.lunchDur > 0 && now > lunchEnd) ? { start: lunchStart, end: lunchEnd } : null;
+}
+
+function timeToTs(dateStr, timeStr) {
+  const [h, m] = timeStr.split(':').map(Number);
+  const d = dateStr ? new Date(dateStr + 'T00:00:00') : new Date();
+  d.setHours(h, m, 0, 0);
+  return d.getTime();
 }
 
 function detectSessionConflict(startMs, endMs) {
@@ -1596,12 +1915,14 @@ function setAddSessionMode(orderId, mode) {
 function validateAddSession(orderId) {
   const errorEl  = document.getElementById(`add-error-${orderId}`);
   const startEl  = document.getElementById(`add-start-${orderId}`);
+  const dateEl   = document.getElementById(`add-date-${orderId}`);
   const durWrap  = document.getElementById(`add-dur-wrap-${orderId}`);
   if (!errorEl || !startEl) return null;
   const clear = msg => { errorEl.textContent = msg || ''; return null; };
 
   if (!startEl.value) return clear();
-  const startTs = timeInputToTs(startEl.value);
+  const dateStr = dateEl ? dateEl.value : '';
+  const startTs = timeToTs(dateStr, startEl.value);
   const now     = Date.now();
   if (startTs >= now) return clear('Start time must be in the past.');
 
@@ -1615,7 +1936,7 @@ function validateAddSession(orderId) {
   } else {
     const endEl = document.getElementById(`add-end-${orderId}`);
     if (!endEl || !endEl.value) return clear();
-    endTs = timeInputToTs(endEl.value);
+    endTs = timeToTs(dateStr, endEl.value);
     if (endTs <= startTs) return clear('End time must be after start time.');
   }
 
@@ -1821,11 +2142,11 @@ function renderDetailTags(orderId, editing) {
   const el = document.getElementById('detail-tags-' + orderId);
   if (!order || !el) return;
   if (editing && !order.finished) {
-    const standard = TAGS.map(t => {
+    const standard = settings.tags.map(t => {
       const sel = order.tags.includes(t);
-      return `<button class="tag${sel ? ' selected' : ''}" onclick="toggleDetailTag(${orderId},'${t}')">${t}</button>`;
+      return `<button class="tag${sel ? ' selected' : ''}" onclick="toggleDetailTag(${orderId},'${escHtml(t)}')">${escHtml(t)}</button>`;
     }).join('');
-    const custom = order.tags.filter(t => !TAGS.includes(t)).map(t =>
+    const custom = order.tags.filter(t => !settings.tags.includes(t)).map(t =>
       `<button class="tag custom">${escHtml(t)}<span class="tag-x" onclick="removeDetailCustomTag(${orderId},${JSON.stringify(t)})">×</span></button>`
     ).join('');
     el.innerHTML = `
@@ -1902,9 +2223,26 @@ function resumeGroupTimer(splitGroupId) {
   beginSplitTimerCore(groupOrders, groupOrders[0]?.tags || [], groupOrders[0]?.notes || '');
 }
 
+let _confirmCallback = null;
+function openConfirmModal(title, body, okLabel, onConfirm) {
+  document.getElementById('confirm-modal-title').textContent = title;
+  document.getElementById('confirm-modal-body').textContent  = body;
+  document.getElementById('confirm-modal-ok').textContent   = okLabel || 'Confirm';
+  _confirmCallback = onConfirm;
+  openModal('modal-confirm');
+}
+function confirmModalOk() {
+  closeModal('modal-confirm');
+  if (_confirmCallback) { const cb = _confirmCallback; _confirmCallback = null; cb(); }
+}
+
 function confirmFinish(id) {
-  if (!confirm('Mark this order as finished and move it to archive?')) return;
-  finishOrder(id);
+  openConfirmModal(
+    'Mark as Finished?',
+    'This order will be moved to the archive.',
+    'Finish & Archive',
+    () => finishOrder(id)
+  );
 }
 
 function finishOrder(id) {
@@ -1976,7 +2314,8 @@ function renderOrders() {
     const sel = multiSelectMode && selectedOrderIds.has(o.id);
     const isSplit = !!o.splitGroupId;
     const splitGroupSize = isSplit ? db.orders.filter(x => x.splitGroupId === o.splitGroupId && !x.finished).length : 0;
-    return `<div class="order-card${sel ? ' ms-selected' : ''}${isSplit ? ' split-order' : ''}" data-id="${o.id}" onclick="showOrderDetail(${o.id})">
+    const isActive = activeOrderId === o.id || splitOrderIds.includes(o.id);
+    return `<div class="order-card${sel ? ' ms-selected' : ''}${isSplit ? ' split-order' : ''}${isActive ? ' timer-active' : ''}" data-id="${o.id}" onclick="showOrderDetail(${o.id})">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
         <div>
           <div class="order-po">${escHtml(o.po)}</div>
@@ -1987,7 +2326,9 @@ function renderOrders() {
         </div>
         ${multiSelectMode
           ? `<div class="ms-check${sel ? ' on' : ''}" style="margin-top:4px;">${sel ? '✓' : ''}</div>`
-          : `<span class="status-dot ${dot}" style="margin-top:6px;"></span>`}
+          : isActive
+            ? `<span class="timer-active-dot" style="margin-top:6px;"></span>`
+            : `<span class="status-dot ${dot}" style="margin-top:6px;"></span>`}
       </div>
       <div class="order-meta">${fmtDate(o.created)}</div>
       ${o.tags.length ? `<div class="order-tags">${o.tags.map(t => `<span class="order-tag">${t}</span>`).join('')}</div>` : ''}
@@ -2857,7 +3198,7 @@ function renderStats() {
     if (t >= todayStart && t < todayEnd) todayMs += s.duration || 0;
   }));
   const todayMin = Math.round(todayMs / 60000);
-  const todayPct = Math.min(100, Math.round((todayMin / GOAL_MIN) * 100));
+  const todayPct = Math.min(100, Math.round((todayMin / settings.goalMin) * 100));
 
   // POs finished today
   const finishedToday = db.archive.filter(o => o.finishedAt >= todayStart && o.finishedAt < todayEnd).length;
@@ -2871,6 +3212,8 @@ function renderStats() {
   const pendingSessions = totalSessions - cnfSessions;
   const cnfPct = totalSessions > 0 ? Math.round((cnfSessions / totalSessions) * 100) : 0;
 
+  const gtEl = document.getElementById('stat-goal-text');
+  if (gtEl) gtEl.textContent = `of ${settings.goalMin} min`;
   document.getElementById('stat-today-min').textContent = todayMin + ' min';
   document.getElementById('stat-today-pct').textContent = todayPct + '%';
   const bar = document.getElementById('stat-today-bar');
@@ -2926,7 +3269,7 @@ function renderStats() {
   `;
 
   // Daily breakdown — last 7 days
-  const GOAL_MS = GOAL_MIN * 60000;
+  const GOAL_MS = settings.goalMin * 60000;
   const days7 = [];
   for (let i = 0; i < 7; i++) {
     const dStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i).getTime();
@@ -3052,11 +3395,12 @@ async function scheduleSwAlerts() {
     if (t.getTime() <= now) t.setDate(t.getDate() + 1);
     return t.getTime() - now;
   };
+  const [lh, lm] = settings.lunchStart.split(':').map(Number);
   sw.active.postMessage({
     type: 'SCHEDULE_ALERTS',
     alerts: [
-      { delay: buildDelay(12, 0), title: 'PO Tracker — Lunch Break?', body: 'It is 12:00 PM and a timer is still active.', tag: 'noon-alert' },
-      { delay: buildDelay(16, 0), title: 'PO Tracker — Timer Running', body: 'It is 4:00 PM and a timer is still active.', tag: 'four-pm-alert' }
+      { delay: buildDelay(lh, lm), title: 'PO Tracker — Lunch Break?', body: 'Timer is still active during lunch.', tag: 'noon-alert' },
+      { delay: buildDelay(16, 0),  title: 'PO Tracker — Timer Running', body: 'It is 4:00 PM and a timer is still active.', tag: 'four-pm-alert' }
     ]
   });
 }
@@ -3107,8 +3451,15 @@ if ('serviceWorker' in navigator) {
 
 // ── INIT ───────────────────────────────────────────────────────────────────
 loadDB();
-renderTags();
-renderOrders();
+loadSettings();
+
+if (restoreTimerState()) {
+  restoreTimerUI();
+  renderOrders(); // so the active-timer indicator shows if user navigates to Orders
+} else {
+  renderTags();
+  renderOrders();
+}
 initTimelineDrag();
 
 // Catch 4pm alert missed while app was in background
