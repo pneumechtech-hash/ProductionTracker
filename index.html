@@ -621,6 +621,12 @@
         <button id="notif-test-btn" class="btn btn-ghost btn-sm" onclick="scheduleTestNotification()">Send in 1 min</button>
       </div>
 
+      <div class="section-label" style="margin-top:16px;">Storage</div>
+      <div class="stat-card wide" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;">Protect data from auto-clear<br><span id="storage-persist-status" style="color:var(--text-muted);">Checking…</span></div>
+        <button id="storage-persist-btn" class="btn btn-ghost btn-sm" onclick="requestPersistentStorage(true)">Request</button>
+      </div>
+
       <div class="section-label" style="margin-top:16px;">Last 7 Days</div>
       <div id="stat-daily-breakdown" class="stat-card wide" style="padding:10px 12px;"></div>
 
@@ -900,6 +906,29 @@ function resetSettings() {
   document.getElementById('settings-lunch-start').value = settings.lunchStart;
   document.getElementById('settings-lunch-dur').value  = settings.lunchDur;
   renderSettingsTags();
+}
+
+// ── STORAGE PERSISTENCE ─────────────────────────────────────────────────────
+// Asks Chrome to exempt this origin from storage-pressure auto-eviction, which
+// otherwise can silently wipe localStorage (including an in-progress timer)
+// for installed PWAs that haven't earned "durable" storage.
+async function requestPersistentStorage(manual) {
+  const statusEl = document.getElementById('storage-persist-status');
+  if (!navigator.storage || !navigator.storage.persist) {
+    if (statusEl) { statusEl.textContent = 'Not supported by this browser'; statusEl.style.color = 'var(--text-muted)'; }
+    if (manual) alert('This browser does not support persistent storage.');
+    return;
+  }
+  try {
+    const granted = await navigator.storage.persist();
+    if (statusEl) {
+      statusEl.textContent = granted ? 'Active — data protected' : 'Not granted yet';
+      statusEl.style.color = granted ? 'var(--accent)' : 'var(--amber)';
+    }
+    if (manual && !granted) alert('Chrome declined the request. This usually resolves itself with a bit more normal use of the app (keep it installed, keep notifications on) — try again later.');
+  } catch (e) {
+    if (statusEl) { statusEl.textContent = 'Unable to check'; statusEl.style.color = 'var(--text-muted)'; }
+  }
 }
 
 // ── TIMER PERSISTENCE ──────────────────────────────────────────────────────
@@ -3452,6 +3481,7 @@ if ('serviceWorker' in navigator) {
 // ── INIT ───────────────────────────────────────────────────────────────────
 loadDB();
 loadSettings();
+requestPersistentStorage(false);
 
 if (restoreTimerState()) {
   restoreTimerUI();
