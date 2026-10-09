@@ -2514,6 +2514,20 @@ document.querySelectorAll('.modal-overlay').forEach(m => {
 });
 
 // ── BARCODE SCANNER ────────────────────────────────────────────────────────
+// Some browsers (notably iOS Safari) expose window.BarcodeDetector but its
+// implementation doesn't recognize common 1D formats like Code 128 — it opens
+// the camera but never fires a detection. Verify real format support before
+// trusting it; otherwise fall back to the ZXing library, which decodes these
+// formats reliably everywhere.
+const NEEDED_BARCODE_FORMATS = ['code_128', 'code_39', 'ean_13', 'qr_code'];
+async function nativeDetectorIsUsable() {
+  if (!('BarcodeDetector' in window) || typeof BarcodeDetector.getSupportedFormats !== 'function') return false;
+  try {
+    const supported = await BarcodeDetector.getSupportedFormats();
+    return Array.isArray(supported) && NEEDED_BARCODE_FORMATS.some(f => supported.includes(f));
+  } catch (e) { return false; }
+}
+
 async function startScanner(videoId, crosshairId, idleId, statusId, onResult) {
   stopScanner();
   const video = document.getElementById(videoId);
@@ -2532,7 +2546,7 @@ async function startScanner(videoId, crosshairId, idleId, statusId, onResult) {
     await video.play();
     if (status) status.textContent = 'Point camera at barcode...';
 
-    if ('BarcodeDetector' in window) {
+    if (await nativeDetectorIsUsable()) {
       let active = true;
       codeReader = { reset: () => { active = false; } };
       const detector = new BarcodeDetector();
