@@ -2514,20 +2514,10 @@ document.querySelectorAll('.modal-overlay').forEach(m => {
 });
 
 // ── BARCODE SCANNER ────────────────────────────────────────────────────────
-// Some browsers (notably iOS Safari) expose window.BarcodeDetector but its
-// implementation doesn't recognize common 1D formats like Code 128 — it opens
-// the camera but never fires a detection. Verify real format support before
-// trusting it; otherwise fall back to the ZXing library, which decodes these
-// formats reliably everywhere.
-const NEEDED_BARCODE_FORMATS = ['code_128', 'code_39', 'ean_13', 'qr_code'];
-async function nativeDetectorIsUsable() {
-  if (!('BarcodeDetector' in window) || typeof BarcodeDetector.getSupportedFormats !== 'function') return false;
-  try {
-    const supported = await BarcodeDetector.getSupportedFormats();
-    return Array.isArray(supported) && NEEDED_BARCODE_FORMATS.some(f => supported.includes(f));
-  } catch (e) { return false; }
-}
-
+// Deliberately NOT using window.BarcodeDetector: Safari exposes it but only
+// actually supports QR codes, so it opens the camera and silently never
+// detects a 1D barcode (Code 128/39 etc). ZXing is format-agnostic and
+// decodes reliably on every platform, so it's used unconditionally here.
 async function startScanner(videoId, crosshairId, idleId, statusId, onResult) {
   stopScanner();
   const video = document.getElementById(videoId);
@@ -2546,28 +2536,7 @@ async function startScanner(videoId, crosshairId, idleId, statusId, onResult) {
     await video.play();
     if (status) status.textContent = 'Point camera at barcode...';
 
-    if (await nativeDetectorIsUsable()) {
-      let active = true;
-      codeReader = { reset: () => { active = false; } };
-      const detector = new BarcodeDetector();
-      const tick = async () => {
-        if (!active || video.readyState < 2) {
-          if (active) requestAnimationFrame(tick);
-          return;
-        }
-        try {
-          const codes = await detector.detect(video);
-          if (codes.length > 0 && active) {
-            active = false;
-            onResult(codes[0].rawValue);
-            stopScanner();
-            return;
-          }
-        } catch(e) {}
-        if (active) requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
-    } else if (typeof ZXing !== 'undefined') {
+    if (typeof ZXing !== 'undefined') {
       const hints = new Map();
       hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
       codeReader = new ZXing.BrowserMultiFormatReader(hints, 500);
