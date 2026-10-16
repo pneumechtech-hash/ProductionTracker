@@ -262,6 +262,22 @@
 
   .pending-warn { color: var(--amber); }
 
+  /* ORDERS QUICK FILTERS */
+  .filter-chip-row { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .filter-chip {
+    font-size: 10px; font-weight: 500; letter-spacing: 0.3px; padding: 5px 11px;
+    border: 1px solid var(--border-mid); border-radius: 20px;
+    background: transparent; color: var(--text-dim); cursor: pointer; transition: all 0.15s;
+  }
+  .filter-chip.active { background: var(--accent); color: #09090b; border-color: var(--accent); font-weight: 600; }
+
+  /* FAVORITE STAR */
+  .fav-star {
+    background: transparent; border: none; cursor: pointer; padding: 0 2px;
+    font-size: 16px; line-height: 1; color: var(--border-mid); flex-shrink: 0;
+  }
+  .fav-star.on { color: var(--amber); }
+
   /* Install banner */
   #install-banner {
     display: none; position: fixed; bottom: 0; left: 0; right: 0;
@@ -443,14 +459,23 @@
         <input class="input-field" id="orders-search" type="search" placeholder="Search PO…" oninput="ordersFilter=this.value;renderOrders()" style="padding-right:36px;">
         <button onclick="document.getElementById('orders-search').value='';ordersFilter='';renderOrders()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-dim);font-size:16px;cursor:pointer;line-height:1;">×</button>
       </div>
+      <div class="filter-chip-row" id="orders-filter-chips">
+        <button class="filter-chip" id="chip-favorites" onclick="toggleQuickFilter('favorites')">★ Favorites</button>
+        <button class="filter-chip" id="chip-unconfirmed" onclick="toggleQuickFilter('unconfirmed')">⚠ Unconfirmed</button>
+      </div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:6px;">
         <span id="orders-section-title" style="font-size:10px;font-weight:600;letter-spacing:1.5px;color:var(--text-dim);text-transform:uppercase;">Active Orders</span>
         <button id="timeline-toggle-btn" onclick="toggleOrdersTimeline()" style="font-size:10px;font-weight:500;letter-spacing:0.5px;padding:3px 10px;border:1px solid var(--border-mid);border-radius:6px;background:transparent;color:var(--text-dim);cursor:pointer;">Timeline</button>
       </div>
       <div id="orders-list"></div>
       <div id="orders-timeline" style="display:none;">
+        <div id="timeline-daynav" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;">
+          <button id="tl-prev-btn" onclick="tlShiftDay(-1)" style="font-size:13px;padding:5px 12px;border:1px solid var(--border-mid);border-radius:7px;background:transparent;color:var(--text);cursor:pointer;min-height:32px;">‹</button>
+          <span id="tl-day-label" style="font-size:11px;font-weight:600;letter-spacing:0.5px;color:var(--text-dim);text-align:center;flex:1;"></span>
+          <button id="tl-next-btn" onclick="tlShiftDay(1)" style="font-size:13px;padding:5px 12px;border:1px solid var(--border-mid);border-radius:7px;background:transparent;color:var(--text);cursor:pointer;min-height:32px;">›</button>
+        </div>
         <div id="timeline-legend"></div>
-        <div id="timeline-scroll" style="overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;height:calc(100vh - 210px);margin:0 -16px;padding:0 16px;">
+        <div id="timeline-scroll" style="overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;height:calc(100vh - 250px);margin:0 -16px;padding:0 16px;">
           <div id="timeline-container" style="position:relative;padding-bottom:24px;"></div>
         </div>
       </div>
@@ -630,7 +655,7 @@
       <div class="section-label" style="margin-top:16px;">About</div>
       <div class="stat-card wide" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
         <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;">App version</div>
-        <div style="font-size:12px;color:var(--text-muted);font-family:'Courier New',monospace;">v16</div>
+        <div style="font-size:12px;color:var(--text-muted);font-family:'Courier New',monospace;">v17</div>
       </div>
 
       <div class="section-label" style="margin-top:16px;">Last 7 Days</div>
@@ -1443,6 +1468,7 @@ function showOrderDetail(id) {
 
   const total = totalTime(order);
   const pendingCount = order.sessions.filter(s => !s.cnf).length;
+  const pendingMs = pendingDuration(order);
 
   const groupSiblings = order.splitGroupId
     ? db.orders.filter(o => o.splitGroupId === order.splitGroupId && o.id !== id && !o.finished)
@@ -1575,7 +1601,7 @@ function showOrderDetail(id) {
           <button class="btn btn-warn" onclick="confirmFinish(${id})">Mark Finished</button>
         </div>
       `}
-      ${pendingCount > 0 ? `<div style="font-size:11px;color:var(--amber);text-align:center;">${pendingCount} session${pendingCount>1?'s':''} pending CNF</div>` : ''}
+      ${pendingCount > 0 ? `<div style="font-size:11px;color:var(--amber);text-align:center;">${pendingCount} session${pendingCount>1?'s':''} pending CNF · ${fmtMin(pendingMs)} unconfirmed</div>` : ''}
     ` : `
       <hr class="divider">
       <div class="alert alert-success" style="margin-bottom:12px;">✓ Order complete — archived</div>
@@ -2296,24 +2322,49 @@ function finishOrder(id) {
 let ordersFilter      = '';
 let archiveFilter     = '';
 let ordersShowTimeline = false;
+let ordersQuickFilter  = null; // null | 'favorites' | 'unconfirmed'
+
+function toggleQuickFilter(name) {
+  ordersQuickFilter = ordersQuickFilter === name ? null : name;
+  document.getElementById('chip-favorites').classList.toggle('active', ordersQuickFilter === 'favorites');
+  document.getElementById('chip-unconfirmed').classList.toggle('active', ordersQuickFilter === 'unconfirmed');
+  renderOrders();
+}
+
+function toggleFavorite(id, event) {
+  if (event) event.stopPropagation();
+  const order = db.orders.find(o => o.id === id);
+  if (!order) return;
+  order.favorite = !order.favorite;
+  saveDB();
+  renderOrders();
+}
+
+function pendingDuration(order) {
+  return order.sessions.filter(s => !s.cnf).reduce((a, s) => a + (s.duration || 0), 0);
+}
 
 function toggleOrdersTimeline() {
   ordersShowTimeline = !ordersShowTimeline;
-  const btn   = document.getElementById('timeline-toggle-btn');
-  const title = document.getElementById('orders-section-title');
-  const list  = document.getElementById('orders-list');
-  const tl    = document.getElementById('orders-timeline');
+  const btn    = document.getElementById('timeline-toggle-btn');
+  const title  = document.getElementById('orders-section-title');
+  const list   = document.getElementById('orders-list');
+  const tl     = document.getElementById('orders-timeline');
+  const chips  = document.getElementById('orders-filter-chips');
   if (ordersShowTimeline) {
     list.style.display  = 'none';
     tl.style.display    = 'block';
+    chips.style.display = 'none';
     title.textContent   = "Today's Timeline";
     btn.textContent     = 'Orders';
     btn.style.color     = 'var(--accent)';
     btn.style.borderColor = 'var(--accent)';
+    tlViewDate = new Date();
     renderTimeline();
   } else {
     tl.style.display    = 'none';
     list.style.display  = '';
+    chips.style.display = '';
     title.textContent   = 'Active Orders';
     btn.textContent     = 'Timeline';
     btn.style.color       = 'var(--text-dim)';
@@ -2334,17 +2385,22 @@ function matchFilter(query, value) {
 function renderOrders() {
   const el = document.getElementById('orders-list');
   const q = ordersFilter.trim();
-  const list = q ? db.orders.filter(o => matchFilter(q, o.po) || o.tags.some(t => matchFilter(q, t))) : db.orders;
+  let list = q ? db.orders.filter(o => matchFilter(q, o.po) || o.tags.some(t => matchFilter(q, t))) : db.orders;
+  if (ordersQuickFilter === 'favorites') list = list.filter(o => o.favorite);
+  if (ordersQuickFilter === 'unconfirmed') list = list.filter(o => o.sessions.some(s => !s.cnf));
   if (list.length === 0) {
     el.innerHTML = db.orders.length === 0
       ? `<div class="empty-state"><div class="empty-icon">▢</div><div class="empty-text">No active orders<br><br>Tap + New to begin</div></div>`
-      : `<div class="empty-state"><div class="empty-text">No orders match<br>"${escHtml(ordersFilter)}"</div></div>`;
+      : ordersQuickFilter
+        ? `<div class="empty-state"><div class="empty-text">No ${ordersQuickFilter === 'favorites' ? 'favorited' : 'unconfirmed'} orders</div></div>`
+        : `<div class="empty-state"><div class="empty-text">No orders match<br>"${escHtml(ordersFilter)}"</div></div>`;
     initOrdersLongPress();
     return;
   }
   el.innerHTML = list.map(o => {
     const total = totalTime(o);
     const pending = o.sessions.filter(s => !s.cnf).length;
+    const pendingMs = pendingDuration(o);
     const dot = o.sessions.length === 0 ? 'dot-gray' : (pending > 0 ? 'dot-amber' : 'dot-green');
     const sel = multiSelectMode && selectedOrderIds.has(o.id);
     const isSplit = !!o.splitGroupId;
@@ -2359,17 +2415,20 @@ function renderOrders() {
             ${o.splitQty ? `<span style="font-size:10px;color:var(--text-muted);letter-spacing:0.5px;">QTY <span style="color:var(--amber);font-family:'Courier New',monospace;">${o.splitQty}</span></span>` : ''}
           </div>
         </div>
-        ${multiSelectMode
-          ? `<div class="ms-check${sel ? ' on' : ''}" style="margin-top:4px;">${sel ? '✓' : ''}</div>`
-          : isActive
-            ? `<span class="timer-active-dot" style="margin-top:6px;"></span>`
-            : `<span class="status-dot ${dot}" style="margin-top:6px;"></span>`}
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button class="fav-star${o.favorite ? ' on' : ''}" onclick="toggleFavorite(${o.id}, event)">${o.favorite ? '★' : '☆'}</button>
+          ${multiSelectMode
+            ? `<div class="ms-check${sel ? ' on' : ''}">${sel ? '✓' : ''}</div>`
+            : isActive
+              ? `<span class="timer-active-dot"></span>`
+              : `<span class="status-dot ${dot}"></span>`}
+        </div>
       </div>
       <div class="order-meta">${fmtDate(o.created)}</div>
       ${o.tags.length ? `<div class="order-tags">${o.tags.map(t => `<span class="order-tag">${t}</span>`).join('')}</div>` : ''}
       <div class="order-total">
         ${o.sessions.length} session${o.sessions.length !== 1 ? 's' : ''} · ${fmt(total)} · ${fmtMin(total)}
-        ${pending > 0 ? `<br><span class="pending-warn">${pending} pending CNF</span>` : ''}
+        ${pending > 0 ? `<br><span class="pending-warn">${pending} pending CNF · ${fmtMin(pendingMs)} unconfirmed</span>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -2601,13 +2660,52 @@ let tlDrag          = null;
 let tlDragHoldTimer = null;
 let tlTouchPending  = null;
 let tlTodaySessions = []; // non-manual sessions for snap targets
+let tlViewDate      = new Date(); // day currently shown in the timeline
+
+function tlIsWeekend(d) { const day = d.getDay(); return day === 0 || day === 6; }
+
+function tlHasSessionsOnDate(d) {
+  const dayStart = new Date(d); dayStart.setHours(0, 0, 0, 0);
+  const dayEnd   = new Date(d); dayEnd.setHours(23, 59, 59, 999);
+  const tsStart = dayStart.getTime(), tsEnd = dayEnd.getTime();
+  return [...db.orders, ...db.archive].some(o =>
+    o.sessions.some(s => { const t = s.start || s.date; return t >= tsStart && t <= tsEnd; })
+  );
+}
+
+// Steps the viewed day forward/back, skipping Saturday/Sunday unless that
+// weekend day actually has recorded sessions. Bounded so an empty date range
+// can't spin forever, and never advances past today.
+function tlShiftDay(delta) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  let d = new Date(tlViewDate); d.setHours(0, 0, 0, 0);
+  for (let i = 0; i < 366; i++) {
+    d.setDate(d.getDate() + delta);
+    if (delta > 0 && d.getTime() > today.getTime()) return; // don't navigate into the future
+    if (!tlIsWeekend(d) || tlHasSessionsOnDate(d)) break;
+  }
+  tlViewDate = d;
+  renderTimeline();
+}
 
 function renderTimeline() {
-  const now = new Date();
+  const now = new Date(tlViewDate);
   const dayStart = new Date(now); dayStart.setHours(0, 0, 0, 0);
   const dayEnd   = new Date(now); dayEnd.setHours(23, 59, 59, 999);
   const tsStart  = dayStart.getTime();
   const tsEnd    = dayEnd.getTime();
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const isToday = dayStart.getTime() === today.getTime();
+  const dayLabel = document.getElementById('tl-day-label');
+  if (dayLabel) {
+    dayLabel.textContent = isToday
+      ? 'Today — ' + dayStart.toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' })
+      : dayStart.toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+  const nextBtn = document.getElementById('tl-next-btn');
+  if (nextBtn) nextBtn.disabled = isToday;
+  if (nextBtn) nextBtn.style.opacity = isToday ? '0.35' : '1';
 
   const todayOrders = [...db.orders, ...db.archive].filter(o =>
     o.sessions.some(s => { const t = s.start || s.date; return t >= tsStart && t <= tsEnd; })
@@ -2619,7 +2717,8 @@ function renderTimeline() {
   if (!todayOrders.length) {
     legend.innerHTML = '';
     container.style.height = 'auto';
-    container.innerHTML = '<div style="text-align:center;padding:48px 0;color:var(--text-dim);font-size:12px;letter-spacing:1px;">No sessions recorded today.</div>';
+    const dayMsg = isToday ? 'today' : 'on ' + dayStart.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
+    container.innerHTML = `<div style="text-align:center;padding:48px 0;color:var(--text-dim);font-size:12px;letter-spacing:1px;">No sessions recorded ${dayMsg}.</div>`;
     return;
   }
 
