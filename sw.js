@@ -1,4 +1,4 @@
-const CACHE = 'po-tracker-v10';
+const CACHE = 'po-tracker-v11';
 const ASSETS = [
   './',
   './index.html',
