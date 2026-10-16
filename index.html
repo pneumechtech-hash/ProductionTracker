@@ -630,7 +630,7 @@
       <div class="section-label" style="margin-top:16px;">About</div>
       <div class="stat-card wide" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
         <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;">App version</div>
-        <div style="font-size:12px;color:var(--text-muted);font-family:'Courier New',monospace;">v15</div>
+        <div style="font-size:12px;color:var(--text-muted);font-family:'Courier New',monospace;">v16</div>
       </div>
 
       <div class="section-label" style="margin-top:16px;">Last 7 Days</div>
@@ -2520,10 +2520,6 @@ document.querySelectorAll('.modal-overlay').forEach(m => {
 });
 
 // ── BARCODE SCANNER ────────────────────────────────────────────────────────
-// Deliberately NOT using window.BarcodeDetector: Safari exposes it but only
-// actually supports QR codes, so it opens the camera and silently never
-// detects a 1D barcode (Code 128/39 etc). ZXing is format-agnostic and
-// decodes reliably on every platform, so it's used unconditionally here.
 async function startScanner(videoId, crosshairId, idleId, statusId, onResult) {
   stopScanner();
   const video = document.getElementById(videoId);
@@ -2532,62 +2528,48 @@ async function startScanner(videoId, crosshairId, idleId, statusId, onResult) {
   const status = document.getElementById(statusId);
 
   try {
-    // Code 128 packs many narrow bars into a small width; a soft "ideal"
-    // resolution hint lets some phones quietly downgrade the stream below
-    // what's needed to resolve individual bars. Push for a firmer minimum,
-    // but fall back to a soft hint if a device can't meet it — a hard `min`
-    // that fails throws OverconstrainedError and would kill the camera
-    // entirely rather than just capping the resolution.
-    try {
-      scanStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' }, width: { min: 1280, ideal: 1920 }, height: { min: 720, ideal: 1080 } }
-      });
-    } catch (constraintErr) {
-      scanStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }
-      });
-    }
+    scanStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    video.srcObject = scanStream;
     video.classList.add('active');
     if (idle) idle.style.display = 'none';
     if (crosshair) crosshair.classList.add('active');
+    await video.play();
     if (status) status.textContent = 'Point camera at barcode...';
 
-    if (typeof ZXing !== 'undefined') {
+    if ('BarcodeDetector' in window) {
+      let active = true;
+      codeReader = { reset: () => { active = false; } };
+      const detector = new BarcodeDetector();
+      const tick = async () => {
+        if (!active || video.readyState < 2) {
+          if (active) requestAnimationFrame(tick);
+          return;
+        }
+        try {
+          const codes = await detector.detect(video);
+          if (codes.length > 0 && active) {
+            active = false;
+            onResult(codes[0].rawValue);
+            stopScanner();
+            return;
+          }
+        } catch(e) {}
+        if (active) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    } else if (typeof ZXing !== 'undefined') {
       const hints = new Map();
       hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-      // Explicit format list: ZXing's default (no POSSIBLE_FORMATS given)
-      // silently skips Codabar, a common symbology for simple numeric
-      // industrial/asset-tag barcodes like a 10-digit PO code. Request
-      // everything plausible by name so nothing is silently excluded.
-      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-        ZXing.BarcodeFormat.CODABAR, ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.CODE_93,
-        ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.ITF, ZXing.BarcodeFormat.EAN_8,
-        ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E,
-        ZXing.BarcodeFormat.RSS_14, ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.DATA_MATRIX,
-        ZXing.BarcodeFormat.AZTEC, ZXing.BarcodeFormat.PDF_417
-      ]);
       codeReader = new ZXing.BrowserMultiFormatReader(hints, 500);
-      // decodeFromStream attaches the stream to the video and plays it
-      // itself — pre-attaching/playing here would make it wait forever for
-      // a 'playing' event that already fired, so the decode loop never starts.
-      let scanAttempts = 0;
       codeReader.decodeFromStream(scanStream, video, (result, err) => {
         if (result) {
           onResult(result.getText());
           stopScanner();
-          return;
         }
-        // Diagnostic: the status line used to be set once and never updated,
-        // so "it just sits there" looked identical whether the decode loop
-        // was still running every frame or had silently died after one try.
-        // A live counter + last-error name makes that visible.
-        scanAttempts++;
-        const res = `${video.videoWidth}x${video.videoHeight}`;
-        if (status) status.textContent = `Scanning… (${scanAttempts}, ${res}` + (err ? `, ${err.name || 'error'})` : ')');
       });
     } else {
-      video.srcObject = scanStream;
-      await video.play();
       if (status) status.textContent = 'Scanner library not loaded — use manual entry';
     }
   } catch (e) {
