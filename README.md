@@ -83,17 +83,27 @@ If the banner doesn't appear:
 
 ---
 
-## Features
+## How it works
 
-- **Barcode scanning** via phone camera (ZXing library)
-- **Manual PO entry** as fallback
-- **Tag system**: Gantry, Air Prep, Kits, Wiring, and more
-- **Multiple sessions** per order — start/stop as many times as needed
-- **CNF flagging** — mark sessions as entered in SAP
-- **Active orders** list with status dots (green = all CNF, amber = pending)
-- **Archive** — finished orders stored permanently
-- **Offline support** — works without internet after first load
-- **Persistent storage** — data saved in localStorage, survives restarts
+**Entering an order** — tap **+ New**, scan the barcode or type the PO, then pick tags / add notes and tap **▶ Start Timer** (or **Save Without Timer**).
+- If the PO is already active you're offered **Start timer on it** / **Open order** instead of creating a duplicate; if it's archived you can **Reopen it**.
+- **Split Time** mode times several POs at once. Enter a QTY on every PO to weight the time by quantity, otherwise it is split evenly. POs that already exist get the time added to them.
+
+**Tracking time**
+- Only one timer runs at a time. Starting another (or finishing the order being timed) first asks you to save the running session — time is never silently dropped.
+- While you browse other tabs a bar at the top shows the running timer; tap it to get back.
+- Pause / resume, and shift the start time with −15m … +15m.
+- The timer pauses itself at lunch and at the end-of-day time (both set in ⚙ Settings), once per day. If the phone was asleep, it pauses at the alert time when you reopen the app.
+- In an order you can add time afterwards (**Quick Add**, **Manual Session**), remove time from a session (✎), CNF sessions, or press and hold a session to delete it.
+
+**Organizing**
+- Orders list: search (PO, tag or notes; `*` wildcards work on PO/tags), ★ favorites, ⚠ unconfirmed, tag filter chips, and sort (newest, last worked, oldest, PO #, most time). Favorites and the order being timed stay at the top.
+- **Select** (or press and hold a card) for bulk CNF, finish, split timer, or ± time.
+- Order detail: edit PO number, notes and tags; mark finished; delete.
+- **Timeline** shows a day's sessions; ‹ › moves between days.
+- **Archive** holds finished orders: reopen or (with confirmation) delete them.
+
+**Your data** lives only on the device (localStorage). In ⚙ Settings → Backup & Restore you can export CSV (for spreadsheets / SAP entry) or a JSON backup, and restore a JSON backup.
 
 ---
 
@@ -109,5 +119,21 @@ When you get an updated `index.html`:
 ## Notes
 
 - Data is stored locally on your phone (localStorage) — it does NOT sync between devices
-- Clearing browser data / app storage will erase order history — treat it like a local database
+- Clearing browser data / app storage will erase order history — export a JSON backup regularly (⚙ Settings)
 - The app works fully offline after the first load (service worker caches everything)
+- When you change `index.html`, bump `APP_VERSION` in it and `CACHE` in `sw.js` together
+
+---
+
+## Development & tests
+
+Only `index.html`, `manifest.json`, `sw.js` and `icons/` are needed for deployment. The rest is for testing.
+
+```bash
+npm install                      # once — installs Playwright
+npx playwright install chromium  # once — downloads the test browser
+npm run serve                    # run locally at http://localhost:4173/
+npm test                         # run the end-to-end tests
+```
+
+The tests live in `tests/` and drive the real app in a phone-sized Chromium window with a fake clock, so timer, lunch and end-of-day behaviour can be tested without waiting.

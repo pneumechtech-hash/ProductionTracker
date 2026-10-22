@@ -19,8 +19,6 @@
   :root {
     --accent: #60a5fa;
     --green-dim: #0c1929;
-    --green-mid: #3b82f6;
-    --green-dark: #0f1e33;
     --amber: #fbbf24;
     --red: #f87171;
     --bg: #09090b;
@@ -47,16 +45,24 @@
     -webkit-backdrop-filter: blur(16px);
     border-bottom: 1px solid var(--border);
     padding: 10px 16px;
-    display: flex; align-items: center; justify-content: space-between;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
     z-index: 100;
   }
-  .logo { font-size: 13px; font-weight: 700; letter-spacing: 1.5px; color: var(--accent); text-transform: uppercase; }
+  .logo { font-size: 13px; font-weight: 700; letter-spacing: 1.5px; color: var(--accent); text-transform: uppercase; white-space: nowrap; }
   .tab-bar { display: flex; gap: 6px; }
   .tab {
     font-size: 12px; font-weight: 500; letter-spacing: 0.2px; padding: 6px 13px;
     border: 1px solid var(--border-mid); border-radius: 8px; cursor: pointer;
     background: transparent; color: var(--text-dim);
     transition: all 0.15s; min-height: 34px; display: flex; align-items: center;
+  }
+  .tab { white-space: nowrap; }
+  /* Narrow phones: drop the logo so the tabs and settings button fit */
+  @media (max-width: 420px) {
+    .logo { display: none; }
+    .topbar { padding: 10px 12px; }
+    .tab-bar { gap: 4px; flex: 1; }
+    .tab { padding: 6px 10px; flex: 1; justify-content: center; }
   }
   .tab.active { background: var(--accent); color: #09090b; border-color: var(--accent); font-weight: 600; }
   .tab:disabled { opacity: 0.35; cursor: not-allowed; }
@@ -196,7 +202,11 @@
     cursor: pointer; transition: border-color 0.15s, background 0.15s;
   }
   .order-card:active { border-color: var(--border-mid); background: #16161e; }
-  .order-card.finished { opacity: 0.45; border-style: dashed; }
+  .order-card.finished { border-style: dashed; border-color: var(--border-mid); border-left: 3px solid #4ade80; }
+  .order-card.finished .order-po { color: var(--text); }
+  .order-card.finished .order-meta,
+  .order-card.finished .order-total { color: #a1a1aa; }
+  .order-card.finished .order-tag { color: #a1a1aa; border-color: var(--border-mid); }
   .order-po { font-size: 18px; font-weight: 700; color: var(--accent); letter-spacing: 2px; font-family: 'Courier New', monospace; word-break: break-all; }
   .order-meta { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
   .order-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
@@ -220,6 +230,8 @@
     backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
   }
   .modal-overlay.open { display: flex; }
+  /* Confirmations can be raised from inside other sheets (e.g. Restore in Settings) */
+  #modal-confirm { z-index: 250; }
   .modal {
     background: #15151b; border: 1px solid var(--border-mid);
     border-bottom: none; border-radius: 20px 20px 0 0;
@@ -291,8 +303,6 @@
   #install-btn { background: var(--accent); color: #09090b; border: none; font-weight: 600; }
   #dismiss-btn { background: transparent; color: var(--text-dim); border: 1px solid var(--border-mid); }
 
-  canvas { display: none; }
-
   /* SPLIT TIME MODE */
   .split-mode-bar { display: flex; gap: 6px; margin-bottom: 14px; }
   .split-opt {
@@ -317,28 +327,6 @@
   .split-qty-input::-webkit-outer-spin-button,
   .split-qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
   .split-qty-label { font-size: 10px; color: var(--text-muted); letter-spacing: 0.5px; margin-right: 2px; }
-
-  /* SWIPE-TO-DELETE (archive) */
-  .swipe-wrapper { position: relative; overflow: hidden; border-radius: 12px; margin-bottom: 10px; }
-  .swipe-action {
-    position: absolute; right: 0; top: 0; bottom: 0; width: 80px;
-    background: var(--red); display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 8px;
-    cursor: pointer; user-select: none; -webkit-user-select: none; transition: width 0.2s ease;
-  }
-  .swipe-action-label { font-size: 11px; font-weight: 600; color: #fff; pointer-events: none; }
-  .swipe-action.confirming { width: 100%; }
-  .swipe-confirm-row { display: flex; gap: 8px; }
-  .swipe-confirm-row button {
-    font-size: 11px; font-weight: 600; padding: 7px 16px;
-    border-radius: 7px; cursor: pointer; min-height: 34px;
-  }
-  .swipe-yes { background: #fff; color: var(--red); border: none; }
-  .swipe-no  { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.45); }
-  .swipe-card-wrap {
-    position: relative; transform: translateX(0); will-change: transform;
-    margin-bottom: 0 !important; border-radius: 12px;
-  }
 
   /* STATS */
   .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
@@ -424,6 +412,31 @@
   .settings-input[type="time"] { width: 110px; }
   .settings-input:focus { border-color: var(--accent); }
   .settings-tag-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border); }
+
+  /* LIST HEADER (orders / archive) */
+  .list-header { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+  .list-title { font-size: 10px; font-weight: 600; letter-spacing: 1.5px; color: var(--text-dim); text-transform: uppercase; white-space: nowrap; }
+  .list-actions { display: flex; align-items: center; gap: 6px; }
+  .header-btn { font-size: 10px; font-weight: 500; letter-spacing: 0.5px; padding: 3px 10px; min-height: 26px; border: 1px solid var(--border-mid); border-radius: 6px; background: transparent; color: var(--text-dim); cursor: pointer; }
+  .header-btn.on { color: var(--accent); border-color: var(--accent); }
+  .sort-select { font-size: 10px; padding: 3px 4px; min-height: 26px; border: 1px solid var(--border-mid); border-radius: 6px; background: var(--bg); color: var(--text-dim); font-family: inherit; cursor: pointer; }
+  .filter-chip.tag-chip.active { background: var(--green-dim); color: var(--accent); border-color: var(--accent); }
+
+  /* PO MATCH NOTICE (duplicate detection) */
+  .po-notice { background: rgba(251,191,36,0.07); border: 1px solid rgba(251,191,36,0.4); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
+  .po-notice-text { font-size: 12px; color: var(--amber); line-height: 1.5; margin-bottom: 10px; }
+  .po-notice .row { flex-wrap: wrap; }
+  .split-po-note { font-size: 9px; color: var(--amber); letter-spacing: 0.5px; margin-top: 2px; }
+  .split-hint { font-size: 10px; color: var(--text-dim); letter-spacing: 0.3px; text-align: center; margin: 2px 0 10px; }
+  .split-hint.warn { color: var(--amber); }
+
+  /* Keep the last cards reachable above the fixed multi-select bars */
+  body.ms-open .content { padding-bottom: 210px; }
+
+  #floating-timer { cursor: pointer; }
+  #floating-timer.paused { border-bottom-color: var(--amber); }
+  #floating-timer.paused #ft-elapsed, #floating-timer.paused #ft-po { color: var(--amber); }
+  #floating-timer.paused .timer-active-dot { background: var(--amber); box-shadow: none; animation: none; }
 </style>
 </head>
 <body>
@@ -432,7 +445,7 @@
     <div class="logo">PO Tracker</div>
     <div class="tab-bar">
       <button class="tab active" id="tab-orders" onclick="switchView('orders')">Orders</button>
-      <button class="tab" id="tab-new" onclick="switchView('new')" style="position:relative;">+ New<span id="tab-pause-dot" style="display:none;position:absolute;top:5px;right:5px;width:6px;height:6px;border-radius:50%;background:var(--amber);"></span></button>
+      <button class="tab" id="tab-new" onclick="switchView('new')">+ New</button>
       <button class="tab" id="tab-archive" onclick="switchView('archive')">Archive</button>
       <button class="tab" id="tab-stats" onclick="switchView('stats')">Stats</button>
     </div>
@@ -440,14 +453,14 @@
   </div>
 
   <!-- FLOATING TIMER BAR — shown when timer runs in background -->
-  <div id="floating-timer">
-    <div style="display:flex;align-items:center;gap:8px;">
+  <div id="floating-timer" onclick="switchView('timer')" title="Open running timer">
+    <div style="display:flex;align-items:center;gap:8px;min-width:0;">
       <span class="timer-active-dot"></span>
       <span id="ft-po"></span>
     </div>
     <div style="display:flex;align-items:center;gap:10px;">
       <span id="ft-elapsed">00:00:00</span>
-      <button class="ft-return-btn" onclick="switchView('new')">▶ Return</button>
+      <button class="ft-return-btn" id="ft-return-btn">Timer ›</button>
     </div>
   </div>
 
@@ -455,17 +468,26 @@
 
     <!-- ── ORDERS VIEW ── -->
     <div id="view-orders" class="view active">
-      <div style="position:relative;margin-bottom:10px;">
-        <input class="input-field" id="orders-search" type="search" placeholder="Search PO…" oninput="ordersFilter=this.value;renderOrders()" style="padding-right:36px;">
-        <button onclick="document.getElementById('orders-search').value='';ordersFilter='';renderOrders()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-dim);font-size:16px;cursor:pointer;line-height:1;">×</button>
+      <div id="orders-list-controls">
+        <div style="position:relative;margin-bottom:10px;">
+          <input class="input-field" id="orders-search" type="search" placeholder="Search PO, tag or note…" oninput="ordersFilter=this.value;renderOrders()" style="padding-right:36px;">
+          <button onclick="clearOrdersSearch()" aria-label="Clear search" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-dim);font-size:16px;cursor:pointer;line-height:1;">×</button>
+        </div>
+        <div class="filter-chip-row" id="orders-filter-chips"></div>
       </div>
-      <div class="filter-chip-row" id="orders-filter-chips">
-        <button class="filter-chip" id="chip-favorites" onclick="toggleQuickFilter('favorites')">★ Favorites</button>
-        <button class="filter-chip" id="chip-unconfirmed" onclick="toggleQuickFilter('unconfirmed')">⚠ Unconfirmed</button>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:6px;">
-        <span id="orders-section-title" style="font-size:10px;font-weight:600;letter-spacing:1.5px;color:var(--text-dim);text-transform:uppercase;">Active Orders</span>
-        <button id="timeline-toggle-btn" onclick="toggleOrdersTimeline()" style="font-size:10px;font-weight:500;letter-spacing:0.5px;padding:3px 10px;border:1px solid var(--border-mid);border-radius:6px;background:transparent;color:var(--text-dim);cursor:pointer;">Timeline</button>
+      <div class="list-header">
+        <span class="list-title" id="orders-section-title">Active Orders</span>
+        <div class="list-actions">
+          <select id="orders-sort" class="sort-select" onchange="setOrdersSort(this.value)" aria-label="Sort orders">
+            <option value="newest">Newest</option>
+            <option value="worked">Last worked</option>
+            <option value="oldest">Oldest</option>
+            <option value="po">PO #</option>
+            <option value="time">Most time</option>
+          </select>
+          <button class="header-btn" id="orders-select-btn" onclick="toggleMultiSelectMode()">Select</button>
+          <button class="header-btn" id="timeline-toggle-btn" onclick="toggleOrdersTimeline()">Timeline</button>
+        </div>
       </div>
       <div id="orders-list"></div>
       <div id="orders-timeline" style="display:none;">
@@ -484,105 +506,103 @@
     <!-- ── NEW ORDER VIEW ── -->
     <div id="view-new" class="view">
 
-      <!-- Step 1: Tags -->
-      <div id="step-tags">
-        <div class="section-label">Step 1 — Select Tags</div>
-        <div class="tags-grid" id="tags-grid"></div>
-        <div class="tag-add-row">
-          <input class="input-field" id="custom-tag-input" type="text" placeholder="Add custom tag…" maxlength="30" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomTag()}">
-          <button class="btn btn-sm" onclick="addCustomTag()">Add</button>
-        </div>
-        <div class="gap"></div>
-        <div class="section-label">Additional Info</div>
-        <textarea class="input-field" id="new-notes" rows="3" placeholder="Optional notes..."></textarea>
-        <div class="gap-lg"></div>
-        <button class="btn btn-primary" onclick="goToScan()">Next — Scan PO ›</button>
-      </div>
-
-      <!-- Step 2: Scan -->
-      <div id="step-scan" style="display:none">
-        <div class="section-label">Step 2 — Scan Barcode</div>
+      <!-- Step 1: Production order number(s) -->
+      <div id="step-po">
+        <div class="section-label">Step 1 — Production Order</div>
         <div class="split-mode-bar">
           <button class="split-opt active" id="opt-single" onclick="setSplitMode(false)">Single PO</button>
           <button class="split-opt" id="opt-split" onclick="setSplitMode(true)">Split Time</button>
         </div>
-        <div class="scan-zone" id="scan-zone" onclick="activateScanner('new')">
+        <div class="scan-zone" id="scan-zone" onclick="activateScanner()">
           <video id="scan-video" playsinline muted></video>
           <div class="scan-crosshair" id="scan-crosshair"></div>
           <div class="scan-idle-inner" id="scan-idle">
             <div class="scan-icon">▦</div>
-            <div class="scan-tap-hint">Tap to activate camera</div>
+            <div class="scan-tap-hint">Tap to scan barcode</div>
           </div>
           <div class="scan-hint" id="scan-status"></div>
         </div>
         <div class="section-label">Or Enter Manually</div>
         <div class="row" style="margin-bottom:10px;">
-          <input class="input-field" id="manual-po" type="text" placeholder="Type PO number..." style="flex:1;"
+          <input class="input-field" id="manual-po" type="text" placeholder="Type PO number..." style="flex:1;" autocomplete="off"
             onkeydown="if(event.key==='Enter'){event.preventDefault();useManualPO()}">
-          <button class="btn btn-ghost btn-sm" id="manual-po-btn" onclick="useManualPO()">Use</button>
+          <button class="btn btn-ghost btn-sm" id="manual-po-btn" onclick="useManualPO()">Next</button>
         </div>
-        <div id="split-po-list" style="display:none;margin-bottom:10px;"></div>
-        <div id="split-start-wrap" style="display:none;margin-bottom:10px;">
-          <button class="btn btn-primary" id="split-start-btn" onclick="startSplitTimer()" disabled>▶ Start Timer — 0 POs</button>
+        <div id="po-match-notice"></div>
+        <div id="split-po-list" style="display:none;margin-bottom:6px;"></div>
+        <div id="split-next-wrap" style="display:none;margin-bottom:10px;">
+          <button class="btn btn-primary" id="split-next-btn" onclick="goToDetails()" disabled>Next — 0 POs ›</button>
         </div>
-        <button class="btn btn-ghost" onclick="backToTags()">← Back</button>
       </div>
 
-      <!-- Step 3: Confirm -->
-      <div id="step-confirm" style="display:none">
-        <div class="section-label">Step 3 — Confirm PO</div>
+      <!-- Step 2: Tags, notes, start -->
+      <div id="step-details" style="display:none">
+        <div class="section-label">Step 2 — Details</div>
         <div class="po-confirm">
-          <div class="po-label">Production Order</div>
-          <div class="po-number" id="confirm-po">—</div>
-          <div class="po-label" id="confirm-tags">—</div>
+          <div class="po-label" id="details-po-label">Production Order</div>
+          <div class="po-number" id="details-po">—</div>
+        </div>
+        <div class="section-label">Tags <span style="text-transform:none;letter-spacing:0;font-weight:400;">(optional)</span></div>
+        <div class="tags-grid" id="tags-grid"></div>
+        <div class="tag-add-row">
+          <input class="input-field" id="custom-tag-input" type="text" placeholder="Add custom tag…" maxlength="30" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomTag()}">
+          <button class="btn btn-ghost btn-sm" onclick="addCustomTag()">Add</button>
         </div>
         <div class="gap"></div>
-        <button class="btn btn-primary" onclick="createOrderAndStartTimer()">▶ Start Timer</button>
+        <div class="section-label">Notes <span style="text-transform:none;letter-spacing:0;font-weight:400;">(optional)</span></div>
+        <textarea class="input-field" id="new-notes" rows="2" placeholder="Optional notes..."></textarea>
+        <div class="gap-lg"></div>
+        <button class="btn btn-primary" id="details-start-btn" onclick="createOrderAndStartTimer()">▶ Start Timer</button>
         <div class="gap"></div>
-        <button class="btn btn-ghost" onclick="createOrderWithoutTimer()">+ Save Without Timer</button>
+        <button class="btn btn-ghost" id="details-save-btn" onclick="createOrderWithoutTimer()">+ Save Without Timer</button>
         <div class="gap"></div>
-        <button class="btn btn-ghost" onclick="goToScan()">← Rescan</button>
-      </div>
-
-      <!-- Step 4: Timer running -->
-      <div id="step-timer" style="display:none">
-        <div class="section-label">Recording Session</div>
-        <div class="po-confirm" style="margin-bottom:12px;">
-          <div class="po-label" id="timer-po-label">Production Order</div>
-          <div class="po-number" id="timer-po">—</div>
-          <div class="po-label" id="timer-tags" style="display:none"></div>
-          <div class="po-label" id="timer-notes" style="font-style:italic;display:none"></div>
-        </div>
-        <div class="timer-display">
-          <div class="timer-digits running" id="timer-display">00:00:00</div>
-          <div class="timer-status running" id="timer-status">● RECORDING</div>
-          <div id="timer-total" style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-top:8px;"></div>
-        </div>
-        <div class="time-adjust-row" style="margin-bottom:8px;">
-          <button class="btn btn-ghost btn-sm" onclick="adjustActiveTimer(-900000)">−15m</button>
-          <button class="btn btn-ghost btn-sm" onclick="adjustActiveTimer(-300000)">−5m</button>
-          <button class="btn btn-ghost btn-sm" onclick="adjustActiveTimer(300000)">+5m</button>
-          <button class="btn btn-ghost btn-sm" onclick="adjustActiveTimer(900000)">+15m</button>
-        </div>
-        <div id="timer-adj-preview" style="display:none;margin-bottom:10px;text-align:center;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;">
-          <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:4px;">Adjustment pending</div>
-          <div id="timer-adj-amount" style="font-size:36px;font-family:'Courier New',monospace;font-weight:bold;letter-spacing:2px;">+0m</div>
-          <div id="timer-adj-label" style="font-size:10px;letter-spacing:0.5px;margin-top:4px;margin-bottom:10px;"></div>
-          <button class="btn btn-ghost btn-sm" onclick="clearTimerAdj()" style="width:100%;">Clear adjustment</button>
-        </div>
-        <button class="btn btn-ghost" id="timer-pause-btn" onclick="toggleTimerPause()" style="margin-bottom:8px;width:100%;">⏸ Pause</button>
-        <button class="btn btn-danger" onclick="openStopModal()">■ Stop Timer</button>
+        <button class="btn btn-ghost" onclick="backToPO()">← Back</button>
       </div>
 
     </div><!-- /view-new -->
 
+    <!-- ── TIMER VIEW ── -->
+    <div id="view-timer" class="view">
+      <div class="section-label">Recording Session</div>
+      <div class="po-confirm" style="margin-bottom:12px;">
+        <div class="po-label" id="timer-po-label">Production Order</div>
+        <div class="po-number" id="timer-po">—</div>
+        <div class="po-label" id="timer-tags" style="display:none"></div>
+        <div class="po-label" id="timer-notes" style="font-style:italic;display:none"></div>
+      </div>
+      <div class="timer-display">
+        <div class="timer-digits running" id="timer-display">00:00:00</div>
+        <div class="timer-status running" id="timer-status">● RECORDING</div>
+        <div id="timer-total" style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-top:8px;"></div>
+      </div>
+      <div class="time-adjust-row" style="margin-bottom:8px;">
+        <button class="btn btn-ghost btn-sm" onclick="adjustActiveTimer(-900000)">−15m</button>
+        <button class="btn btn-ghost btn-sm" onclick="adjustActiveTimer(-300000)">−5m</button>
+        <button class="btn btn-ghost btn-sm" onclick="adjustActiveTimer(300000)">+5m</button>
+        <button class="btn btn-ghost btn-sm" onclick="adjustActiveTimer(900000)">+15m</button>
+      </div>
+      <div id="timer-adj-preview" style="display:none;margin-bottom:10px;text-align:center;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;">
+        <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:4px;">Start time adjusted</div>
+        <div id="timer-adj-amount" style="font-size:36px;font-family:'Courier New',monospace;font-weight:bold;letter-spacing:2px;">+0m</div>
+        <div id="timer-adj-label" style="font-size:10px;letter-spacing:0.5px;margin-top:4px;margin-bottom:10px;"></div>
+        <button class="btn btn-ghost btn-sm" onclick="clearTimerAdj()" style="width:100%;">Clear adjustment</button>
+      </div>
+      <button class="btn btn-ghost" id="timer-pause-btn" onclick="toggleTimerPause()" style="margin-bottom:8px;width:100%;">⏸ Pause</button>
+      <button class="btn btn-danger" id="timer-stop-btn" onclick="openStopModal()">■ Stop Timer</button>
+    </div>
+
     <!-- ── ARCHIVE VIEW ── -->
     <div id="view-archive" class="view">
       <div style="position:relative;margin-bottom:10px;">
-        <input class="input-field" id="archive-search" type="search" placeholder="Search PO…" oninput="archiveFilter=this.value;renderArchive()" style="padding-right:36px;">
-        <button onclick="document.getElementById('archive-search').value='';archiveFilter='';renderArchive()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-dim);font-size:16px;cursor:pointer;line-height:1;">×</button>
+        <input class="input-field" id="archive-search" type="search" placeholder="Search PO, tag or note…" oninput="archiveFilter=this.value;renderArchive()" style="padding-right:36px;">
+        <button onclick="document.getElementById('archive-search').value='';archiveFilter='';renderArchive()" aria-label="Clear search" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-dim);font-size:16px;cursor:pointer;line-height:1;">×</button>
       </div>
-      <div class="section-label">Finished Orders</div>
+      <div class="list-header">
+        <span class="list-title" id="archive-section-title">Finished Orders</span>
+        <div class="list-actions">
+          <button class="header-btn" id="archive-select-btn" onclick="toggleArchiveMultiSelectMode()">Select</button>
+        </div>
+      </div>
       <div id="archive-list"></div>
     </div>
 
@@ -603,6 +623,7 @@
         <div class="progress-track">
           <div class="progress-fill" id="stat-today-bar" style="width:0%"></div>
         </div>
+        <div id="stat-today-running" style="display:none;font-size:10px;color:var(--text-dim);letter-spacing:0.5px;margin-top:6px;">Includes running timer</div>
       </div>
 
       <div class="stat-grid">
@@ -611,8 +632,8 @@
           <div class="stat-label">POs Finished Today</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value" id="stat-confirmed-orders">—</div>
-          <div class="stat-label">Confirmed Orders</div>
+          <div class="stat-value" id="stat-active-orders">—</div>
+          <div class="stat-label">Active Orders</div>
         </div>
       </div>
 
@@ -640,35 +661,8 @@
         </div>
       </div>
 
-      <div class="section-label" style="margin-top:16px;">Notifications</div>
-      <div class="stat-card wide" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-        <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;">Test background notification</div>
-        <button id="notif-test-btn" class="btn btn-ghost btn-sm" onclick="scheduleTestNotification()">Send in 1 min</button>
-      </div>
-
-      <div class="section-label" style="margin-top:16px;">Storage</div>
-      <div class="stat-card wide" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-        <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;">Protect data from auto-clear<br><span id="storage-persist-status" style="color:var(--text-muted);">Checking…</span></div>
-        <button id="storage-persist-btn" class="btn btn-ghost btn-sm" onclick="requestPersistentStorage(true)">Request</button>
-      </div>
-
-      <div class="section-label" style="margin-top:16px;">About</div>
-      <div class="stat-card wide" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-        <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;">App version</div>
-        <div style="font-size:12px;color:var(--text-muted);font-family:'Courier New',monospace;">v17</div>
-      </div>
-
       <div class="section-label" style="margin-top:16px;">Last 7 Days</div>
       <div id="stat-daily-breakdown" class="stat-card wide" style="padding:10px 12px;"></div>
-
-      <div class="section-label" style="margin-top:16px;">Export Data</div>
-      <div class="stat-card wide">
-        <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:12px;">Download all orders and sessions</div>
-        <div class="row" style="gap:8px;">
-          <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="exportCSV()">↓ CSV</button>
-          <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="exportJSON()">↓ JSON</button>
-        </div>
-      </div>
     </div>
 
   </div><!-- /content -->
@@ -677,7 +671,7 @@
 <!-- ── ORDER DETAIL MODAL ── -->
 <div class="modal-overlay" id="modal-detail">
   <div class="modal">
-    <button class="modal-close" onclick="closeModal('modal-detail')">✕</button>
+    <button class="modal-close" onclick="closeModal('modal-detail')" aria-label="Close">✕</button>
     <div class="modal-title" id="modal-detail-title">Order Detail</div>
     <div id="modal-detail-body"></div>
   </div>
@@ -686,15 +680,16 @@
 <!-- ── STOP TIMER MODAL ── -->
 <div class="modal-overlay" id="modal-stop">
   <div class="modal">
-    <button class="modal-close" onclick="closeModal('modal-stop')">✕</button>
-    <div class="modal-title">Stop Timer</div>
+    <button class="modal-close" onclick="closeModal('modal-stop')" aria-label="Close">✕</button>
+    <div class="modal-title" id="stop-modal-title">Stop Timer</div>
+    <div id="stop-next-info" style="display:none;font-size:12px;color:var(--amber);line-height:1.5;margin:-8px 0 8px;"></div>
     <div id="stop-elapsed" style="text-align:center;font-size:36px;color:var(--accent);letter-spacing:4px;margin:16px 0;font-family:'Courier New',monospace;font-weight:bold;"></div>
     <div id="stop-split-info" style="display:none;text-align:center;font-size:10px;color:var(--amber);letter-spacing:2px;margin-top:-8px;margin-bottom:16px;font-family:'Courier New',monospace;"></div>
     <div class="section-label" style="margin-bottom:8px;">Mark as CNF?</div>
     <p style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:18px;">CNF = time entered into SAP</p>
     <div class="row">
-      <button class="btn btn-warn" onclick="stopSession(false)">Save — Not CNF</button>
-      <button class="btn btn-primary" onclick="stopSession(true)">Save + CNF ✓</button>
+      <button class="btn btn-warn" id="stop-save-btn" onclick="stopSession(false)">Save — Not CNF</button>
+      <button class="btn btn-primary" id="stop-save-cnf-btn" onclick="stopSession(true)">Save + CNF ✓</button>
     </div>
   </div>
 </div>
@@ -702,11 +697,11 @@
 <!-- ── CONFIRM MODAL ── -->
 <div class="modal-overlay" id="modal-confirm">
   <div class="modal">
-    <button class="modal-close" onclick="closeModal('modal-confirm')">✕</button>
+    <button class="modal-close" onclick="closeModal('modal-confirm')" aria-label="Close">✕</button>
     <div class="modal-title" id="confirm-modal-title">Confirm</div>
-    <p id="confirm-modal-body" style="font-size:13px;color:var(--text-dim);margin-bottom:20px;line-height:1.6;letter-spacing:0.2px;"></p>
+    <p id="confirm-modal-body" style="font-size:13px;color:var(--text-dim);margin-bottom:20px;line-height:1.6;letter-spacing:0.2px;white-space:pre-line;"></p>
     <div class="row">
-      <button class="btn btn-ghost" onclick="closeModal('modal-confirm')">Cancel</button>
+      <button class="btn btn-ghost" id="confirm-modal-cancel" onclick="closeModal('modal-confirm')">Cancel</button>
       <button class="btn btn-warn" id="confirm-modal-ok" onclick="confirmModalOk()">Confirm</button>
     </div>
   </div>
@@ -715,7 +710,7 @@
 <!-- ── SETTINGS MODAL ── -->
 <div class="modal-overlay" id="modal-settings">
   <div class="modal">
-    <button class="modal-close" onclick="closeModal('modal-settings')">✕</button>
+    <button class="modal-close" onclick="closeModal('modal-settings')" aria-label="Close">✕</button>
     <div class="modal-title">Settings</div>
 
     <div class="section-label">Daily Goal</div>
@@ -727,17 +722,27 @@
       <input type="number" id="settings-goal" class="settings-input" min="1" max="1440" value="450">
     </div>
 
-    <div class="section-label" style="margin-top:16px;">Lunch Break</div>
+    <div class="section-label" style="margin-top:16px;">Breaks &amp; Alerts</div>
     <div class="settings-row">
-      <div class="settings-label">Start time</div>
+      <div>
+        <div class="settings-label">Lunch start</div>
+        <div class="settings-hint">A running timer pauses here</div>
+      </div>
       <input type="time" id="settings-lunch-start" class="settings-input" value="12:00">
     </div>
     <div class="settings-row">
       <div>
-        <div class="settings-label">Duration (minutes)</div>
+        <div class="settings-label">Lunch duration (minutes)</div>
         <div class="settings-hint">Used for conflict detection &amp; quick-add</div>
       </div>
       <input type="number" id="settings-lunch-dur" class="settings-input" min="0" max="120" value="30">
+    </div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">End-of-day alert</div>
+        <div class="settings-hint">A running timer pauses here</div>
+      </div>
+      <input type="time" id="settings-day-end" class="settings-input" value="16:00">
     </div>
 
     <div class="section-label" style="margin-top:16px;">Tags</div>
@@ -745,39 +750,67 @@
     <div class="tag-add-row" style="margin-bottom:16px;">
       <input class="input-field" id="settings-tag-input" type="text" placeholder="Add tag…" maxlength="30"
         onkeydown="if(event.key==='Enter'){event.preventDefault();settingsAddTag()}">
-      <button class="btn btn-sm" onclick="settingsAddTag()">Add</button>
+      <button class="btn btn-ghost btn-sm" onclick="settingsAddTag()">Add</button>
     </div>
 
-    <button class="btn btn-primary" onclick="saveSettingsModal()">Save Settings</button>
+    <button class="btn btn-primary" id="settings-save-btn" onclick="saveSettingsModal()">Save Settings</button>
     <div class="gap"></div>
-    <button class="btn btn-ghost btn-sm" style="color:var(--red);border-color:rgba(248,113,113,0.3);width:100%;" onclick="resetSettings()">Reset to defaults</button>
+    <button class="btn btn-ghost btn-sm" style="color:var(--red);border-color:rgba(248,113,113,0.3);width:100%;" onclick="resetSettings()">Reset form to defaults</button>
+
+    <div class="section-label" style="margin-top:22px;">Backup &amp; Restore</div>
+    <div style="font-size:11px;color:var(--text-dim);letter-spacing:0.3px;line-height:1.5;margin-bottom:10px;">Data lives only on this device. Export a JSON backup regularly — it can be restored here.</div>
+    <div class="row" style="gap:8px;margin-bottom:8px;">
+      <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="exportCSV()">↓ CSV</button>
+      <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="exportJSON()">↓ Backup</button>
+      <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="document.getElementById('import-file').click()">↑ Restore</button>
+    </div>
+    <input type="file" id="import-file" accept="application/json,.json" style="display:none;" onchange="importJSONFile(this)">
+
+    <div class="section-label" style="margin-top:16px;">Device</div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Protect data from auto-clear</div>
+        <div class="settings-hint" id="storage-persist-status">Checking…</div>
+      </div>
+      <button id="storage-persist-btn" class="btn btn-ghost btn-sm" onclick="requestPersistentStorage(true)">Request</button>
+    </div>
+    <div class="settings-row">
+      <div class="settings-label">Test background notification</div>
+      <button id="notif-test-btn" class="btn btn-ghost btn-sm" onclick="scheduleTestNotification()">Send in 1 min</button>
+    </div>
+    <div class="settings-row" style="border-bottom:none;">
+      <div class="settings-label">App version</div>
+      <div id="app-version" style="font-size:12px;color:var(--text-dim);font-family:'Courier New',monospace;"></div>
+    </div>
   </div>
 </div>
 
 <!-- ── ADJUSTMENT EDIT MODAL ── -->
 <div class="modal-overlay" id="modal-adj-edit">
   <div class="modal">
-    <button class="modal-close" onclick="closeModal('modal-adj-edit')">✕</button>
+    <button class="modal-close" onclick="closeModal('modal-adj-edit')" aria-label="Close">✕</button>
     <div class="modal-title">Edit Adjustment</div>
     <div id="adj-edit-body"></div>
   </div>
 </div>
 
-<!-- ── NOON TOAST ── -->
-<div id="noon-toast" style="display:none;position:fixed;top:0;left:0;right:0;z-index:400;background:#001a0e;border-bottom:2px solid #4ade80;padding:12px 16px;display:none;flex-direction:column;align-items:center;gap:8px;font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;color:#4ade80;text-transform:uppercase;">
-  <span>☀ 12:00 PM — Timer paused</span>
+<!-- ── LUNCH TOAST ── -->
+<div id="noon-toast" style="display:none;position:fixed;top:0;left:0;right:0;z-index:400;background:#001a0e;border-bottom:2px solid #4ade80;padding:12px 16px;flex-direction:column;align-items:center;gap:8px;font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;color:#4ade80;text-transform:uppercase;">
+  <span id="noon-toast-text">☀ Lunch — Timer paused</span>
   <div style="display:flex;gap:8px;">
     <button onclick="resumeAndDismissNoon(false)" style="background:transparent;border:1px solid #4ade80;color:#4ade80;font-family:'Courier New',monospace;font-size:9px;letter-spacing:1px;padding:4px 10px;cursor:pointer;border-radius:2px;text-transform:uppercase;">▶ Resume</button>
     <button onclick="resumeAndDismissNoon(true)" style="background:#4ade8022;border:1px solid #4ade80;color:#4ade80;font-family:'Courier New',monospace;font-size:9px;letter-spacing:1px;padding:4px 10px;cursor:pointer;border-radius:2px;text-transform:uppercase;">I kept working</button>
+    <button onclick="dismissNoonToast()" style="background:transparent;border:1px solid #4ade8066;color:#4ade80;font-family:'Courier New',monospace;font-size:9px;letter-spacing:1px;padding:4px 10px;cursor:pointer;border-radius:2px;text-transform:uppercase;">Stay paused</button>
   </div>
 </div>
 
-<!-- ── 4PM TOAST ── -->
-<div id="four-pm-toast" style="display:none;position:fixed;top:0;left:0;right:0;z-index:400;background:#1a0e00;border-bottom:2px solid var(--amber);padding:12px 16px;display:none;flex-direction:column;align-items:center;gap:8px;font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;color:var(--amber);text-transform:uppercase;">
-  <span>⚠ 4:00 PM — Timer paused</span>
+<!-- ── END-OF-DAY TOAST ── -->
+<div id="four-pm-toast" style="display:none;position:fixed;top:0;left:0;right:0;z-index:400;background:#1a0e00;border-bottom:2px solid var(--amber);padding:12px 16px;flex-direction:column;align-items:center;gap:8px;font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;color:var(--amber);text-transform:uppercase;">
+  <span id="four-pm-toast-text">⚠ End of day — Timer paused</span>
   <div style="display:flex;gap:8px;">
     <button onclick="resumeAndDismissFourPm(false)" style="background:transparent;border:1px solid var(--amber);color:var(--amber);font-family:'Courier New',monospace;font-size:9px;letter-spacing:1px;padding:4px 10px;cursor:pointer;border-radius:2px;text-transform:uppercase;">▶ Resume</button>
     <button onclick="resumeAndDismissFourPm(true)" style="background:#f59e0b22;border:1px solid var(--amber);color:var(--amber);font-family:'Courier New',monospace;font-size:9px;letter-spacing:1px;padding:4px 10px;cursor:pointer;border-radius:2px;text-transform:uppercase;">I kept working</button>
+    <button onclick="dismissFourPmToast()" style="background:transparent;border:1px solid #f59e0b66;color:var(--amber);font-family:'Courier New',monospace;font-size:9px;letter-spacing:1px;padding:4px 10px;cursor:pointer;border-radius:2px;text-transform:uppercase;">Stay paused</button>
   </div>
 </div>
 
@@ -794,11 +827,14 @@
 <div id="archive-multiselect-bar" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#15151b;border-top:2px solid var(--red);padding:12px 16px;z-index:150;padding-bottom:calc(12px + var(--safe-bottom));">
   <div class="ms-bar-top">
     <span class="ms-bar-count" id="archive-multiselect-count">0 selected</span>
-    <button class="btn btn-ghost btn-sm" onclick="exitArchiveMultiSelect()">Cancel</button>
+    <div style="display:flex;gap:6px;">
+      <button class="btn btn-ghost btn-sm" onclick="selectAllArchive()">Select all</button>
+      <button class="btn btn-ghost btn-sm" onclick="exitArchiveMultiSelect()">Cancel</button>
+    </div>
   </div>
   <div class="ms-bar-grid">
-    <button class="btn btn-primary btn-sm" onclick="unarchiveSelected()">↩ Unarchive</button>
-    <button class="btn btn-danger btn-sm" onclick="deleteSelectedArchive()">Delete</button>
+    <button class="btn btn-primary btn-sm" id="archive-ms-unarchive" onclick="unarchiveSelected()">↩ Unarchive</button>
+    <button class="btn btn-danger btn-sm" id="archive-ms-delete" onclick="deleteSelectedArchive()">Delete</button>
   </div>
 </div>
 
@@ -806,12 +842,15 @@
 <div id="multiselect-bar">
   <div class="ms-bar-top">
     <span class="ms-bar-count" id="multiselect-count">0 selected</span>
-    <button class="btn btn-ghost btn-sm" onclick="exitMultiSelect()">Cancel</button>
+    <div style="display:flex;gap:6px;">
+      <button class="btn btn-ghost btn-sm" onclick="selectAllOrders()">Select all</button>
+      <button class="btn btn-ghost btn-sm" onclick="exitMultiSelect()">Cancel</button>
+    </div>
   </div>
   <div class="ms-bar-grid">
-    <button class="btn btn-ghost btn-sm" onclick="multiSelectCNF()">CNF All</button>
-    <button class="btn btn-warn btn-sm" onclick="multiSelectFinish()">Finish All</button>
-    <button class="btn btn-primary btn-sm" onclick="multiSelectBoth()">CNF + Finish</button>
+    <button class="btn btn-ghost btn-sm" id="ms-cnf-btn" onclick="multiSelectCNF()">CNF All</button>
+    <button class="btn btn-warn btn-sm" id="ms-finish-btn" onclick="multiSelectFinish()">Finish All</button>
+    <button class="btn btn-primary btn-sm" id="ms-both-btn" onclick="multiSelectBoth()">CNF + Finish</button>
     <button class="btn btn-ghost btn-sm" id="ms-split-btn" onclick="multiSelectSplitTimer()">▶ Split Timer</button>
   </div>
   <div class="time-adjust-row" style="margin-top:10px;">
@@ -834,14 +873,17 @@
 'use strict';
 
 // ── STATE ──────────────────────────────────────────────────────────────────
+const APP_VERSION  = 'v18'; // keep in step with CACHE in sw.js
 const DEFAULT_TAGS = ['Gantry','Air Prep','Testing','Learning', 'Kit', '3rd Party'];
 const DB_KEY       = 'po-tracker-v1';
 const SETTINGS_KEY = 'po-tracker-settings-v1';
 const TIMER_KEY    = 'po-tracker-timer-v1';
+const ALERTS_KEY   = 'po-tracker-alerts-v1';
+const DEFAULT_SETTINGS = { goalMin: 450, lunchStart: '12:00', lunchDur: 30, dayEnd: '16:00', ordersSort: 'newest' };
 
-let settings = { goalMin: 450, lunchStart: '12:00', lunchDur: 30, tags: [...DEFAULT_TAGS] };
+let settings = { ...DEFAULT_SETTINGS, tags: [...DEFAULT_TAGS] };
 let db = { orders: [], archive: [] };
-let draft = { tags: [], notes: '', po: '' };
+let draft = { tags: [], notes: '', po: '', splitMode: false, splitPOs: [] };
 let activeOrderId = null;
 let sessionHoldTimer = null;
 let splitOrderIds = [];
@@ -850,6 +892,7 @@ let timerInterval = null;
 let timerPausedAt = null;
 let activeTimerAdj = 0;
 let _origTimerStart = null;
+let pendingAfterStop = null; // action to run once the running timer has been stopped & saved
 let fourPmTimeout = null;
 let noonTimeout = null;
 let codeReader = null;
@@ -859,83 +902,141 @@ let notifUpdateInterval = null;
 let _idSeq = 0;
 function genId() { return Date.now() * 1000 + (++_idSeq % 1000); }
 
+// ── SESSION HELPERS ────────────────────────────────────────────────────────
+// A session's start time. Older records only carry `date`.
+function sStart(s) { return s.start || s.date; }
+// Only positive (worked) sessions need a CNF; deductions never do.
+function isPendingSession(s) { return !s.cnf && (s.duration || 0) > 0; }
+function pendingSessions(order) { return order.sessions.filter(isPendingSession); }
+function pendingDuration(order) { return pendingSessions(order).reduce((a, s) => a + s.duration, 0); }
+function lastWorked(order) {
+  return order.sessions.reduce((m, s) => Math.max(m, sStart(s) + Math.max(s.duration || 0, 0)), order.created || 0);
+}
+function normPO(po) { return String(po || '').trim().toUpperCase(); }
+function findActiveByPO(po) { const n = normPO(po); return db.orders.find(o => normPO(o.po) === n) || null; }
+function findArchivedByPO(po) { const n = normPO(po); return db.archive.find(o => normPO(o.po) === n) || null; }
+function isOrderTiming(id) { return !!timerStart && (activeOrderId === id || splitOrderIds.includes(id)); }
+function localDateStr(d = new Date()) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+
 // ── DATABASE ───────────────────────────────────────────────────────────────
+// Coerces stored/imported data into the shape the app expects so one bad
+// record can't break rendering. Returns null if it isn't PO Tracker data.
+function normalizeDB(raw) {
+  if (!raw || typeof raw !== 'object' || !Array.isArray(raw.orders) || !Array.isArray(raw.archive)) return null;
+  const fixOrder = o => {
+    if (!o || typeof o !== 'object' || o.po === undefined || o.po === null) return null;
+    return {
+      ...o,
+      id: typeof o.id === 'number' ? o.id : genId(),
+      po: String(o.po),
+      tags: Array.isArray(o.tags) ? o.tags.map(String) : [],
+      notes: typeof o.notes === 'string' ? o.notes : '',
+      sessions: Array.isArray(o.sessions)
+        ? o.sessions.filter(s => s && typeof s === 'object' && typeof (s.start || s.date) === 'number')
+        : [],
+      created: typeof o.created === 'number' ? o.created : Date.now(),
+    };
+  };
+  return {
+    orders:  raw.orders.map(fixOrder).filter(Boolean).map(o => ({ ...o, finished: false })),
+    archive: raw.archive.map(fixOrder).filter(Boolean).map(o => ({ ...o, finished: true })),
+  };
+}
 function loadDB() {
   try {
     const raw = localStorage.getItem(DB_KEY);
-    if (raw) db = JSON.parse(raw);
+    if (raw) db = normalizeDB(JSON.parse(raw)) || db;
   } catch(e) { console.warn('DB load error', e); }
 }
 function saveDB() {
-  try { localStorage.setItem(DB_KEY, JSON.stringify(db)); } catch(e) { console.warn('DB save error', e); }
+  try { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+  catch(e) {
+    console.warn('DB save error', e);
+    alert('Could not save — device storage may be full. Export a backup from Settings.');
+  }
 }
 
 // ── SETTINGS ───────────────────────────────────────────────────────────────
+const TIME_RE = /^\d{2}:\d{2}$/;
 function loadSettings() {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return;
     const s = JSON.parse(raw);
     if (s.goalMin  > 0) settings.goalMin   = s.goalMin;
-    if (s.lunchStart)   settings.lunchStart = s.lunchStart;
+    if (TIME_RE.test(s.lunchStart)) settings.lunchStart = s.lunchStart;
     if (s.lunchDur >= 0) settings.lunchDur  = s.lunchDur;
+    if (TIME_RE.test(s.dayEnd)) settings.dayEnd = s.dayEnd;
+    if (typeof s.ordersSort === 'string') settings.ordersSort = s.ordersSort;
     if (Array.isArray(s.tags) && s.tags.length) settings.tags = s.tags;
   } catch(e) {}
 }
 function saveSettings() {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch(e) {}
 }
+function hhmm(str) { const [h, m] = str.split(':').map(Number); return { h, m }; }
+function fmtClock(str) {
+  const { h, m } = hhmm(str);
+  return new Date(2000, 0, 1, h, m).toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit' });
+}
 
+// Tags are edited on a copy so closing the modal without saving discards changes.
+let settingsTagsDraft = [];
 function openSettingsModal() {
-  document.getElementById('settings-goal').value       = settings.goalMin;
-  document.getElementById('settings-lunch-start').value = settings.lunchStart;
-  document.getElementById('settings-lunch-dur').value  = settings.lunchDur;
+  fillSettingsForm(settings);
+  settingsTagsDraft = [...settings.tags];
   renderSettingsTags();
+  document.getElementById('app-version').textContent = APP_VERSION;
+  showPersistStatus();
   openModal('modal-settings');
+}
+function fillSettingsForm(s) {
+  document.getElementById('settings-goal').value        = s.goalMin;
+  document.getElementById('settings-lunch-start').value = s.lunchStart;
+  document.getElementById('settings-lunch-dur').value   = s.lunchDur;
+  document.getElementById('settings-day-end').value     = s.dayEnd;
 }
 function renderSettingsTags() {
   const el = document.getElementById('settings-tags-list');
   if (!el) return;
-  if (!settings.tags.length) { el.innerHTML = '<div style="font-size:11px;color:var(--text-muted);padding:8px 0;">No tags — add one below</div>'; return; }
-  el.innerHTML = settings.tags.map((t, i) => `
+  if (!settingsTagsDraft.length) { el.innerHTML = '<div style="font-size:11px;color:var(--text-muted);padding:8px 0;">No tags — add one below</div>'; return; }
+  el.innerHTML = settingsTagsDraft.map((t, i) => `
     <div class="settings-tag-row">
       <span style="font-size:13px;color:var(--text);">${escHtml(t)}</span>
-      <button class="btn btn-ghost btn-sm" onclick="settingsRemoveTag(${i})" style="color:var(--red);border-color:rgba(248,113,113,0.3);padding:3px 10px;min-height:28px;">✕</button>
+      <button class="btn btn-ghost btn-sm" onclick="settingsRemoveTag(${i})" aria-label="Remove tag" style="color:var(--red);border-color:rgba(248,113,113,0.3);padding:3px 10px;min-height:28px;">✕</button>
     </div>`).join('');
 }
 function settingsAddTag() {
   const input = document.getElementById('settings-tag-input');
   const val = input.value.trim();
-  if (!val || settings.tags.includes(val)) { input.value = ''; return; }
-  settings.tags.push(val);
   input.value = '';
+  if (!val || settingsTagsDraft.includes(val)) return;
+  settingsTagsDraft.push(val);
   renderSettingsTags();
 }
 function settingsRemoveTag(idx) {
-  settings.tags.splice(idx, 1);
+  settingsTagsDraft.splice(idx, 1);
   renderSettingsTags();
 }
 function saveSettingsModal() {
-  const g = parseInt(document.getElementById('settings-goal').value, 10);
+  const g  = parseInt(document.getElementById('settings-goal').value, 10);
   const ls = document.getElementById('settings-lunch-start').value;
   const ld = parseInt(document.getElementById('settings-lunch-dur').value, 10);
-  if (g > 0)          settings.goalMin    = g;
-  if (ls)             settings.lunchStart = ls;
-  if (!isNaN(ld) && ld >= 0) settings.lunchDur = ld;
+  const de = document.getElementById('settings-day-end').value;
+  if (g > 0)                 settings.goalMin    = g;
+  if (TIME_RE.test(ls))      settings.lunchStart = ls;
+  if (!isNaN(ld) && ld >= 0) settings.lunchDur   = ld;
+  if (TIME_RE.test(de))      settings.dayEnd     = de;
+  settings.tags = [...settingsTagsDraft];
   saveSettings();
   closeModal('modal-settings');
-  // Re-render anything that uses these settings
-  const gtEl = document.getElementById('stat-goal-text');
-  if (gtEl) gtEl.textContent = `of ${settings.goalMin} min`;
-  if (document.getElementById('view-stats').classList.contains('active')) renderStats();
-  if (document.getElementById('view-new').classList.contains('active')) renderTags();
+  // Alert times may have moved
+  if (timerStart && timerPausedAt === null) { scheduleFourPmAlert(); scheduleNoonAlert(); scheduleSwAlerts(); }
+  refreshActiveView();
 }
 function resetSettings() {
-  settings = { goalMin: 450, lunchStart: '12:00', lunchDur: 30, tags: [...DEFAULT_TAGS] };
-  saveSettings();
-  document.getElementById('settings-goal').value       = settings.goalMin;
-  document.getElementById('settings-lunch-start').value = settings.lunchStart;
-  document.getElementById('settings-lunch-dur').value  = settings.lunchDur;
+  fillSettingsForm(DEFAULT_SETTINGS);
+  settingsTagsDraft = [...DEFAULT_TAGS];
   renderSettingsTags();
 }
 
@@ -962,14 +1063,25 @@ async function requestPersistentStorage(manual) {
   }
 }
 
+async function showPersistStatus() {
+  const statusEl = document.getElementById('storage-persist-status');
+  if (!navigator.storage || !navigator.storage.persisted) { statusEl.textContent = 'Not supported by this browser'; return; }
+  try {
+    const granted = await navigator.storage.persisted();
+    statusEl.textContent = granted ? 'Active — data protected' : 'Not granted yet';
+    statusEl.style.color = granted ? 'var(--accent)' : 'var(--amber)';
+  } catch(e) { statusEl.textContent = 'Unable to check'; }
+}
+
 // ── TIMER PERSISTENCE ──────────────────────────────────────────────────────
+let timerBeganAt = null; // wall-clock time the current timer was started (for alert catch-up)
 function saveTimerState() {
   if (!timerStart) { clearTimerState(); return; }
   try {
     localStorage.setItem(TIMER_KEY, JSON.stringify({
       timerStart, activeOrderId,
       splitOrderIds: [...splitOrderIds],
-      timerPausedAt, activeTimerAdj, _origTimerStart
+      timerPausedAt, activeTimerAdj, _origTimerStart, timerBeganAt
     }));
   } catch(e) {}
 }
@@ -981,66 +1093,31 @@ function restoreTimerState() {
     const raw = localStorage.getItem(TIMER_KEY);
     if (!raw) return false;
     const s = JSON.parse(raw);
-    if (!s || !s.timerStart) return false;
-    // Validate orders still exist
-    if (s.activeOrderId && !db.orders.find(o => o.id === s.activeOrderId)) return false;
-    if (Array.isArray(s.splitOrderIds) && s.splitOrderIds.length) {
-      const stillExist = s.splitOrderIds.every(id => db.orders.find(o => o.id === id));
-      if (!stillExist) return false;
-    }
-    timerStart     = s.timerStart;
-    activeOrderId  = s.activeOrderId  || null;
-    splitOrderIds  = Array.isArray(s.splitOrderIds) ? s.splitOrderIds : [];
+    const ids = Array.isArray(s && s.splitOrderIds) ? s.splitOrderIds : [];
+    const valid = s && s.timerStart &&
+      (s.activeOrderId || ids.length) &&
+      (!s.activeOrderId || db.orders.some(o => o.id === s.activeOrderId)) &&
+      ids.every(id => db.orders.some(o => o.id === id));
+    if (!valid) { clearTimerState(); return false; }
+    timerStart      = s.timerStart;
+    activeOrderId   = s.activeOrderId || null;
+    splitOrderIds   = ids;
     timerPausedAt   = s.timerPausedAt  || null;
     activeTimerAdj  = s.activeTimerAdj || 0;
-    _origTimerStart = s._origTimerStart || (s.timerStart + (s.activeTimerAdj || 0));
+    _origTimerStart = s._origTimerStart || (s.timerStart + activeTimerAdj);
+    timerBeganAt    = s.timerBeganAt || _origTimerStart;
     return true;
   } catch(e) { return false; }
 }
 function restoreTimerUI() {
-  // Activate the New view without resetting draft
-  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-  document.getElementById('view-new').classList.add('active');
-  document.getElementById('tab-new').classList.add('active');
-  showStep('timer');
-
-  // Populate PO display
-  if (splitOrderIds.length > 0) {
-    const orders = splitOrderIds.map(id => db.orders.find(o => o.id === id)).filter(Boolean);
-    document.getElementById('timer-po-label').textContent = `Split — ${orders.length} Orders`;
-    document.getElementById('timer-po').innerHTML = orders.map(o =>
-      `<div style="font-size:18px;line-height:1.5;">${escHtml(o.po)}${o.splitQty ? `<span style="font-size:11px;color:var(--text-muted);letter-spacing:1px;margin-left:8px;">QTY <span style="color:var(--amber);font-family:'Courier New',monospace;">${o.splitQty}</span></span>` : ''}</div>`
-    ).join('');
-    updateTimerMeta(orders[0]?.tags || [], orders[0]?.notes || '');
-  } else if (activeOrderId) {
-    const order = db.orders.find(o => o.id === activeOrderId);
-    document.getElementById('timer-po-label').textContent = 'Production Order';
-    document.getElementById('timer-po').textContent = order ? order.po : '';
-    updateTimerMeta(order?.tags || [], order?.notes || '');
-  }
-  renderTimerAdjPreview();
-
-  if (timerPausedAt !== null) {
-    const digits = document.getElementById('timer-display');
-    if (digits) { digits.textContent = fmt(timerPausedAt - timerStart); digits.classList.remove('running'); }
-    const status = document.getElementById('timer-status');
-    if (status) { status.textContent = '⏸ PAUSED'; status.classList.remove('running'); status.style.color = 'var(--amber)'; }
-    const btn = document.getElementById('timer-pause-btn');
-    if (btn) btn.textContent = '▶ Resume';
-    const dot = document.getElementById('tab-pause-dot');
-    if (dot) dot.style.display = 'block';
-  } else {
-    timerInterval = setInterval(timerTick, 500);
+  if (timerPausedAt === null) {
+    startTicking();
     scheduleFourPmAlert();
     scheduleNoonAlert();
-    const order = activeOrderId ? db.orders.find(o => o.id === activeOrderId) : null;
-    const orders = splitOrderIds.map(id => db.orders.find(o => o.id === id)).filter(Boolean);
-    const po = orders.length > 0
-      ? (orders.length <= 3 ? orders.map(o => o.po).join(' + ') : `${orders.length} POs`)
-      : (order ? order.po : '?');
-    startLiveNotification(po, order?.tags || orders[0]?.tags || [], order?.notes || orders[0]?.notes || '');
+    startLiveNotification(...timerNotifArgs());
   }
+  switchView('timer');
+  checkMissedAlerts();
 }
 
 // ── FORMATTERS ─────────────────────────────────────────────────────────────
@@ -1061,7 +1138,7 @@ function fmtDate(ts) {
   return new Date(ts).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 function fmtSessionRange(s) {
-  const startTs = s.start || s.date;
+  const startTs = sStart(s);
   const d       = new Date(startTs);
   const datePart = d.toLocaleString('en-CA', { month: 'short', day: 'numeric' });
   const startPart = d.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
@@ -1076,60 +1153,76 @@ function totalTime(order) {
 }
 
 // ── VIEW NAVIGATION ────────────────────────────────────────────────────────
+const TAB_VIEWS = ['orders', 'new', 'archive', 'stats'];
+function currentView() {
+  const el = document.querySelector('.view.active');
+  return el ? el.id.replace('view-', '') : 'orders';
+}
 function switchView(v) {
+  if (v === 'timer' && !timerStart) v = 'orders';
   if (v !== 'orders') resetMultiSelect();
   if (v !== 'archive') resetArchiveMultiSelect();
   stopScanner();
-  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-  document.getElementById('view-' + v).classList.add('active');
-  document.querySelectorAll('.tab').forEach(t => {
-    const label = t.textContent.toLowerCase();
-    if ((v === 'orders' && label.includes('order')) ||
-        (v === 'new' && label.includes('new')) ||
-        (v === 'archive' && label.includes('archive')) ||
-        (v === 'stats' && label.includes('stats'))) {
-      t.classList.add('active');
-    }
-  });
+  document.querySelectorAll('.view').forEach(el => el.classList.toggle('active', el.id === 'view-' + v));
+  TAB_VIEWS.forEach(t => document.getElementById('tab-' + t).classList.toggle('active', t === v));
+  document.querySelector('.content').scrollTop = 0;
   if (v === 'orders') { ordersShowTimeline ? renderTimeline() : renderOrders(); }
   if (v === 'archive') renderArchive();
   if (v === 'stats') renderStats();
-  if (v === 'new') {
-    if (timerStart) {
-      showStep('timer'); // return to running timer without resetting
-    } else {
-      resetDraft(); showStep('tags'); renderTags();
-    }
-  }
+  if (v === 'new') { resetDraft(); showStep('po'); focusManualPO(); }
+  if (v === 'timer') { renderTimerHeader(); renderTimerState(); renderTimerAdjPreview(); }
+  updateFloatingTimer();
+}
+// Re-render whatever is on screen after data changed, without resetting it.
+function refreshActiveView() {
+  const v = currentView();
+  if (v === 'orders') { ordersShowTimeline ? renderTimeline() : renderOrders(); }
+  if (v === 'archive') renderArchive();
+  if (v === 'stats') renderStats();
+  if (v === 'new' && document.getElementById('step-details').style.display !== 'none') renderTags();
+  if (v === 'timer') renderTimerHeader();
   updateFloatingTimer();
 }
 
 function showStep(s) {
-  ['tags','scan','confirm','timer'].forEach(n => {
+  ['po', 'details'].forEach(n => {
     document.getElementById('step-' + n).style.display = n === s ? 'block' : 'none';
   });
 }
 
 // ── NEW ORDER FLOW ─────────────────────────────────────────────────────────
+// Step 1: scan / type the PO (or several, in Split Time mode).
+// Step 2: optional tags + notes, then Start Timer or Save Without Timer.
 function resetDraft() {
   draft = { tags: [], notes: '', po: '', splitMode: false, splitPOs: [] };
   document.getElementById('new-notes').value = '';
   document.getElementById('manual-po').value = '';
+  document.getElementById('custom-tag-input').value = '';
   document.getElementById('scan-status').textContent = '';
+  clearPOMatch();
+  setSplitMode(false);
+}
+
+function focusManualPO() {
+  setTimeout(() => {
+    const el = document.getElementById('manual-po');
+    if (el && currentView() === 'new') el.focus();
+  }, 120);
 }
 
 function renderTags() {
-  const standard = settings.tags.map(t =>
-    `<button class="tag${draft.tags.includes(t) ? ' selected' : ''}" onclick="toggleTag('${escHtml(t)}')">${escHtml(t)}</button>`
+  const standard = settings.tags.map((t, i) =>
+    `<button class="tag${draft.tags.includes(t) ? ' selected' : ''}" onclick="toggleTag(${i})">${escHtml(t)}</button>`
   ).join('');
-  const custom = draft.tags.filter(t => !settings.tags.includes(t)).map(t =>
-    `<button class="tag custom">${escHtml(t)}<span class="tag-x" onclick="removeCustomTag(${JSON.stringify(t)})">×</span></button>`
+  const custom = draft.tags.map((t, i) => settings.tags.includes(t) ? '' :
+    `<button class="tag custom" onclick="removeDraftTag(${i})" title="Remove tag">${escHtml(t)}<span class="tag-x">×</span></button>`
   ).join('');
   document.getElementById('tags-grid').innerHTML = standard + custom;
 }
 
-function toggleTag(t) {
+function toggleTag(settingsIdx) {
+  const t = settings.tags[settingsIdx];
+  if (t === undefined) return;
   const i = draft.tags.indexOf(t);
   if (i > -1) draft.tags.splice(i, 1); else draft.tags.push(t);
   renderTags();
@@ -1138,31 +1231,125 @@ function toggleTag(t) {
 function addCustomTag() {
   const input = document.getElementById('custom-tag-input');
   const val = input.value.trim();
-  if (!val || draft.tags.includes(val)) { input.value = ''; return; }
-  draft.tags.push(val);
   input.value = '';
+  if (!val || draft.tags.includes(val)) return;
+  draft.tags.push(val);
   renderTags();
 }
 
-function removeCustomTag(t) {
-  const i = draft.tags.indexOf(t);
-  if (i > -1) draft.tags.splice(i, 1);
+function removeDraftTag(idx) {
+  draft.tags.splice(idx, 1);
   renderTags();
 }
 
-function goToScan() {
-  draft.notes = document.getElementById('new-notes').value.trim();
-  showStep('scan');
-  setSplitMode(false);
-  setTimeout(() => {
-    const el = document.getElementById('manual-po');
-    if (el) el.focus();
-  }, 120);
-}
-
-function backToTags() {
+// Entry point for a PO coming from the scanner or the manual field.
+function choosePO(po) {
+  po = String(po || '').trim();
+  if (!po) return;
+  if (draft.splitMode) { addPOToSplit(po); return; }
+  draft.po = po;
   stopScanner();
-  showStep('tags');
+  if (showPOMatch(po)) return;
+  goToDetails();
+}
+
+function useManualPO() {
+  const input = document.getElementById('manual-po');
+  const v = input.value.trim();
+  if (!v) return;
+  if (draft.splitMode) input.value = '';
+  choosePO(v);
+}
+
+// If the PO already exists, offer to reuse it instead of creating a duplicate.
+function showPOMatch(po) {
+  const el = document.getElementById('po-match-notice');
+  const active = findActiveByPO(po);
+  const archived = active ? null : findArchivedByPO(po);
+  if (!active && !archived) { el.innerHTML = ''; return false; }
+  if (active) {
+    const n = active.sessions.length;
+    const timing = isOrderTiming(active.id);
+    el.innerHTML = `<div class="po-notice">
+      <div class="po-notice-text"><strong>${escHtml(active.po)}</strong> is already an active order (${n} session${n !== 1 ? 's' : ''} · ${fmtMin(totalTime(active))})${timing ? ' and its timer is running' : ''}.</div>
+      <div class="row">
+        <button class="btn btn-primary btn-sm" onclick="startTimerOnOrder(${active.id})">${timing ? 'Open timer' : '▶ Start timer on it'}</button>
+        <button class="btn btn-ghost btn-sm" onclick="openExistingOrder(${active.id})">Open order</button>
+        <button class="btn btn-ghost btn-sm" onclick="createDuplicateAnyway()">New anyway</button>
+      </div>
+    </div>`;
+  } else {
+    el.innerHTML = `<div class="po-notice">
+      <div class="po-notice-text"><strong>${escHtml(archived.po)}</strong> was finished ${archived.finishedAt ? fmtDate(archived.finishedAt) : ''} and is in the archive.</div>
+      <div class="row">
+        <button class="btn btn-primary btn-sm" onclick="reopenArchived(${archived.id})">↩ Reopen it</button>
+        <button class="btn btn-ghost btn-sm" onclick="createDuplicateAnyway()">New order anyway</button>
+      </div>
+    </div>`;
+  }
+  return true;
+}
+function clearPOMatch() { const el = document.getElementById('po-match-notice'); if (el) el.innerHTML = ''; }
+function createDuplicateAnyway() { clearPOMatch(); goToDetails(); }
+function openExistingOrder(id) { switchView('orders'); showOrderDetail(id); }
+function reopenArchived(id) {
+  if (!restoreFromArchive(id)) return;
+  saveDB();
+  switchView('orders');
+  showOrderDetail(id);
+}
+
+function goToDetails() {
+  stopScanner();
+  clearPOMatch();
+  const label = document.getElementById('details-po-label');
+  const poEl  = document.getElementById('details-po');
+  if (draft.splitMode) {
+    if (!draft.splitPOs.length) return;
+    label.textContent = `Split Time — ${draft.splitPOs.length} Order${draft.splitPOs.length !== 1 ? 's' : ''}`;
+    poEl.innerHTML = draft.splitPOs.map(p =>
+      `<div style="font-size:18px;line-height:1.5;">${escHtml(p.po)}${p.qty ? `<span style="font-size:11px;color:var(--text-muted);letter-spacing:1px;margin-left:8px;">QTY <span style="color:var(--amber);">${p.qty}</span></span>` : ''}</div>`
+    ).join('');
+  } else {
+    if (!draft.po) return;
+    label.textContent = 'Production Order';
+    poEl.textContent = draft.po;
+  }
+  renderTags();
+  showStep('details');
+}
+
+function backToPO() {
+  draft.notes = document.getElementById('new-notes').value.trim();
+  showStep('po');
+  if (draft.splitMode) renderSplitList();
+}
+
+function buildOrderFromDraft() {
+  return { id: genId(), po: draft.po, tags: [...draft.tags], notes: draft.notes, sessions: [], created: Date.now(), finished: false };
+}
+
+function createOrderWithoutTimer() {
+  draft.notes = document.getElementById('new-notes').value.trim();
+  if (draft.splitMode) commitSplitDraft();
+  else { db.orders.unshift(buildOrderFromDraft()); saveDB(); }
+  switchView('orders');
+}
+
+function createOrderAndStartTimer() {
+  draft.notes = document.getElementById('new-notes').value.trim();
+  const label = draft.splitMode ? `start a split timer on ${draft.splitPOs.length} POs` : `start timing ${draft.po}`;
+  withTimerStopped(label, () => {
+    if (draft.splitMode) {
+      const orders = commitSplitDraft();
+      if (orders.length) beginTimer(orders.map(o => o.id), true);
+    } else {
+      const order = buildOrderFromDraft();
+      db.orders.unshift(order);
+      saveDB();
+      beginTimer([order.id]);
+    }
+  });
 }
 
 // ── SPLIT TIME MODE ────────────────────────────────────────────────────────
@@ -1171,14 +1358,20 @@ function setSplitMode(enabled) {
   document.getElementById('opt-single').classList.toggle('active', !enabled);
   document.getElementById('opt-split').classList.toggle('active', enabled);
   document.getElementById('split-po-list').style.display = enabled ? 'block' : 'none';
-  document.getElementById('split-start-wrap').style.display = enabled ? 'block' : 'none';
-  document.getElementById('manual-po-btn').textContent = enabled ? 'Add' : 'Use';
+  document.getElementById('split-next-wrap').style.display = enabled ? 'block' : 'none';
+  document.getElementById('manual-po-btn').textContent = enabled ? 'Add' : 'Next';
+  clearPOMatch();
   if (enabled) renderSplitList();
 }
 
 function addPOToSplit(po) {
-  if (!po || draft.splitPOs.some(p => p.po === po)) return;
+  const status = document.getElementById('scan-status');
+  if (draft.splitPOs.some(p => normPO(p.po) === normPO(po))) {
+    if (status) status.textContent = `${po} is already in the list`;
+    return;
+  }
   draft.splitPOs.push({ po, qty: null });
+  if (status) status.textContent = `+ Added: ${po}`;
   renderSplitList();
 }
 
@@ -1191,25 +1384,32 @@ function renderSplitList() {
   const el = document.getElementById('split-po-list');
   if (!el) return;
   if (draft.splitPOs.length === 0) {
-    el.innerHTML = '<div style="font-size:10px;color:var(--text-muted);letter-spacing:1px;text-align:center;padding:10px 0;">No POs added yet — scan or type below</div>';
+    el.innerHTML = '<div style="font-size:10px;color:var(--text-muted);letter-spacing:1px;text-align:center;padding:10px 0;">No POs added yet — scan or type above</div>';
   } else {
-    el.innerHTML = draft.splitPOs.map((item, i) => `
+    el.innerHTML = draft.splitPOs.map((item, i) => {
+      const existing = findActiveByPO(item.po);
+      return `
       <div class="split-po-item">
-        <div class="split-po-num">${escHtml(item.po)}</div>
+        <div>
+          <div class="split-po-num">${escHtml(item.po)}</div>
+          ${existing ? '<div class="split-po-note">Existing order — time will be added to it</div>' : ''}
+        </div>
         <div style="display:flex;align-items:center;gap:0;">
           <span class="split-qty-label">QTY</span>
-          <input class="split-qty-input" type="number" min="1" placeholder="—"
+          <input class="split-qty-input" type="number" min="1" placeholder="—" aria-label="Quantity for ${escHtml(item.po)}"
             value="${item.qty !== null ? item.qty : ''}"
             oninput="updateSplitQty(${i}, this.value)"
             onclick="this.select()">
-          <button class="split-po-remove" onclick="removePOFromSplit(${i})">✕</button>
+          <button class="split-po-remove" onclick="removePOFromSplit(${i})" aria-label="Remove ${escHtml(item.po)}">✕</button>
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('') + '<div class="split-hint" id="split-hint"></div>';
+    updateSplitHint();
   }
-  const btn = document.getElementById('split-start-btn');
+  const btn = document.getElementById('split-next-btn');
   if (btn) {
     const n = draft.splitPOs.length;
-    btn.textContent = `▶ Start Timer — Split ${n} PO${n !== 1 ? 's' : ''}`;
+    btn.textContent = `Next — ${n} PO${n !== 1 ? 's' : ''} ›`;
     btn.disabled = n < 1;
   }
 }
@@ -1217,138 +1417,140 @@ function renderSplitList() {
 function updateSplitQty(idx, val) {
   const n = parseInt(val, 10);
   draft.splitPOs[idx].qty = (val === '' || isNaN(n) || n < 1) ? null : n;
+  updateSplitHint();
 }
 
-function beginSplitTimerCore(orders, tags, notes) {
-  timerStart = Date.now();
-  _origTimerStart = timerStart;
-  timerPausedAt = null;
-  activeTimerAdj = 0;
-  clearInterval(timerInterval);
-  timerInterval = setInterval(timerTick, 500);
-  scheduleFourPmAlert();
-  scheduleNoonAlert();
-  saveTimerState();
-  const poLabel = orders.length <= 3 ? orders.map(o => o.po).join(' + ') : `${orders.length} POs`;
-  startLiveNotification(poLabel, tags, notes);
-  showStep('timer');
-  document.getElementById('timer-po-label').textContent = `Split — ${orders.length} Orders`;
-  document.getElementById('timer-po').innerHTML = orders.map(o =>
-    `<div style="font-size:18px;line-height:1.5;">${escHtml(o.po)}${o.splitQty ? `<span style="font-size:11px;color:var(--text-muted);letter-spacing:1px;margin-left:8px;">QTY <span style="color:var(--amber);font-family:'Courier New',monospace;">${o.splitQty}</span></span>` : ''}</div>`
-  ).join('');
-  updateTimerMeta(tags, notes);
+function updateSplitHint() {
+  const el = document.getElementById('split-hint');
+  if (!el) return;
+  const withQty = draft.splitPOs.filter(p => p.qty).length;
+  const n = draft.splitPOs.length;
+  el.classList.toggle('warn', withQty > 0 && withQty < n);
+  el.textContent = withQty === 0 ? 'Time is split evenly. Enter a QTY on every PO to weight by quantity.'
+    : withQty < n ? `QTY missing on ${n - withQty} PO${n - withQty !== 1 ? 's' : ''} — time will be split evenly until all have one.`
+    : 'Time will be weighted by quantity.';
 }
 
-function startSplitTimer() {
-  if (draft.splitPOs.length === 0) return;
-  stopScanner();
+// Divides a split timer's elapsed time between its orders: by quantity when
+// every order has one, evenly otherwise. Rounding remainder goes to the last.
+function splitShares(orders, total) {
+  const n = orders.length;
+  if (!n) return [];
+  const byQty = orders.every(o => o.splitQty > 0);
+  const totalQty = byQty ? orders.reduce((s, o) => s + o.splitQty, 0) : n;
+  const shares = orders.map(o => Math.floor(total * (byQty ? o.splitQty : 1) / totalQty));
+  shares[n - 1] += total - shares.reduce((a, b) => a + b, 0);
+  return shares;
+}
+
+// Creates the draft's split orders, reusing any PO that is already active.
+function commitSplitDraft() {
   const groupId = genId();
   const now = Date.now();
-  const newOrders = draft.splitPOs.map(item => ({
-    id: genId(), po: item.po, tags: [...draft.tags], notes: draft.notes,
-    sessions: [], created: now, finished: false, splitGroupId: groupId, splitQty: item.qty || null
-  }));
-  newOrders.forEach(o => db.orders.unshift(o));
-  splitOrderIds = newOrders.map(o => o.id);
+  const orders = draft.splitPOs.map(item => {
+    const existing = findActiveByPO(item.po);
+    if (existing) {
+      existing.splitGroupId = groupId;
+      existing.splitQty = item.qty || null;
+      return existing;
+    }
+    const o = {
+      id: genId(), po: item.po, tags: [...draft.tags], notes: draft.notes,
+      sessions: [], created: now, finished: false, splitGroupId: groupId, splitQty: item.qty || null
+    };
+    db.orders.unshift(o);
+    return o;
+  });
   saveDB();
-  beginSplitTimerCore(newOrders, draft.tags, draft.notes);
+  return orders;
 }
 
-function activateScanner(ctx) {
+function activateScanner() {
   startScanner('scan-video', 'scan-crosshair', 'scan-idle', 'scan-status', val => {
     if (navigator.vibrate) navigator.vibrate(50);
-    if (draft.splitMode) {
-      addPOToSplit(val);
-      document.getElementById('scan-status').textContent = `+ Added: ${val}`;
-      stopScanner();
-    } else {
-      draft.po = val;
-      showConfirm();
-    }
+    choosePO(val);
+    stopScanner();
   });
 }
 
-function useManualPO() {
-  const v = document.getElementById('manual-po').value.trim();
-  if (!v) return;
-  if (draft.splitMode) {
-    addPOToSplit(v);
-    document.getElementById('manual-po').value = '';
-  } else {
-    draft.po = v;
-    stopScanner();
-    showConfirm();
-  }
-}
-
-function showConfirm() {
-  stopScanner();
-  document.getElementById('confirm-po').textContent = draft.po;
-  document.getElementById('confirm-tags').textContent = draft.tags.join(' · ') || 'No tags selected';
-  showStep('confirm');
-}
-
-function buildOrderFromDraft() {
-  const now = Date.now();
-  return { id: genId(), po: draft.po, tags: [...draft.tags], notes: draft.notes, sessions: [], created: now, finished: false };
-}
-
-function createOrderWithoutTimer() {
-  const order = buildOrderFromDraft();
-  db.orders.unshift(order);
-  saveDB();
-  resetDraft();
-  switchView('orders');
-}
-
-function createOrderAndStartTimer() {
-  const order = buildOrderFromDraft();
-  db.orders.unshift(order);
-  saveDB();
-  beginTimer(order.id);
-  showStep('timer');
-  document.getElementById('timer-po-label').textContent = 'Production Order';
-  document.getElementById('timer-po').textContent = order.po;
-  updateTimerMeta(draft.tags, draft.notes);
-}
-
 // ── TIMED ALERTS ───────────────────────────────────────────────────────────
-function scheduleAlert(h, m, showFn) {
-  const now = new Date();
-  const target = new Date();
-  target.setHours(h, m, 0, 0);
-  if (target <= now) target.setDate(target.getDate() + 1);
-  return setTimeout(() => { if (timerStart) showFn(); }, target - now);
+// Lunch and end-of-day alerts pause a running timer once per day each.
+function timeTodayTs(str) {
+  const { h, m } = hhmm(str);
+  const d = new Date(); d.setHours(h, m, 0, 0);
+  return d.getTime();
+}
+function readAlertLog() { try { return JSON.parse(localStorage.getItem(ALERTS_KEY) || '{}') || {}; } catch(e) { return {}; } }
+function alertFiredToday(key) { return readAlertLog()[key] === localDateStr(); }
+function markAlertFired(key) {
+  const log = readAlertLog(); log[key] = localDateStr();
+  try { localStorage.setItem(ALERTS_KEY, JSON.stringify(log)); } catch(e) {}
 }
 
-function showTimedAlert(toastId, notifTitle, notifBody, notifTag) {
-  pauseTimer();
+function scheduleAlert(timeStr, fire) {
+  const now = Date.now();
+  let target = timeTodayTs(timeStr);
+  if (target <= now) target += 86400000;
+  return setTimeout(() => fire(target), target - now);
+}
+
+function showTimedAlert(key, toastId, notifTitle, notifBody, pauseAt) {
+  if (!timerStart || alertFiredToday(key)) return;
+  markAlertFired(key);
+  pauseTimer(pauseAt);
   const toast = document.getElementById(toastId);
   if (toast) toast.style.display = 'flex';
-  if ('serviceWorker' in navigator && Notification.permission === 'granted') {
+  if ('serviceWorker' in navigator && 'Notification' in window && Notification.permission === 'granted') {
     navigator.serviceWorker.ready.then(reg => {
-      reg.showNotification(notifTitle, { body: notifBody, icon: 'icons/icon-192.png', tag: notifTag, requireInteraction: true });
+      reg.showNotification(notifTitle, { body: notifBody, icon: 'icons/icon-192.png', tag: key + '-alert', requireInteraction: true });
     });
   }
 }
 
-function scheduleFourPmAlert() { clearFourPmAlert(); fourPmTimeout = scheduleAlert(16, 0, showFourPmAlert); }
+function scheduleFourPmAlert() { clearFourPmAlert(); fourPmTimeout = scheduleAlert(settings.dayEnd, showFourPmAlert); }
 function clearFourPmAlert() { if (fourPmTimeout) { clearTimeout(fourPmTimeout); fourPmTimeout = null; } }
-function showFourPmAlert() { showTimedAlert('four-pm-toast', 'PO Tracker — Timer Running', 'It is 4:00 PM and a timer is still active.', 'four-pm-alert'); }
+function showFourPmAlert(at) {
+  document.getElementById('four-pm-toast-text').textContent = `⚠ ${fmtClock(settings.dayEnd)} — Timer paused`;
+  showTimedAlert('four-pm', 'four-pm-toast', 'PO Tracker — Timer Running', `It is ${fmtClock(settings.dayEnd)} and a timer is still active.`, at);
+}
 function dismissFourPmToast() { const t = document.getElementById('four-pm-toast'); if (t) t.style.display = 'none'; }
 
-function scheduleNoonAlert() {
-  clearNoonAlert();
-  const [h, m] = settings.lunchStart.split(':').map(Number);
-  noonTimeout = scheduleAlert(h, m, showNoonAlert);
-}
+function scheduleNoonAlert() { clearNoonAlert(); noonTimeout = scheduleAlert(settings.lunchStart, showNoonAlert); }
 function clearNoonAlert() { if (noonTimeout) { clearTimeout(noonTimeout); noonTimeout = null; } }
-function showNoonAlert() { showTimedAlert('noon-toast', 'PO Tracker — Lunch Break?', 'Timer is still active during lunch.', 'noon-alert'); }
+function showNoonAlert(at) {
+  document.getElementById('noon-toast-text').textContent = `☀ ${fmtClock(settings.lunchStart)} — Timer paused`;
+  showTimedAlert('noon', 'noon-toast', 'PO Tracker — Lunch Break?', 'Timer is still active during lunch.', at);
+}
 function dismissNoonToast() { const t = document.getElementById('noon-toast'); if (t) t.style.display = 'none'; }
 
+// Timeouts don't fire while the phone sleeps. When the app comes back, fire an
+// alert that was missed — pausing at the alert time, not at "now" — but only
+// if the timer was already running when that alert time passed.
+function checkMissedAlerts() {
+  if (!timerStart || timerPausedAt !== null) return;
+  const now = Date.now();
+  const began = timerBeganAt || timerStart;
+  const lunch = timeTodayTs(settings.lunchStart);
+  if (now >= lunch && now < lunch + Math.max(settings.lunchDur, 30) * 60000 && began < lunch) showNoonAlert(lunch);
+  const eod = timeTodayTs(settings.dayEnd);
+  if (timerPausedAt === null && now >= eod && now < eod + 30 * 60000 && began < eod) showFourPmAlert(eod);
+}
+
 // ── TIMER ─────────────────────────────────────────────────────────────────
-// Tabs are no longer locked during timing — users can freely navigate
-function setOrdersTabDisabled(_disabled) {}
+function timerOrders() {
+  if (splitOrderIds.length) return splitOrderIds.map(id => db.orders.find(o => o.id === id)).filter(Boolean);
+  const o = activeOrderId ? db.orders.find(x => x.id === activeOrderId) : null;
+  return o ? [o] : [];
+}
+function timerPOLabel(maxShown = 3) {
+  const orders = timerOrders();
+  if (!orders.length) return '?';
+  return orders.length <= maxShown ? orders.map(o => o.po).join(' + ') : `${orders.length} POs`;
+}
+function timerNotifArgs() {
+  const orders = timerOrders();
+  return [timerPOLabel(), orders[0] ? orders[0].tags : [], orders[0] ? orders[0].notes : ''];
+}
 
 function updateTimerMeta(tags, notes) {
   const tagsEl = document.getElementById('timer-tags');
@@ -1359,44 +1561,72 @@ function updateTimerMeta(tags, notes) {
   notesEl.style.display = notes ? '' : 'none';
 }
 
-function beginTimer(orderId) {
-  activeOrderId = orderId;
+function renderTimerHeader() {
+  const orders = timerOrders();
+  const poEl = document.getElementById('timer-po');
+  if (splitOrderIds.length) {
+    document.getElementById('timer-po-label').textContent = `Split — ${orders.length} Orders`;
+    poEl.innerHTML = orders.map(o =>
+      `<div style="font-size:18px;line-height:1.5;">${escHtml(o.po)}${o.splitQty ? `<span style="font-size:11px;color:var(--text-muted);letter-spacing:1px;margin-left:8px;">QTY <span style="color:var(--amber);font-family:'Courier New',monospace;">${o.splitQty}</span></span>` : ''}</div>`
+    ).join('');
+  } else {
+    document.getElementById('timer-po-label').textContent = 'Production Order';
+    poEl.textContent = orders[0] ? orders[0].po : '';
+  }
+  updateTimerMeta(orders[0] ? orders[0].tags : [], orders[0] ? orders[0].notes : '');
+}
+
+// Starts timing one order, or several as a split group.
+function beginTimer(orderIds, split = false) {
+  activeOrderId = split ? null : orderIds[0];
+  splitOrderIds = split ? [...orderIds] : [];
   timerStart = Date.now();
+  timerBeganAt = timerStart;
   _origTimerStart = timerStart;
   timerPausedAt = null;
   activeTimerAdj = 0;
-  clearInterval(timerInterval);
-  timerInterval = setInterval(timerTick, 500);
+  startTicking();
   scheduleFourPmAlert();
   scheduleNoonAlert();
   saveTimerState();
-  const order = db.orders.find(o => o.id === orderId);
-  startLiveNotification(order ? order.po : '?', order ? order.tags : [], order ? order.notes : '');
+  startLiveNotification(...timerNotifArgs());
+  switchView('timer');
 }
 
-function openStopModal() {
-  const elapsed = getElapsed();
-  const total = elapsed;
+// Runs `fn` right away if no timer is running; otherwise asks the user to stop
+// (and save) the running timer first, then runs `fn`. Prevents one timer from
+// silently replacing another and losing its time.
+function withTimerStopped(nextLabel, fn) {
+  if (!timerStart) { fn(); return; }
+  openStopModal(nextLabel, fn);
+}
+
+function openStopModal(nextLabel, next) {
+  if (!timerStart) return;
+  pendingAfterStop = typeof next === 'function' ? next : null;
+  const total = getElapsed();
+  document.getElementById('stop-modal-title').textContent = pendingAfterStop ? 'Stop Current Timer?' : 'Stop Timer';
+  const nextInfo = document.getElementById('stop-next-info');
+  if (pendingAfterStop) {
+    nextInfo.textContent = `${timerPOLabel()} is still being timed. Save it first, then ${nextLabel}.`;
+    nextInfo.style.display = 'block';
+  } else {
+    nextInfo.style.display = 'none';
+  }
   const adjMins = Math.round(Math.abs(activeTimerAdj) / 60000);
   const adjLine = activeTimerAdj !== 0
     ? `<div style="font-size:11px;color:${activeTimerAdj > 0 ? '#a78bfa' : '#f87171'};letter-spacing:1px;margin-top:4px;">${activeTimerAdj > 0 ? `started ${adjMins}m earlier` : `started ${adjMins}m later`}</div>`
     : '';
   document.getElementById('stop-elapsed').innerHTML = `${fmt(total)}<div style="font-size:13px;color:var(--text-dim);letter-spacing:2px;margin-top:4px;font-family:'Courier New',monospace;">${fmtMin(total)}</div>${adjLine}`;
   const splitInfo = document.getElementById('stop-split-info');
-  if (splitOrderIds.length > 1) {
-    const splitOrders = splitOrderIds.map(id => db.orders.find(o => o.id === id)).filter(Boolean);
-    const quantities = splitOrders.map(o => o.splitQty);
-    const hasQty = quantities.some(q => q > 0);
-    if (hasQty) {
-      const totalQty = quantities.reduce((s, q) => s + (q || 0), 0);
-      const lines = splitOrders.map(o => {
-        const share = totalQty > 0 ? Math.floor(total * ((o.splitQty || 0) / totalQty)) : 0;
-        return `${escHtml(o.po)}: ${fmt(share)} (qty ${o.splitQty || 0})`;
-      }).join('<br>');
-      splitInfo.innerHTML = `Qty-weighted split:<br><span style="font-size:11px;">${lines}</span>`;
+  const orders = splitOrderIds.length ? timerOrders() : [];
+  if (orders.length > 1) {
+    const shares = splitShares(orders, total);
+    if (orders.every(o => o.splitQty > 0)) {
+      splitInfo.innerHTML = 'Qty-weighted split:<br><span style="font-size:11px;">' +
+        orders.map((o, i) => `${escHtml(o.po)}: ${fmt(shares[i])} (qty ${o.splitQty})`).join('<br>') + '</span>';
     } else {
-      const each = Math.floor(total / splitOrderIds.length);
-      splitInfo.textContent = `÷ ${splitOrderIds.length} orders = ${fmt(each)} (${fmtMin(each)}) each`;
+      splitInfo.textContent = `÷ ${orders.length} orders = ${fmt(shares[0])} (${fmtMin(shares[0])}) each`;
     }
     splitInfo.style.display = 'block';
   } else {
@@ -1406,58 +1636,55 @@ function openStopModal() {
 }
 
 function stopSession(cnf) {
+  if (!timerStart) { closeModal('modal-stop'); return; }
+  const next = pendingAfterStop;
+  pendingAfterStop = null;
   const duration = getElapsed();
+  const startedAt = timerStart;
+  const isSplit = splitOrderIds.length > 0;
+  const orders = timerOrders();
+  if (duration >= 1000) {
+    if (isSplit) {
+      const shares = splitShares(orders, duration);
+      let cursor = startedAt;
+      orders.forEach((order, i) => {
+        order.sessions.push({ start: cursor, duration: shares[i], cnf, date: cursor });
+        cursor += shares[i];
+      });
+    } else if (orders[0]) {
+      orders[0].sessions.push({ start: startedAt, duration, cnf, date: startedAt });
+    }
+    saveDB();
+  }
+  const savedId = isSplit ? null : activeOrderId;
+  endTimer();
+  closeModal('modal-stop');
+  if (next) {
+    next();
+    if (!timerStart && currentView() === 'timer') switchView('orders');
+    return;
+  }
+  switchView('orders');
+  if (savedId) setTimeout(() => showOrderDetail(savedId), 80);
+}
+
+// Clears all running-timer state (after its session has been saved).
+function endTimer() {
   clearInterval(timerInterval);
   timerInterval = null;
+  timerStart = null;
   timerPausedAt = null;
-  const dot = document.getElementById('tab-pause-dot');
-  if (dot) dot.style.display = 'none';
-  clearFourPmAlert();
-  dismissFourPmToast();
-  clearNoonAlert();
-  dismissNoonToast();
+  timerBeganAt = null;
+  activeTimerAdj = 0;
+  _origTimerStart = null;
+  activeOrderId = null;
+  splitOrderIds = [];
+  clearFourPmAlert(); dismissFourPmToast();
+  clearNoonAlert();   dismissNoonToast();
   stopLiveNotification();
-
   clearTimerState();
+  renderTimerAdjPreview();
   updateFloatingTimer();
-  if (splitOrderIds.length > 0) {
-    const splitOrders = splitOrderIds.map(id => db.orders.find(o => o.id === id)).filter(Boolean);
-    const totalQty = splitOrders.reduce((s, o) => s + (o.splitQty || 0), 0);
-    const useProportional = totalQty > 0;
-    let cursor = timerStart;
-    splitOrders.forEach(order => {
-      const splitDuration = useProportional
-        ? Math.floor(duration * ((order.splitQty || 0) / totalQty))
-        : Math.floor(duration / splitOrders.length);
-      order.sessions.push({ start: cursor, duration: splitDuration, cnf, date: cursor });
-      cursor += splitDuration;
-    });
-    activeTimerAdj = 0;
-    _origTimerStart = null;
-    renderTimerAdjPreview();
-    saveDB();
-    splitOrderIds = [];
-    activeOrderId = null;
-    timerStart = null;
-    timerPausedAt = null;
-    closeModal('modal-stop');
-    switchView('orders');
-  } else {
-    const order = db.orders.find(o => o.id === activeOrderId);
-    if (order) {
-      order.sessions.push({ start: timerStart, duration, cnf, date: timerStart });
-      activeTimerAdj = 0;
-      _origTimerStart = null;
-      renderTimerAdjPreview();
-      saveDB();
-    }
-    const savedId = activeOrderId;
-    activeOrderId = null;
-    timerStart = null;
-    closeModal('modal-stop');
-    switchView('orders');
-    setTimeout(() => showOrderDetail(savedId), 80);
-  }
 }
 
 // ── ORDER DETAIL MODAL ─────────────────────────────────────────────────────
@@ -1467,8 +1694,10 @@ function showOrderDetail(id) {
   if (!order) return;
 
   const total = totalTime(order);
-  const pendingCount = order.sessions.filter(s => !s.cnf).length;
+  const pendingCount = pendingSessions(order).length;
   const pendingMs = pendingDuration(order);
+  const timing = isOrderTiming(id);
+  const today = localDateStr();
 
   const groupSiblings = order.splitGroupId
     ? db.orders.filter(o => o.splitGroupId === order.splitGroupId && o.id !== id && !o.finished)
@@ -1486,16 +1715,17 @@ function showOrderDetail(id) {
     </div>
     ${order.splitQty ? `<div style="font-size:11px;color:var(--text-muted);letter-spacing:1px;margin-bottom:10px;margin-top:-4px;">QTY <span style="color:var(--amber);font-family:'Courier New',monospace;font-size:13px;">${order.splitQty}</span></div>` : ''}
     <div id="detail-tags-${id}" style="margin-bottom:12px;"></div>
-    ${order.notes ? `<div style="font-size:11px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">${escHtml(order.notes)}</div>` : ''}
+    <div id="detail-notes-${id}" style="margin-bottom:12px;"></div>
     <hr class="divider">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);">
       <span class="section-label" style="margin-bottom:0;padding-bottom:0;border-bottom:none;">Sessions (${order.sessions.length})</span>
-      ${pendingCount > 0 && !order.finished ? `<button class="btn btn-ghost btn-sm" onclick="cnfAll(${id})" style="font-size:9px;padding:3px 10px;min-height:26px;color:var(--accent);border-color:rgba(96,165,250,0.4);">CNF All (${pendingCount})</button>` : ''}
+      ${pendingCount > 0 && !order.finished ? `<button class="btn btn-ghost btn-sm" id="detail-cnf-all" onclick="cnfAll(${id})" style="font-size:9px;padding:3px 10px;min-height:26px;color:var(--accent);border-color:rgba(96,165,250,0.4);">CNF All (${pendingCount})</button>` : ''}
     </div>
+    ${order.sessions.length && !order.finished ? '<div style="font-size:9px;color:var(--text-muted);letter-spacing:0.5px;margin:-4px 0 8px;">Press and hold a session to delete it</div>' : ''}
     <div class="sessions-list">
       ${order.sessions.length === 0
         ? '<div style="font-size:11px;color:var(--text-muted);padding:12px 0;">No sessions recorded yet</div>'
-        : (() => { const sorted = order.sessions.map((s,i) => ({s,i})).sort((a,b) => (a.s.start||a.s.date) - (b.s.start||b.s.date)); return sorted; })().map(({s, i}) => {
+        : order.sessions.map((s, i) => ({ s, i })).sort((a, b) => sStart(a.s) - sStart(b.s)).map(({ s, i }) => {
           const neg = s.duration < 0;
           const abs = Math.abs(s.duration);
           const cls = neg ? 'deduction' : (s.manual ? 'manual' : '');
@@ -1521,7 +1751,7 @@ function showOrderDetail(id) {
             : `style="${hasHistory ? 'border-radius:9px 9px 0 0;margin-bottom:0;' : ''}"`;
           return `
           <div style="margin-bottom:6px;">
-            <div class="session-item${cls ? ' ' + cls : ''}" ${holdAttrs}>
+            <div class="session-item${cls ? ' ' + cls : ''}" data-session-idx="${i}" ${holdAttrs}>
               <div>
                 <div class="session-time">${timeStr}</div>
                 <div class="session-date">${fmtSessionRange(s)} · ${minStr}</div>
@@ -1531,7 +1761,7 @@ function showOrderDetail(id) {
                 ${badge}
                 ${!neg ? `<span class="cnf-badge${s.cnf ? '' : ' pending'}">${s.cnf ? 'CNF' : 'PENDING'}</span>` : ''}
                 ${!order.finished && !neg ? `<button class="btn btn-ghost btn-sm" onclick="toggleCNF(${id},${i})" style="font-size:9px;padding:4px 8px;min-height:30px;">${s.cnf ? 'Undo' : 'CNF'}</button>` : ''}
-                ${canDeduct ? `<button class="btn btn-ghost btn-sm" onclick="showDeductForm(${id},${i})" style="font-size:9px;padding:4px 8px;min-height:30px;" title="Deduct time">✎</button>` : ''}
+                ${canDeduct ? `<button class="btn btn-ghost btn-sm" onclick="showDeductForm(${id},${i})" style="font-size:9px;padding:4px 8px;min-height:30px;" title="Remove time from this session" aria-label="Remove time from this session">✎</button>` : ''}
               </div>
             </div>
             ${hasHistory ? `<div style="border:1px solid var(--border);border-top:none;border-radius:0 0 9px 9px;overflow:hidden;">${deductHistory}</div>` : ''}
@@ -1542,11 +1772,11 @@ function showOrderDetail(id) {
     </div>
     ${!order.finished ? `
       <hr class="divider">
-      <div class="section-label" style="margin-bottom:8px;">Quick Add</div>
+      <div class="section-label" style="margin-bottom:8px;">Quick Add — time just worked</div>
       <div style="display:flex;gap:6px;margin-bottom:6px;">
         <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="quickStageSession(${id},300000)">+5 min</button>
         <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="quickStageSession(${id},900000)">+15 min</button>
-        <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="quickStageNowToLast(${id})">Now → last</button>
+        <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="quickStageNowToLast(${id})">Since last</button>
       </div>
       <div id="quick-add-preview-${id}" style="display:none;background:var(--bg-card);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:6px;">
         <div id="quick-add-label-${id}" style="font-size:11px;color:var(--accent);text-align:center;margin-bottom:8px;"></div>
@@ -1563,8 +1793,7 @@ function showOrderDetail(id) {
       <div id="manual-add-form-${id}" style="display:none;">
         <div style="margin-bottom:8px;">
           <input type="date" id="add-date-${id}" class="input-field"
-            value="${new Date().toISOString().split('T')[0]}"
-            max="${new Date().toISOString().split('T')[0]}"
+            value="${today}" max="${today}"
             style="min-height:40px;padding:8px 10px;" oninput="validateAddSession(${id})">
         </div>
         <div style="display:flex;gap:6px;margin-bottom:10px;">
@@ -1583,77 +1812,116 @@ function showOrderDetail(id) {
         <div id="add-error-${id}" style="font-size:10px;color:var(--red);min-height:16px;margin-bottom:6px;"></div>
         <button class="btn btn-primary" onclick="submitAddSession(${id})">+ Add Session</button>
       </div>
-    ` : ''}
-    ${!order.finished ? `
       <hr class="divider">
-      ${hasActiveGroup ? `
+      ${timing ? `
+        <div class="alert alert-success" style="text-align:center;">● Timer is running on this order</div>
+        <button class="btn btn-primary" style="margin-bottom:8px;" onclick="startTimerOnOrder(${id})">Open Timer ›</button>
+        <button class="btn btn-warn" style="margin-bottom:10px;" onclick="confirmFinish(${id})">Stop &amp; Mark Finished</button>
+      ` : hasActiveGroup ? `
         <div style="font-size:11px;color:var(--text-dim);text-align:center;margin-bottom:10px;">
           Split group · ${groupSiblings.length + 1} orders
         </div>
         <button class="btn btn-primary" style="margin-bottom:8px;" onclick="resumeGroupTimer(${order.splitGroupId})">▶ Resume Group Timer</button>
         <div class="row" style="margin-bottom:10px;">
-          <button class="btn btn-ghost" onclick="addSessionToOrder(${id})">+ Solo Session</button>
+          <button class="btn btn-ghost" onclick="startTimerOnOrder(${id})">▶ Solo Timer</button>
           <button class="btn btn-warn" onclick="confirmFinish(${id})">Mark Finished</button>
         </div>
       ` : `
         <div class="row" style="margin-bottom:10px;">
-          <button class="btn btn-ghost" onclick="addSessionToOrder(${id})">+ Add Session</button>
-          <button class="btn btn-warn" onclick="confirmFinish(${id})">Mark Finished</button>
+          <button class="btn btn-primary" id="detail-start-btn" onclick="startTimerOnOrder(${id})">▶ Start Timer</button>
+          <button class="btn btn-warn" id="detail-finish-btn" onclick="confirmFinish(${id})">Mark Finished</button>
         </div>
       `}
       ${pendingCount > 0 ? `<div style="font-size:11px;color:var(--amber);text-align:center;">${pendingCount} session${pendingCount>1?'s':''} pending CNF · ${fmtMin(pendingMs)} unconfirmed</div>` : ''}
     ` : `
       <hr class="divider">
-      <div class="alert alert-success" style="margin-bottom:12px;">✓ Order complete — archived</div>
-      <button class="btn btn-primary" style="width:100%;" onclick="unarchiveOrder(${id})">↩ Unarchive</button>
+      <div class="alert alert-success" style="margin-bottom:12px;">✓ Finished${order.finishedAt ? ' ' + fmtDate(order.finishedAt) : ''} — archived</div>
+      <button class="btn btn-primary" style="width:100%;" id="detail-unarchive-btn" onclick="unarchiveOrder(${id})">↩ Unarchive</button>
     `}
+    <div class="gap-lg"></div>
+    <button class="btn btn-ghost btn-sm" id="detail-delete-btn" style="width:100%;color:var(--red);border-color:rgba(248,113,113,0.3);" onclick="confirmDeleteOrder(${id})">Delete order</button>
   `;
   openModal('modal-detail');
   renderDetailTags(id);
+  renderDetailNotes(id);
   renderQuickPreview(id);
+}
+
+function renderDetailNotes(orderId, editing) {
+  const order = db.orders.find(o => o.id === orderId) || db.archive.find(o => o.id === orderId);
+  const el = document.getElementById('detail-notes-' + orderId);
+  if (!order || !el) return;
+  if (editing) {
+    el.innerHTML = `
+      <div class="section-label" style="margin-bottom:6px;">PO Number</div>
+      <input class="input-field" id="edit-po-${orderId}" type="text" value="${escHtml(order.po)}" autocomplete="off" style="margin-bottom:10px;">
+      <div class="section-label" style="margin-bottom:6px;">Notes</div>
+      <textarea class="input-field" id="edit-notes-${orderId}" rows="3" style="margin-bottom:6px;">${escHtml(order.notes || '')}</textarea>
+      <div id="edit-error-${orderId}" style="font-size:10px;color:var(--red);min-height:14px;margin-bottom:6px;"></div>
+      <div class="row">
+        <button class="btn btn-ghost btn-sm" onclick="renderDetailNotes(${orderId},false)">Cancel</button>
+        <button class="btn btn-primary btn-sm" id="edit-save-${orderId}" onclick="saveOrderDetails(${orderId})">Save</button>
+      </div>`;
+    return;
+  }
+  el.innerHTML = `
+    ${order.notes ? `<div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;line-height:1.6;white-space:pre-line;">${escHtml(order.notes)}</div>` : ''}
+    <button class="btn btn-ghost btn-sm" id="detail-edit-btn" onclick="renderDetailNotes(${orderId},true)" style="font-size:10px;padding:3px 10px;min-height:26px;">✎ Edit PO / notes</button>`;
+}
+
+function saveOrderDetails(orderId) {
+  const order = db.orders.find(o => o.id === orderId) || db.archive.find(o => o.id === orderId);
+  if (!order) return;
+  const po = document.getElementById('edit-po-' + orderId).value.trim();
+  const notes = document.getElementById('edit-notes-' + orderId).value.trim();
+  const err = document.getElementById('edit-error-' + orderId);
+  if (!po) { err.textContent = 'PO number cannot be empty.'; return; }
+  const clash = findActiveByPO(po);
+  if (clash && clash.id !== orderId) { err.textContent = `Another active order already uses ${clash.po}.`; return; }
+  order.po = po;
+  order.notes = notes;
+  saveDB();
+  document.getElementById('modal-detail-title').textContent = order.po;
+  renderDetailNotes(orderId, false);
+  refreshActiveView();
 }
 
 function getElapsed() {
   if (!timerStart) return 0;
-  return (timerPausedAt !== null ? timerPausedAt : Date.now()) - timerStart;
+  return Math.max(0, (timerPausedAt !== null ? timerPausedAt : Date.now()) - timerStart);
 }
 
-function pauseTimer() {
+function startTicking() {
+  clearInterval(timerInterval);
+  timerInterval = setInterval(timerTick, 500);
+  timerTick();
+}
+
+// Pauses the running timer. `at` lets a missed alert pause at the alert time.
+function pauseTimer(at) {
   if (!timerStart || timerPausedAt !== null) return;
-  timerPausedAt = Date.now();
+  timerPausedAt = Math.min(Date.now(), Math.max(timerStart, at || Date.now()));
   clearInterval(timerInterval);
   timerInterval = null;
-  const digits = document.getElementById('timer-display');
-  if (digits) digits.classList.remove('running');
-  const status = document.getElementById('timer-status');
-  if (status) { status.textContent = '⏸ PAUSED'; status.classList.remove('running'); status.style.color = 'var(--amber)'; }
-  const btn = document.getElementById('timer-pause-btn');
-  if (btn) btn.textContent = '▶ Resume';
-  const dot = document.getElementById('tab-pause-dot');
-  if (dot) dot.style.display = 'block';
   stopLiveNotification();
   saveTimerState();
+  renderTimerState();
   updateFloatingTimer();
 }
 
 function resumeTimer(includeTime = false) {
   if (!timerStart || timerPausedAt === null) return;
-  if (!includeTime) timerStart += Date.now() - timerPausedAt;
+  if (!includeTime) {
+    // Shift the start forward by the paused gap so it isn't counted
+    const gap = Date.now() - timerPausedAt;
+    timerStart += gap;
+    _origTimerStart += gap;
+  }
   timerPausedAt = null;
-  clearInterval(timerInterval);
-  timerInterval = setInterval(timerTick, 500);
-  const digits = document.getElementById('timer-display');
-  if (digits) digits.classList.add('running');
-  const status = document.getElementById('timer-status');
-  if (status) { status.textContent = '● RECORDING'; status.classList.add('running'); status.style.color = ''; }
-  const btn = document.getElementById('timer-pause-btn');
-  if (btn) btn.textContent = '⏸ Pause';
-  const dot = document.getElementById('tab-pause-dot');
-  if (dot) dot.style.display = 'none';
-  const order = activeOrderId ? db.orders.find(o => o.id === activeOrderId) : null;
-  const po = order ? order.po : (splitOrderIds.length ? `${splitOrderIds.length} POs` : '?');
-  startLiveNotification(po, order ? order.tags : [], order ? order.notes : '');
+  startTicking();
+  startLiveNotification(...timerNotifArgs());
   saveTimerState();
+  renderTimerState();
   updateFloatingTimer();
 }
 
@@ -1671,66 +1939,61 @@ function resumeAndDismissFourPm(includeTime) {
   resumeTimer(includeTime);
 }
 
+function renderTimerState() {
+  const paused = timerPausedAt !== null;
+  const digits = document.getElementById('timer-display');
+  digits.textContent = fmt(getElapsed());
+  digits.classList.toggle('running', !paused);
+  const status = document.getElementById('timer-status');
+  status.textContent = paused ? '⏸ PAUSED' : '● RECORDING';
+  status.classList.toggle('running', !paused);
+  status.style.color = paused ? 'var(--amber)' : '';
+  document.getElementById('timer-pause-btn').textContent = paused ? '▶ Resume' : '⏸ Pause';
+  renderTimerTotal();
+}
+
+function renderTimerTotal() {
+  const tot = document.getElementById('timer-total');
+  if (!tot) return;
+  const order = activeOrderId ? db.orders.find(o => o.id === activeOrderId) : null;
+  const prev = order ? totalTime(order) : 0;
+  const elapsed = getElapsed();
+  tot.textContent = prev > 0 ? 'Order total: ' + fmt(prev + elapsed) + ' · ' + fmtMin(prev + elapsed) : '';
+}
+
 function timerTick() {
-  const elapsed = Date.now() - timerStart;
+  if (!timerStart) return;
+  const elapsed = getElapsed();
   const disp = document.getElementById('timer-display');
   if (disp) disp.textContent = fmt(elapsed);
-  const tot = document.getElementById('timer-total');
-  if (tot) {
-    if (activeOrderId) {
-      const order = db.orders.find(o => o.id === activeOrderId);
-      const prev = order ? totalTime(order) : 0;
-      if (prev > 0) {
-        tot.textContent = 'Order total: ' + fmt(prev + elapsed) + ' · ' + fmtMin(prev + elapsed);
-      } else {
-        tot.textContent = '';
-      }
-    } else {
-      tot.textContent = '';
-    }
-  }
-  // Update floating timer bar
+  renderTimerTotal();
   const ftEl = document.getElementById('ft-elapsed');
   if (ftEl) ftEl.textContent = fmt(elapsed);
-  // Save state every ~30 seconds
-  const sec = Math.floor(elapsed / 1000);
-  if (sec > 0 && sec % 30 === 0) saveTimerState();
 }
 
 function updateFloatingTimer() {
   const bar = document.getElementById('floating-timer');
   if (!bar) return;
-  if (!timerStart) { bar.classList.remove('show'); return; }
-  // Hide when on the timer step of the New view
-  const newActive  = document.getElementById('view-new')?.classList.contains('active');
-  const timerStep  = document.getElementById('step-timer')?.style.display !== 'none';
-  if (newActive && timerStep) { bar.classList.remove('show'); return; }
-  bar.classList.add('show');
-  const poEl = document.getElementById('ft-po');
-  if (poEl) {
-    if (splitOrderIds.length > 0) {
-      const orders = splitOrderIds.map(id => db.orders.find(o => o.id === id)).filter(Boolean);
-      poEl.textContent = orders.length <= 2
-        ? orders.map(o => o.po).join(' + ')
-        : `${orders.length} POs`;
-    } else if (activeOrderId) {
-      const order = db.orders.find(o => o.id === activeOrderId);
-      poEl.textContent = order ? order.po : '';
-    }
-  }
-  const elapsed = timerPausedAt !== null
-    ? timerPausedAt - timerStart
-    : Date.now() - timerStart;
-  const ftEl = document.getElementById('ft-elapsed');
-  if (ftEl) ftEl.textContent = fmt(elapsed);
+  const show = !!timerStart && currentView() !== 'timer';
+  bar.classList.toggle('show', show);
+  if (!show) return;
+  const paused = timerPausedAt !== null;
+  bar.classList.toggle('paused', paused);
+  document.getElementById('ft-po').textContent = (paused ? '⏸ ' : '') + timerPOLabel(2);
+  document.getElementById('ft-elapsed').textContent = fmt(getElapsed());
 }
 
+// Shifts the running timer's start. The start can't move past "now" (or the
+// pause point), so the elapsed time never goes negative.
 function adjustActiveTimer(deltaMs) {
   if (!timerStart) return;
-  timerStart -= deltaMs;
+  const ceiling = timerPausedAt !== null ? timerPausedAt : Date.now();
+  timerStart = Math.min(timerStart - deltaMs, ceiling);
   activeTimerAdj = _origTimerStart - timerStart;
   saveTimerState();
   renderTimerAdjPreview();
+  renderTimerState();
+  updateFloatingTimer();
 }
 
 function renderTimerAdjPreview() {
@@ -1748,56 +2011,13 @@ function renderTimerAdjPreview() {
 }
 
 function clearTimerAdj() {
+  if (!timerStart) return;
   timerStart = _origTimerStart;
   activeTimerAdj = 0;
   saveTimerState();
   renderTimerAdjPreview();
-}
-
-const adjStaging = {};
-
-function stageAdjust(orderId, deltaMs) {
-  adjStaging[orderId] = (adjStaging[orderId] || 0) + deltaMs;
-  const total = adjStaging[orderId];
-  const preview = document.getElementById('adj-preview-' + orderId);
-  const label = document.getElementById('adj-label-' + orderId);
-  const commit = document.getElementById('adj-commit-' + orderId);
-  if (!preview || !label || !commit) return;
-  const abs = fmtMin(Math.abs(total));
-  if (total > 0) {
-    label.style.color = '#a78bfa';
-    label.textContent = '+' + abs + ' — will log as new session';
-    commit.textContent = 'Add Session';
-    commit.className = 'btn btn-primary btn-sm';
-  } else if (total < 0) {
-    label.style.color = '#f87171';
-    label.textContent = '−' + abs + ' — will log as deduction session';
-    commit.textContent = 'Log Deduction';
-    commit.className = 'btn btn-warn btn-sm';
-  } else {
-    preview.style.display = 'none';
-    return;
-  }
-  preview.style.display = 'block';
-}
-
-function clearAdjust(orderId) {
-  delete adjStaging[orderId];
-  const preview = document.getElementById('adj-preview-' + orderId);
-  if (preview) preview.style.display = 'none';
-}
-
-function commitAdjust(orderId) {
-  const ms = adjStaging[orderId];
-  if (!ms) return;
-  const order = db.orders.find(o => o.id === orderId);
-  if (!order) return;
-  const now = Date.now();
-  const anchor = order.sessions.length ? order.sessions[order.sessions.length - 1].start : now;
-  order.sessions.push({ start: anchor, duration: ms, cnf: false, date: now, manual: true });
-  saveDB();
-  delete adjStaging[orderId];
-  showOrderDetail(orderId);
+  renderTimerState();
+  updateFloatingTimer();
 }
 
 // ── DEDUCT FROM SESSION ────────────────────────────────────────────────────
@@ -1902,21 +2122,16 @@ function fmtTime(ts) {
   return new Date(ts).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
 }
 
-function timeInputToTs(timeStr) {
-  const [h, m] = timeStr.split(':').map(Number);
-  const d = new Date();
-  d.setHours(h, m, 0, 0);
-  return d.getTime();
+// Lunch break on the day of `ts`, but only once it is over: while lunch is
+// still ahead or in progress it doesn't block anything.
+function lunchIntervalFor(ts) {
+  if (!(settings.lunchDur > 0)) return null;
+  const { h, m } = hhmm(settings.lunchStart);
+  const d = new Date(ts); d.setHours(h, m, 0, 0);
+  const l = { start: d.getTime(), end: d.getTime() + settings.lunchDur * 60000 };
+  return Date.now() > l.end ? l : null;
 }
-
-function getLunchInterval() {
-  const now = Date.now();
-  const [lh, lm] = settings.lunchStart.split(':').map(Number);
-  const d = new Date();
-  const lunchStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), lh, lm, 0, 0).getTime();
-  const lunchEnd   = lunchStart + settings.lunchDur * 60000;
-  return (settings.lunchDur > 0 && now > lunchEnd) ? { start: lunchStart, end: lunchEnd } : null;
-}
+function getLunchInterval() { return lunchIntervalFor(Date.now()); }
 
 function timeToTs(dateStr, timeStr) {
   const [h, m] = timeStr.split(':').map(Number);
@@ -1926,27 +2141,25 @@ function timeToTs(dateStr, timeStr) {
 }
 
 function detectSessionConflict(startMs, endMs) {
-  // Check stored sessions
-  for (const o of db.orders) {
+  // Stored sessions — finished orders' time counts too
+  for (const o of [...db.orders, ...db.archive]) {
     for (const s of o.sessions) {
       if (!s.duration || s.duration <= 0) continue;
-      const sStart = s.start || s.date;
-      const sEnd = sStart + s.duration;
-      if (startMs < sEnd && endMs > sStart)
-        return `Overlaps with ${o.po} (${fmtTime(sStart)}–${fmtTime(sEnd)})`;
+      const st = sStart(s);
+      const en = st + s.duration;
+      if (startMs < en && endMs > st)
+        return `Overlaps with ${o.po} (${fmtTime(st)}–${fmtTime(en)})`;
     }
   }
-  // Check the currently-running timer (not yet stored as a session)
-  if (timerStart && activeOrderId != null) {
-    const runningOrder = db.orders.find(o => o.id === activeOrderId);
-    const poName = runningOrder ? runningOrder.po : 'active timer';
-    if (startMs < Date.now() && endMs > timerStart)
-      return `Overlaps with running timer (${poName}, started ${fmtTime(timerStart)})`;
+  // The running timer (single or split) — not stored as a session yet
+  if (timerStart) {
+    const runEnd = timerPausedAt !== null ? timerPausedAt : Date.now();
+    if (startMs < runEnd && endMs > timerStart)
+      return `Overlaps with running timer (${timerPOLabel(2)}, started ${fmtTime(timerStart)})`;
   }
-  // Check lunch break (12:00–12:30)
-  const lunch = getLunchInterval();
+  const lunch = lunchIntervalFor(startMs);
   if (lunch && startMs < lunch.end && endMs > lunch.start)
-    return `Overlaps with lunch break (12:00–12:30)`;
+    return `Overlaps with lunch break (${fmtTime(lunch.start)}–${fmtTime(lunch.end)})`;
   return null;
 }
 
@@ -2094,19 +2307,20 @@ function quickStageSession(orderId, durMs) {
 function quickStageNowToLast(orderId) {
   const setErr = msg => _quickErr(orderId, msg);
 
-  // Find the most recently ended session across all orders
+  // Find the most recently ended session across all orders (finished ones too)
   let latestEnd = null;
-  for (const o of db.orders) {
+  for (const o of [...db.orders, ...db.archive]) {
     for (const s of o.sessions) {
       if (!s.duration || s.duration <= 0) continue;
-      const sEnd = (s.start || s.date) + s.duration;
+      const sEnd = sStart(s) + s.duration;
       if (latestEnd === null || sEnd > latestEnd) latestEnd = sEnd;
     }
   }
   if (timerStart) {
-    if (latestEnd === null || timerStart > latestEnd) latestEnd = timerStart;
+    const runEnd = timerPausedAt !== null ? timerPausedAt : Date.now();
+    if (latestEnd === null || runEnd > latestEnd) latestEnd = runEnd;
   }
-  // Treat lunch (12:00–12:30) as a session — stop there if it's the most recent boundary
+  // Treat today's lunch as a session — stop there if it's the most recent boundary
   const lunch = getLunchInterval();
   if (lunch && (latestEnd === null || lunch.end > latestEnd)) latestEnd = lunch.end;
   if (!latestEnd) return setErr('No previous session found.');
@@ -2123,14 +2337,6 @@ function quickStageNowToLast(orderId) {
     endTs:   existing ? existing.endTs : newChunkEnd,
   };
   renderQuickPreview(orderId);
-}
-
-function adjustOrderTime(orderId, deltaMs) {
-  const order = db.orders.find(o => o.id === orderId) || db.archive.find(o => o.id === orderId);
-  if (!order || !order.sessions.length) return;
-  const last = order.sessions[order.sessions.length - 1];
-  last.duration = Math.max(0, (last.duration || 0) + deltaMs);
-  saveDB();
 }
 
 let msAdjStaging = 0;
@@ -2166,14 +2372,12 @@ function clearMultiSelectAdj() {
 }
 
 function commitMultiSelectAdj() {
-  if (!msAdjStaging) return;
-  const now = Date.now();
+  if (!msAdjStaging || !selectedOrderIds.size) return;
+  // Logged as ending now, so it lands at the same spot in the timeline and the session list
+  const at = Date.now() - Math.abs(msAdjStaging);
   selectedOrderIds.forEach(id => {
     const order = db.orders.find(o => o.id === id);
-    if (order) {
-      const anchor = order.sessions.length ? order.sessions[order.sessions.length - 1].start : now;
-      order.sessions.push({ start: anchor, duration: msAdjStaging, cnf: false, date: now, manual: true });
-    }
+    if (order) order.sessions.push({ start: at, duration: msAdjStaging, cnf: false, date: at, manual: true });
   });
   saveDB();
   clearMultiSelectAdj();
@@ -2182,20 +2386,20 @@ function commitMultiSelectAdj() {
 
 function toggleCNF(orderId, idx) {
   const order = db.orders.find(o => o.id === orderId);
-  if (!order) return;
+  if (!order || !order.sessions[idx]) return;
   order.sessions[idx].cnf = !order.sessions[idx].cnf;
   saveDB();
   showOrderDetail(orderId);
-  renderOrders();
+  refreshActiveView();
 }
 
 function cnfAll(orderId) {
   const order = db.orders.find(o => o.id === orderId);
   if (!order) return;
-  order.sessions.forEach(s => { if (s.duration > 0 && !s.cnf) s.cnf = true; });
+  pendingSessions(order).forEach(s => { s.cnf = true; });
   saveDB();
   showOrderDetail(orderId);
-  renderOrders();
+  refreshActiveView();
 }
 
 function renderDetailTags(orderId, editing) {
@@ -2203,24 +2407,23 @@ function renderDetailTags(orderId, editing) {
   const el = document.getElementById('detail-tags-' + orderId);
   if (!order || !el) return;
   if (editing && !order.finished) {
-    const standard = settings.tags.map(t => {
-      const sel = order.tags.includes(t);
-      return `<button class="tag${sel ? ' selected' : ''}" onclick="toggleDetailTag(${orderId},'${escHtml(t)}')">${escHtml(t)}</button>`;
-    }).join('');
-    const custom = order.tags.filter(t => !settings.tags.includes(t)).map(t =>
-      `<button class="tag custom">${escHtml(t)}<span class="tag-x" onclick="removeDetailCustomTag(${orderId},${JSON.stringify(t)})">×</span></button>`
+    const standard = settings.tags.map((t, i) =>
+      `<button class="tag${order.tags.includes(t) ? ' selected' : ''}" onclick="toggleDetailTag(${orderId},${i})">${escHtml(t)}</button>`
+    ).join('');
+    const custom = order.tags.map((t, i) => settings.tags.includes(t) ? '' :
+      `<button class="tag custom" onclick="removeDetailTag(${orderId},${i})" title="Remove tag">${escHtml(t)}<span class="tag-x">×</span></button>`
     ).join('');
     el.innerHTML = `
       <div class="tags-grid" style="margin-bottom:8px;">${standard}${custom}</div>
       <div class="tag-add-row" style="margin-bottom:8px;">
         <input class="input-field" id="detail-tag-input-${orderId}" type="text" placeholder="Add custom tag…" maxlength="30"
           onkeydown="if(event.key==='Enter'){event.preventDefault();addDetailCustomTag(${orderId})}">
-        <button class="btn btn-sm" onclick="addDetailCustomTag(${orderId})">Add</button>
+        <button class="btn btn-ghost btn-sm" onclick="addDetailCustomTag(${orderId})">Add</button>
       </div>
       <button class="btn btn-ghost btn-sm" style="width:100%;" onclick="renderDetailTags(${orderId},false)">Done</button>`;
   } else {
     const editBtn = !order.finished
-      ? `<button class="btn btn-ghost btn-sm" onclick="renderDetailTags(${orderId},true)" style="font-size:10px;padding:3px 10px;min-height:26px;">✎ Edit</button>`
+      ? `<button class="btn btn-ghost btn-sm" id="detail-tags-edit" onclick="renderDetailTags(${orderId},true)" style="font-size:10px;padding:3px 10px;min-height:26px;">✎ Tags</button>`
       : '';
     el.innerHTML = `
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
@@ -2232,14 +2435,19 @@ function renderDetailTags(orderId, editing) {
   }
 }
 
-function toggleDetailTag(orderId, t) {
-  const order = db.orders.find(o => o.id === orderId);
-  if (!order) return;
-  const i = order.tags.indexOf(t);
-  if (i > -1) order.tags.splice(i, 1); else order.tags.push(t);
+function afterDetailTagChange(orderId) {
   saveDB();
   renderDetailTags(orderId, true);
-  renderOrders();
+  refreshActiveView();
+}
+
+function toggleDetailTag(orderId, settingsIdx) {
+  const order = db.orders.find(o => o.id === orderId);
+  const t = settings.tags[settingsIdx];
+  if (!order || t === undefined) return;
+  const i = order.tags.indexOf(t);
+  if (i > -1) order.tags.splice(i, 1); else order.tags.push(t);
+  afterDetailTagChange(orderId);
 }
 
 function addDetailCustomTag(orderId) {
@@ -2247,41 +2455,38 @@ function addDetailCustomTag(orderId) {
   const input = document.getElementById('detail-tag-input-' + orderId);
   if (!order || !input) return;
   const val = input.value.trim();
-  if (!val || order.tags.includes(val)) { input.value = ''; return; }
+  input.value = '';
+  if (!val || order.tags.includes(val)) return;
   order.tags.push(val);
-  saveDB();
-  renderDetailTags(orderId, true);
-  renderOrders();
+  afterDetailTagChange(orderId);
 }
 
-function removeDetailCustomTag(orderId, t) {
+function removeDetailTag(orderId, idx) {
   const order = db.orders.find(o => o.id === orderId);
   if (!order) return;
-  const i = order.tags.indexOf(t);
-  if (i > -1) order.tags.splice(i, 1);
-  saveDB();
-  renderDetailTags(orderId, true);
-  renderOrders();
+  order.tags.splice(idx, 1);
+  afterDetailTagChange(orderId);
 }
 
-function addSessionToOrder(orderId) {
+// Starts (or returns to) the timer for an existing order.
+function startTimerOnOrder(orderId) {
   closeModal('modal-detail');
-  beginTimer(orderId);
+  if (isOrderTiming(orderId)) { switchView('timer'); return; }
   const order = db.orders.find(o => o.id === orderId);
-  switchView('new');
-  showStep('timer');
-  document.getElementById('timer-po-label').textContent = 'Production Order';
-  document.getElementById('timer-po').textContent = order ? order.po : '';
-  updateTimerMeta(order ? order.tags : [], order ? order.notes : '');
+  if (!order) return;
+  withTimerStopped(`start timing ${order.po}`, () => {
+    if (db.orders.some(o => o.id === orderId)) beginTimer([orderId]);
+  });
 }
 
 function resumeGroupTimer(splitGroupId) {
   const groupOrders = db.orders.filter(o => o.splitGroupId === splitGroupId && !o.finished);
   if (groupOrders.length === 0) return;
   closeModal('modal-detail');
-  splitOrderIds = groupOrders.map(o => o.id);
-  switchView('new');
-  beginSplitTimerCore(groupOrders, groupOrders[0]?.tags || [], groupOrders[0]?.notes || '');
+  withTimerStopped(`resume the split timer on ${groupOrders.length} POs`, () => {
+    const ids = db.orders.filter(o => o.splitGroupId === splitGroupId).map(o => o.id);
+    if (ids.length) beginTimer(ids, true);
+  });
 }
 
 let _confirmCallback = null;
@@ -2289,46 +2494,146 @@ function openConfirmModal(title, body, okLabel, onConfirm) {
   document.getElementById('confirm-modal-title').textContent = title;
   document.getElementById('confirm-modal-body').textContent  = body;
   document.getElementById('confirm-modal-ok').textContent   = okLabel || 'Confirm';
+  // Without a callback it's just a notice: one button, no cancel
+  document.getElementById('confirm-modal-cancel').style.display = onConfirm ? '' : 'none';
   _confirmCallback = onConfirm;
   openModal('modal-confirm');
 }
 function confirmModalOk() {
+  const cb = _confirmCallback;
   closeModal('modal-confirm');
-  if (_confirmCallback) { const cb = _confirmCallback; _confirmCallback = null; cb(); }
+  if (cb) cb();
 }
 
 function confirmFinish(id) {
+  const order = db.orders.find(o => o.id === id);
+  if (!order) return;
+  if (isOrderTiming(id)) {
+    // Save the running session first so its time isn't lost
+    closeModal('modal-detail');
+    withTimerStopped(`finish ${order.po}`, () => finishOrder(id));
+    return;
+  }
+  const n = pendingSessions(order).length;
   openConfirmModal(
     'Mark as Finished?',
-    'This order will be moved to the archive.',
+    `${order.po} will be moved to the archive.` +
+      (n ? `\n\n⚠ ${n} session${n !== 1 ? 's' : ''} (${fmtMin(pendingDuration(order))}) not CNF'd yet.` : ''),
     'Finish & Archive',
     () => finishOrder(id)
   );
 }
 
 function finishOrder(id) {
+  if (!finishOrderSilent(id)) return;
+  saveDB();
+  closeModal('modal-detail');
+  refreshActiveView();
+}
+
+function finishOrderSilent(id) {
   const idx = db.orders.findIndex(o => o.id === id);
-  if (idx === -1) return;
+  if (idx === -1) return null;
   const order = db.orders.splice(idx, 1)[0];
   order.finished = true;
   order.finishedAt = Date.now();
   db.archive.unshift(order);
+  return order;
+}
+
+function restoreFromArchive(id) {
+  const idx = db.archive.findIndex(o => o.id === id);
+  if (idx === -1) return null;
+  const order = db.archive.splice(idx, 1)[0];
+  order.finished = false;
+  delete order.finishedAt;
+  db.orders.unshift(order);
+  return order;
+}
+
+function unarchiveOrder(id) {
+  if (!restoreFromArchive(id)) return;
   saveDB();
   closeModal('modal-detail');
-  renderOrders();
+  refreshActiveView();
+}
+
+function confirmDeleteOrder(id) {
+  const order = db.orders.find(o => o.id === id) || db.archive.find(o => o.id === id);
+  if (!order) return;
+  if (isOrderTiming(id)) {
+    openConfirmModal('Timer Running', `Stop the timer on ${order.po} before deleting it.`, 'Open Timer', () => {
+      closeModal('modal-detail');
+      switchView('timer');
+    });
+    return;
+  }
+  const n = order.sessions.length;
+  openConfirmModal(
+    'Delete Order?',
+    `${order.po} and its ${n} session${n !== 1 ? 's' : ''} (${fmtMin(totalTime(order))}) will be permanently deleted. This cannot be undone.`,
+    'Delete',
+    () => deleteOrder(id)
+  );
+}
+
+function deleteOrder(id) {
+  db.orders  = db.orders.filter(o => o.id !== id);
+  db.archive = db.archive.filter(o => o.id !== id);
+  saveDB();
+  closeModal('modal-detail');
+  refreshActiveView();
 }
 
 // ── RENDER LISTS ───────────────────────────────────────────────────────────
-let ordersFilter      = '';
-let archiveFilter     = '';
+let ordersFilter       = '';
+let archiveFilter      = '';
 let ordersShowTimeline = false;
 let ordersQuickFilter  = null; // null | 'favorites' | 'unconfirmed'
+let ordersTagFilter    = null; // a tag name, or null
+let chipTags           = [];   // tags shown as filter chips, by index
+
+const ORDER_SORTS = {
+  newest: (a, b) => b.created - a.created,
+  worked: (a, b) => lastWorked(b) - lastWorked(a),
+  oldest: (a, b) => a.created - b.created,
+  po:     (a, b) => a.po.localeCompare(b.po, undefined, { numeric: true, sensitivity: 'base' }),
+  time:   (a, b) => totalTime(b) - totalTime(a),
+};
+
+function setOrdersSort(v) {
+  if (!ORDER_SORTS[v]) return;
+  settings.ordersSort = v;
+  saveSettings();
+  renderOrders();
+}
 
 function toggleQuickFilter(name) {
   ordersQuickFilter = ordersQuickFilter === name ? null : name;
-  document.getElementById('chip-favorites').classList.toggle('active', ordersQuickFilter === 'favorites');
-  document.getElementById('chip-unconfirmed').classList.toggle('active', ordersQuickFilter === 'unconfirmed');
   renderOrders();
+}
+
+function toggleTagFilter(idx) {
+  const t = chipTags[idx];
+  ordersTagFilter = ordersTagFilter === t ? null : t;
+  renderOrders();
+}
+
+function clearOrdersSearch() {
+  document.getElementById('orders-search').value = '';
+  ordersFilter = '';
+  renderOrders();
+}
+
+function renderOrderChips() {
+  chipTags = [...new Set(db.orders.flatMap(o => o.tags))].sort((a, b) => a.localeCompare(b));
+  if (ordersTagFilter && !chipTags.includes(ordersTagFilter)) ordersTagFilter = null;
+  const favCount = db.orders.filter(o => o.favorite).length;
+  const uncCount = db.orders.filter(o => pendingSessions(o).length).length;
+  document.getElementById('orders-filter-chips').innerHTML = `
+    <button class="filter-chip${ordersQuickFilter === 'favorites' ? ' active' : ''}" id="chip-favorites" onclick="toggleQuickFilter('favorites')">★ Favorites${favCount ? ' · ' + favCount : ''}</button>
+    <button class="filter-chip${ordersQuickFilter === 'unconfirmed' ? ' active' : ''}" id="chip-unconfirmed" onclick="toggleQuickFilter('unconfirmed')">⚠ Unconfirmed${uncCount ? ' · ' + uncCount : ''}</button>
+    ${chipTags.map((t, i) => `<button class="filter-chip tag-chip${ordersTagFilter === t ? ' active' : ''}" onclick="toggleTagFilter(${i})">${escHtml(t)}</button>`).join('')}`;
 }
 
 function toggleFavorite(id, event) {
@@ -2340,41 +2645,29 @@ function toggleFavorite(id, event) {
   renderOrders();
 }
 
-function pendingDuration(order) {
-  return order.sessions.filter(s => !s.cnf).reduce((a, s) => a + (s.duration || 0), 0);
-}
-
 function toggleOrdersTimeline() {
   ordersShowTimeline = !ordersShowTimeline;
-  const btn    = document.getElementById('timeline-toggle-btn');
-  const title  = document.getElementById('orders-section-title');
-  const list   = document.getElementById('orders-list');
-  const tl     = document.getElementById('orders-timeline');
-  const chips  = document.getElementById('orders-filter-chips');
+  if (ordersShowTimeline) resetMultiSelect();
+  const btn = document.getElementById('timeline-toggle-btn');
+  document.getElementById('orders-list').style.display          = ordersShowTimeline ? 'none' : '';
+  document.getElementById('orders-list-controls').style.display = ordersShowTimeline ? 'none' : '';
+  document.getElementById('orders-sort').style.display          = ordersShowTimeline ? 'none' : '';
+  document.getElementById('orders-select-btn').style.display    = ordersShowTimeline ? 'none' : '';
+  document.getElementById('orders-timeline').style.display      = ordersShowTimeline ? 'block' : 'none';
+  btn.textContent = ordersShowTimeline ? 'List' : 'Timeline';
+  btn.classList.toggle('on', ordersShowTimeline);
   if (ordersShowTimeline) {
-    list.style.display  = 'none';
-    tl.style.display    = 'block';
-    chips.style.display = 'none';
-    title.textContent   = "Today's Timeline";
-    btn.textContent     = 'Orders';
-    btn.style.color     = 'var(--accent)';
-    btn.style.borderColor = 'var(--accent)';
+    document.getElementById('orders-section-title').textContent = 'Timeline';
     tlViewDate = new Date();
     renderTimeline();
   } else {
-    tl.style.display    = 'none';
-    list.style.display  = '';
-    chips.style.display = '';
-    title.textContent   = 'Active Orders';
-    btn.textContent     = 'Timeline';
-    btn.style.color       = 'var(--text-dim)';
-    btn.style.borderColor = 'var(--border-mid)';
     renderOrders();
   }
 }
 
 function matchFilter(query, value) {
   if (!query) return true;
+  value = String(value || '');
   if (query.includes('*')) {
     const pattern = query.split('*').map(s => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('.*');
     return new RegExp('^' + pattern + '$', 'i').test(value);
@@ -2382,50 +2675,70 @@ function matchFilter(query, value) {
   return value.toLowerCase().includes(query.toLowerCase());
 }
 
+function orderMatches(q, o) {
+  return !q || matchFilter(q, o.po) || o.tags.some(t => matchFilter(q, t)) || (!q.includes('*') && matchFilter(q, o.notes));
+}
+
 function renderOrders() {
+  if (ordersShowTimeline) return;
+  renderOrderChips();
+  const sortSel = document.getElementById('orders-sort');
+  if (!ORDER_SORTS[settings.ordersSort]) settings.ordersSort = 'newest';
+  sortSel.value = settings.ordersSort;
+
   const el = document.getElementById('orders-list');
   const q = ordersFilter.trim();
-  let list = q ? db.orders.filter(o => matchFilter(q, o.po) || o.tags.some(t => matchFilter(q, t))) : db.orders;
-  if (ordersQuickFilter === 'favorites') list = list.filter(o => o.favorite);
-  if (ordersQuickFilter === 'unconfirmed') list = list.filter(o => o.sessions.some(s => !s.cnf));
+  let list = db.orders.filter(o => orderMatches(q, o));
+  if (ordersQuickFilter === 'favorites')   list = list.filter(o => o.favorite);
+  if (ordersQuickFilter === 'unconfirmed') list = list.filter(o => pendingSessions(o).length > 0);
+  if (ordersTagFilter)                     list = list.filter(o => o.tags.includes(ordersTagFilter));
+  // The order being timed first, then favorites, then the chosen sort
+  const cmp  = ORDER_SORTS[settings.ordersSort];
+  const rank = o => isOrderTiming(o.id) ? 0 : o.favorite ? 1 : 2;
+  list.sort((a, b) => rank(a) - rank(b) || cmp(a, b));
+
+  const filtered = q || ordersQuickFilter || ordersTagFilter;
+  document.getElementById('orders-section-title').textContent = filtered
+    ? `Showing ${list.length} of ${db.orders.length}`
+    : `Active Orders · ${db.orders.length}`;
+
   if (list.length === 0) {
     el.innerHTML = db.orders.length === 0
       ? `<div class="empty-state"><div class="empty-icon">▢</div><div class="empty-text">No active orders<br><br>Tap + New to begin</div></div>`
-      : ordersQuickFilter
-        ? `<div class="empty-state"><div class="empty-text">No ${ordersQuickFilter === 'favorites' ? 'favorited' : 'unconfirmed'} orders</div></div>`
-        : `<div class="empty-state"><div class="empty-text">No orders match<br>"${escHtml(ordersFilter)}"</div></div>`;
+      : `<div class="empty-state"><div class="empty-text">No orders match these filters</div></div>`;
     initOrdersLongPress();
     return;
   }
   el.innerHTML = list.map(o => {
     const total = totalTime(o);
-    const pending = o.sessions.filter(s => !s.cnf).length;
+    const pending = pendingSessions(o).length;
     const pendingMs = pendingDuration(o);
     const dot = o.sessions.length === 0 ? 'dot-gray' : (pending > 0 ? 'dot-amber' : 'dot-green');
     const sel = multiSelectMode && selectedOrderIds.has(o.id);
     const isSplit = !!o.splitGroupId;
-    const splitGroupSize = isSplit ? db.orders.filter(x => x.splitGroupId === o.splitGroupId && !x.finished).length : 0;
-    const isActive = activeOrderId === o.id || splitOrderIds.includes(o.id);
+    const splitGroupSize = isSplit ? db.orders.filter(x => x.splitGroupId === o.splitGroupId).length : 0;
+    const isActive = isOrderTiming(o.id) && !multiSelectMode; // don't look "selected" while selecting
+    const when = o.sessions.length ? 'Last worked ' + fmtDate(lastWorked(o)) : 'Created ' + fmtDate(o.created);
     return `<div class="order-card${sel ? ' ms-selected' : ''}${isSplit ? ' split-order' : ''}${isActive ? ' timer-active' : ''}" data-id="${o.id}" onclick="showOrderDetail(${o.id})">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
         <div>
           <div class="order-po">${escHtml(o.po)}</div>
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-            ${isSplit ? `<span class="split-badge">Split ×${splitGroupSize}</span>` : ''}
+            ${isSplit && splitGroupSize > 1 ? `<span class="split-badge">Split ×${splitGroupSize}</span>` : ''}
             ${o.splitQty ? `<span style="font-size:10px;color:var(--text-muted);letter-spacing:0.5px;">QTY <span style="color:var(--amber);font-family:'Courier New',monospace;">${o.splitQty}</span></span>` : ''}
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
-          <button class="fav-star${o.favorite ? ' on' : ''}" onclick="toggleFavorite(${o.id}, event)">${o.favorite ? '★' : '☆'}</button>
+          <button class="fav-star${o.favorite ? ' on' : ''}" onclick="toggleFavorite(${o.id}, event)" aria-label="${o.favorite ? 'Unfavorite' : 'Favorite'}">${o.favorite ? '★' : '☆'}</button>
           ${multiSelectMode
             ? `<div class="ms-check${sel ? ' on' : ''}">${sel ? '✓' : ''}</div>`
             : isActive
-              ? `<span class="timer-active-dot"></span>`
+              ? `<span class="timer-active-dot" title="Timer running"></span>`
               : `<span class="status-dot ${dot}"></span>`}
         </div>
       </div>
-      <div class="order-meta">${fmtDate(o.created)}</div>
-      ${o.tags.length ? `<div class="order-tags">${o.tags.map(t => `<span class="order-tag">${t}</span>`).join('')}</div>` : ''}
+      <div class="order-meta">${when}</div>
+      ${o.tags.length ? `<div class="order-tags">${o.tags.map(t => `<span class="order-tag">${escHtml(t)}</span>`).join('')}</div>` : ''}
       <div class="order-total">
         ${o.sessions.length} session${o.sessions.length !== 1 ? 's' : ''} · ${fmt(total)} · ${fmtMin(total)}
         ${pending > 0 ? `<br><span class="pending-warn">${pending} pending CNF · ${fmtMin(pendingMs)} unconfirmed</span>` : ''}
@@ -2435,10 +2748,19 @@ function renderOrders() {
   initOrdersLongPress();
 }
 
+function filteredArchive() {
+  const q = archiveFilter.trim();
+  return db.archive
+    .filter(o => orderMatches(q, o))
+    .sort((a, b) => (b.finishedAt || 0) - (a.finishedAt || 0));
+}
+
 function renderArchive() {
   const el = document.getElementById('archive-list');
-  const q = archiveFilter.trim();
-  const list = q ? db.archive.filter(o => matchFilter(q, o.po) || o.tags.some(t => matchFilter(q, t))) : db.archive;
+  const list = filteredArchive();
+  document.getElementById('archive-section-title').textContent = archiveFilter.trim()
+    ? `Showing ${list.length} of ${db.archive.length}`
+    : `Finished Orders · ${db.archive.length}`;
   if (list.length === 0) {
     el.innerHTML = db.archive.length === 0
       ? `<div class="empty-state"><div class="empty-icon">▣</div><div class="empty-text">No archived orders</div></div>`
@@ -2449,16 +2771,17 @@ function renderArchive() {
   el.innerHTML = list.map(o => {
     const total = totalTime(o);
     const sel = archiveMultiSelectMode && selectedArchiveIds.has(o.id);
+    const pending = pendingSessions(o).length;
     return `<div class="order-card finished${sel ? ' ms-selected' : ''}" data-id="${o.id}" onclick="${archiveMultiSelectMode ? `toggleArchiveSelection(${o.id})` : `showOrderDetail(${o.id})`}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
-        <div class="order-po" style="color:var(--text-dim);">${escHtml(o.po)}</div>
+        <div class="order-po">${escHtml(o.po)}</div>
         ${archiveMultiSelectMode
           ? `<div class="ms-check${sel ? ' on' : ''}" style="margin-top:4px;">${sel ? '✓' : ''}</div>`
           : ''}
       </div>
-      <div class="order-meta">Finished ${fmtDate(o.finishedAt)} · ${o.sessions.length} session${o.sessions.length !== 1 ? 's' : ''}</div>
-      ${o.tags.length ? `<div class="order-tags">${o.tags.map(t => `<span class="order-tag">${t}</span>`).join('')}</div>` : ''}
-      <div class="order-total">Total: ${fmt(total)}</div>
+      <div class="order-meta">Finished ${o.finishedAt ? fmtDate(o.finishedAt) : '—'} · ${o.sessions.length} session${o.sessions.length !== 1 ? 's' : ''}</div>
+      ${o.tags.length ? `<div class="order-tags">${o.tags.map(t => `<span class="order-tag">${escHtml(t)}</span>`).join('')}</div>` : ''}
+      <div class="order-total">Total: ${fmt(total)} · ${fmtMin(total)}${pending ? ` <span class="pending-warn">· ${pending} not CNF'd</span>` : ''}</div>
     </div>`;
   }).join('');
   initArchiveLongPress();
@@ -2473,13 +2796,23 @@ function resetArchiveMultiSelect() {
   selectedArchiveIds = new Set();
   const bar = document.getElementById('archive-multiselect-bar');
   if (bar) bar.style.display = 'none';
+  const btn = document.getElementById('archive-select-btn');
+  if (btn) { btn.textContent = 'Select'; btn.classList.remove('on'); }
+  syncMsBodyClass();
+}
+
+function toggleArchiveMultiSelectMode() {
+  if (archiveMultiSelectMode) exitArchiveMultiSelect(); else enterArchiveMultiSelect(null);
 }
 
 function enterArchiveMultiSelect(id) {
   archiveMultiSelectMode = true;
-  selectedArchiveIds = new Set([id]);
-  renderArchive();
+  selectedArchiveIds = new Set(id !== null ? [id] : []);
   document.getElementById('archive-multiselect-bar').style.display = 'block';
+  const btn = document.getElementById('archive-select-btn');
+  btn.textContent = 'Done'; btn.classList.add('on');
+  syncMsBodyClass();
+  renderArchive();
   updateArchiveMultiSelectBar();
 }
 
@@ -2491,49 +2824,47 @@ function exitArchiveMultiSelect() {
 function toggleArchiveSelection(id) {
   if (selectedArchiveIds.has(id)) selectedArchiveIds.delete(id);
   else selectedArchiveIds.add(id);
-  if (selectedArchiveIds.size === 0) { exitArchiveMultiSelect(); return; }
+  updateArchiveMultiSelectBar();
+  renderArchive();
+}
+
+function selectAllArchive() {
+  filteredArchive().forEach(o => selectedArchiveIds.add(o.id));
   updateArchiveMultiSelectBar();
   renderArchive();
 }
 
 function updateArchiveMultiSelectBar() {
   const n = selectedArchiveIds.size;
-  const el = document.getElementById('archive-multiselect-count');
-  if (el) el.textContent = `${n} order${n !== 1 ? 's' : ''} selected`;
+  document.getElementById('archive-multiselect-count').textContent = `${n} order${n !== 1 ? 's' : ''} selected`;
+  document.getElementById('archive-ms-unarchive').disabled = n === 0;
+  document.getElementById('archive-ms-delete').disabled = n === 0;
 }
 
 function unarchiveSelected() {
-  [...selectedArchiveIds].forEach(id => {
-    const idx = db.archive.findIndex(o => o.id === id);
-    if (idx === -1) return;
-    const order = db.archive.splice(idx, 1)[0];
-    order.finished = false;
-    delete order.finishedAt;
-    db.orders.unshift(order);
-  });
+  if (!selectedArchiveIds.size) return;
+  [...selectedArchiveIds].forEach(id => restoreFromArchive(id));
   saveDB();
   exitArchiveMultiSelect();
-}
-
-function unarchiveOrder(id) {
-  const idx = db.archive.findIndex(o => o.id === id);
-  if (idx === -1) return;
-  const order = db.archive.splice(idx, 1)[0];
-  order.finished = false;
-  delete order.finishedAt;
-  db.orders.unshift(order);
-  saveDB();
-  closeModal('modal-detail');
-  renderArchive();
 }
 
 function deleteSelectedArchive() {
-  [...selectedArchiveIds].forEach(id => {
-    const idx = db.archive.findIndex(o => o.id === id);
-    if (idx !== -1) db.archive.splice(idx, 1);
-  });
-  saveDB();
-  exitArchiveMultiSelect();
+  const n = selectedArchiveIds.size;
+  if (!n) return;
+  openConfirmModal(
+    'Delete Orders?',
+    `${n} archived order${n !== 1 ? 's' : ''} and all their sessions will be permanently deleted. This cannot be undone.`,
+    'Delete',
+    () => {
+      db.archive = db.archive.filter(o => !selectedArchiveIds.has(o.id));
+      saveDB();
+      exitArchiveMultiSelect();
+    }
+  );
+}
+
+function syncMsBodyClass() {
+  document.body.classList.toggle('ms-open', multiSelectMode || archiveMultiSelectMode);
 }
 
 function initLongPress(listId, onLongPress) {
@@ -2571,11 +2902,15 @@ function initArchiveLongPress() {
 function openModal(id) { document.getElementById(id).classList.add('open'); }
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
+  // Dismissing a modal cancels whatever it was about to do
+  if (id === 'modal-stop')     pendingAfterStop = null;
+  if (id === 'modal-confirm')  _confirmCallback = null;
+  if (id === 'modal-adj-edit') adjEditState = null;
 }
 
 // Close modal on overlay click
 document.querySelectorAll('.modal-overlay').forEach(m => {
-  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+  m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); });
 });
 
 // ── BARCODE SCANNER ────────────────────────────────────────────────────────
@@ -2651,7 +2986,6 @@ function stopScanner() {
   if (idle) idle.style.display = '';
 }
 
-// ── UTILS ──────────────────────────────────────────────────────────────────
 // ── TIMELINE ───────────────────────────────────────────────────────────────
 let adjEditState    = null;
 let tlMinT          = 0;
@@ -2845,11 +3179,11 @@ function renderTimeline() {
     </div>`;
   });
 
-  // Lunch block (12:00–12:30) — always show if it falls within the visible range
-  const todayD = new Date();
-  const lunchS = new Date(todayD.getFullYear(), todayD.getMonth(), todayD.getDate(), 12,  0, 0, 0).getTime();
-  const lunchE = new Date(todayD.getFullYear(), todayD.getMonth(), todayD.getDate(), 12, 30, 0, 0).getTime();
-  if (lunchS >= minT && lunchS <= maxT) {
+  // Lunch block (from Settings) on the viewed day, if it falls within the visible range
+  const { h: lunchH, m: lunchM } = hhmm(settings.lunchStart);
+  const lunchS = new Date(dayStart.getFullYear(), dayStart.getMonth(), dayStart.getDate(), lunchH, lunchM, 0, 0).getTime();
+  const lunchE = lunchS + settings.lunchDur * 60000;
+  if (settings.lunchDur > 0 && lunchS >= minT && lunchS <= maxT) {
     const lTop = (lunchS - minT) * TL_PX_PER_MS;
     const lH   = (lunchE - lunchS) * TL_PX_PER_MS;
     blocks += `<div style="position:absolute;left:${LEFT + 3}px;right:3px;top:${lTop}px;height:${lH}px;background:rgba(113,113,122,0.09);border:1px dashed rgba(113,113,122,0.28);border-left:2px dashed rgba(113,113,122,0.45);border-radius:4px;display:flex;align-items:center;justify-content:center;pointer-events:none;">
@@ -2878,14 +3212,14 @@ function openAdjEdit(orderId, sessionIdx) {
 
   adjEditState = { orderId, sessionIdx, tempDuration: session.duration, tempDate: session.date || session.start };
 
-  const now      = new Date();
-  const dayStart = new Date(now); dayStart.setHours(0, 0, 0, 0);
-  const dayEnd   = new Date(now); dayEnd.setHours(23, 59, 59, 999);
+  // Orders that can receive the adjustment: active ones with time on the viewed day
+  const dayStart = new Date(tlViewDate); dayStart.setHours(0, 0, 0, 0);
+  const dayEnd   = new Date(tlViewDate); dayEnd.setHours(23, 59, 59, 999);
   const tsStart  = dayStart.getTime();
   const tsEnd    = dayEnd.getTime();
   const todayOrders = db.orders.filter(o =>
     o.id === orderId ||
-    o.sessions.some(s => { const t = s.start || s.date; return t >= tsStart && t <= tsEnd; })
+    o.sessions.some(s => { const t = sStart(s); return t >= tsStart && t <= tsEnd; })
   );
 
   _renderAdjEditBody(order, todayOrders);
@@ -2979,11 +3313,12 @@ function adjEditSave() {
     const targetOrder = db.orders.find(o => o.id === targetId);
     if (targetOrder) {
       sourceOrder.sessions.splice(sessionIdx, 1);
-      targetOrder.sessions.push({ ...session, duration: tempDuration, date: tempDate });
+      targetOrder.sessions.push({ ...session, duration: tempDuration, date: tempDate, start: tempDate });
     }
   } else {
     session.duration = tempDuration;
     session.date = tempDate;
+    session.start = tempDate;
   }
 
   saveDB();
@@ -3109,6 +3444,7 @@ function tlMouseUp() {
     const order = db.orders.find(o => o.id === orderId) || db.archive.find(o => o.id === orderId);
     if (order && order.sessions[sessionIdx]) {
       order.sessions[sessionIdx].date = currentDate;
+      order.sessions[sessionIdx].start = currentDate;
       saveDB();
     }
     renderTimeline();
@@ -3179,6 +3515,7 @@ function tlTouchEnd() {
     const order = db.orders.find(o => o.id === orderId) || db.archive.find(o => o.id === orderId);
     if (order && order.sessions[sessionIdx]) {
       order.sessions[sessionIdx].date = currentDate;
+      order.sessions[sessionIdx].start = currentDate;
       saveDB();
     }
     tlDrag = null;
@@ -3202,8 +3539,9 @@ function tlTouchCancel() {
   tlTouchPending = null;
 }
 
+// ── UTILS ──────────────────────────────────────────────────────────────────
 function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 // ── PWA INSTALL ────────────────────────────────────────────────────────────
@@ -3238,13 +3576,23 @@ function resetMultiSelect() {
   if (bar) bar.style.display = 'none';
   const preview = document.getElementById('ms-adj-preview');
   if (preview) preview.style.display = 'none';
+  const btn = document.getElementById('orders-select-btn');
+  if (btn) { btn.textContent = 'Select'; btn.classList.remove('on'); }
+  syncMsBodyClass();
+}
+
+function toggleMultiSelectMode() {
+  if (multiSelectMode) exitMultiSelect(); else enterMultiSelect(null);
 }
 
 function enterMultiSelect(orderId) {
   multiSelectMode = true;
-  selectedOrderIds = new Set([orderId]);
-  renderOrders();
+  selectedOrderIds = new Set(orderId !== null ? [orderId] : []);
   document.getElementById('multiselect-bar').style.display = 'block';
+  const btn = document.getElementById('orders-select-btn');
+  btn.textContent = 'Done'; btn.classList.add('on');
+  syncMsBodyClass();
+  renderOrders();
   updateMultiSelectBar();
 }
 
@@ -3256,61 +3604,65 @@ function exitMultiSelect() {
 function toggleOrderSelection(orderId) {
   if (selectedOrderIds.has(orderId)) selectedOrderIds.delete(orderId);
   else selectedOrderIds.add(orderId);
-  if (selectedOrderIds.size === 0) { exitMultiSelect(); return; }
+  updateMultiSelectBar();
+  renderOrders();
+}
+
+function selectAllOrders() {
+  document.querySelectorAll('#orders-list [data-id]').forEach(el => selectedOrderIds.add(Number(el.dataset.id)));
   updateMultiSelectBar();
   renderOrders();
 }
 
 function updateMultiSelectBar() {
   const n = selectedOrderIds.size;
-  const el = document.getElementById('multiselect-count');
-  if (el) el.textContent = `${n} order${n !== 1 ? 's' : ''} selected`;
-  const splitBtn = document.getElementById('ms-split-btn');
-  if (splitBtn) splitBtn.disabled = !!timerStart;
+  document.getElementById('multiselect-count').textContent = `${n} order${n !== 1 ? 's' : ''} selected`;
+  ['ms-cnf-btn', 'ms-finish-btn', 'ms-both-btn', 'ms-split-btn'].forEach(id => {
+    document.getElementById(id).disabled = n === 0;
+  });
+}
+
+function selectedOrders() {
+  return [...selectedOrderIds].map(id => db.orders.find(o => o.id === id)).filter(Boolean);
 }
 
 function multiSelectCNF() {
-  selectedOrderIds.forEach(id => {
-    const order = db.orders.find(o => o.id === id);
-    if (order) order.sessions.forEach(s => { s.cnf = true; });
-  });
+  selectedOrders().forEach(o => pendingSessions(o).forEach(s => { s.cnf = true; }));
   saveDB();
   exitMultiSelect();
 }
 
-function multiSelectFinish() {
-  [...selectedOrderIds].forEach(id => finishOrderSilent(id));
-  saveDB();
-  exitMultiSelect();
+// Finishing an order that is being timed would lose the running session,
+// so stop and save the timer first.
+function finishSelected(alsoCNF) {
+  const orders = selectedOrders();
+  if (!orders.length) return;
+  const run = () => {
+    orders.forEach(o => {
+      if (alsoCNF) pendingSessions(o).forEach(s => { s.cnf = true; });
+      finishOrderSilent(o.id);
+    });
+    saveDB();
+    if (currentView() !== 'orders') switchView('orders'); else exitMultiSelect();
+  };
+  if (orders.some(o => isOrderTiming(o.id))) {
+    withTimerStopped(`finish ${orders.length} order${orders.length !== 1 ? 's' : ''}`, run);
+  } else {
+    run();
+  }
 }
-
-function multiSelectBoth() {
-  selectedOrderIds.forEach(id => {
-    const order = db.orders.find(o => o.id === id);
-    if (order) order.sessions.forEach(s => { s.cnf = true; });
-  });
-  [...selectedOrderIds].forEach(id => finishOrderSilent(id));
-  saveDB();
-  exitMultiSelect();
-}
-
-function finishOrderSilent(id) {
-  const idx = db.orders.findIndex(o => o.id === id);
-  if (idx === -1) return;
-  const order = db.orders.splice(idx, 1)[0];
-  order.finished = true;
-  order.finishedAt = Date.now();
-  db.archive.unshift(order);
-}
+function multiSelectFinish() { finishSelected(false); }
+function multiSelectBoth()   { finishSelected(true); }
 
 function multiSelectSplitTimer() {
-  if (timerStart) return;
-  const orders = [...selectedOrderIds].map(id => db.orders.find(o => o.id === id)).filter(Boolean);
-  if (orders.length === 0) return;
-  resetMultiSelect();
-  splitOrderIds = orders.map(o => o.id);
-  switchView('new');
-  beginSplitTimerCore(orders, [], '');
+  const ids = selectedOrders().map(o => o.id);
+  if (!ids.length) return;
+  withTimerStopped(`start a split timer on ${ids.length} POs`, () => {
+    const alive = ids.filter(id => db.orders.some(o => o.id === id));
+    if (!alive.length) return;
+    resetMultiSelect();
+    beginTimer(alive, alive.length > 1);
+  });
 }
 
 function initOrdersLongPress() {
@@ -3325,48 +3677,51 @@ function renderStats() {
 
   const allOrders = [...db.orders, ...db.archive];
 
-  // Today's logged minutes
+  // Today's logged minutes, plus whatever the running timer has so far
   let todayMs = 0;
   allOrders.forEach(o => o.sessions.forEach(s => {
-    const t = s.start || s.date;
+    const t = sStart(s);
     if (t >= todayStart && t < todayEnd) todayMs += s.duration || 0;
   }));
+  const runningMs = timerStart && timerStart >= todayStart ? getElapsed() : 0;
+  todayMs += runningMs;
   const todayMin = Math.round(todayMs / 60000);
   const todayPct = Math.min(100, Math.round((todayMin / settings.goalMin) * 100));
 
   // POs finished today
   const finishedToday = db.archive.filter(o => o.finishedAt >= todayStart && o.finishedAt < todayEnd).length;
 
-  // Fully confirmed orders (all sessions CNF'd, at least one session)
-  const confirmedOrders = allOrders.filter(o => o.sessions.length > 0 && o.sessions.every(s => s.cnf)).length;
+  // CNF split — worked sessions only (deductions never need a CNF)
+  let workedCount = 0, cnfCount = 0;
+  allOrders.forEach(o => o.sessions.forEach(s => {
+    if ((s.duration || 0) <= 0) return;
+    workedCount++;
+    if (s.cnf) cnfCount++;
+  }));
+  const pendingCount = workedCount - cnfCount;
+  const cnfPct = workedCount > 0 ? Math.round((cnfCount / workedCount) * 100) : 0;
 
-  // CNF session split
-  let totalSessions = 0, cnfSessions = 0;
-  allOrders.forEach(o => o.sessions.forEach(s => { totalSessions++; if (s.cnf) cnfSessions++; }));
-  const pendingSessions = totalSessions - cnfSessions;
-  const cnfPct = totalSessions > 0 ? Math.round((cnfSessions / totalSessions) * 100) : 0;
-
-  const gtEl = document.getElementById('stat-goal-text');
-  if (gtEl) gtEl.textContent = `of ${settings.goalMin} min`;
+  document.getElementById('stat-goal-text').textContent = `of ${settings.goalMin} min`;
   document.getElementById('stat-today-min').textContent = todayMin + ' min';
   document.getElementById('stat-today-pct').textContent = todayPct + '%';
+  document.getElementById('stat-today-running').style.display = runningMs > 0 ? 'block' : 'none';
   const bar = document.getElementById('stat-today-bar');
   bar.style.width = todayPct + '%';
   bar.classList.toggle('complete', todayPct >= 100);
 
   document.getElementById('stat-finished-today').textContent = finishedToday;
-  document.getElementById('stat-confirmed-orders').textContent = confirmedOrders;
+  document.getElementById('stat-active-orders').textContent = db.orders.length;
 
-  document.getElementById('stat-cnf-count').textContent = cnfSessions;
-  document.getElementById('stat-pending-count').textContent = pendingSessions;
+  document.getElementById('stat-cnf-count').textContent = cnfCount;
+  document.getElementById('stat-pending-count').textContent = pendingCount;
   document.getElementById('stat-cnf-bar').style.width = cnfPct + '%';
   document.getElementById('stat-cnf-pct').textContent = cnfPct + '%';
 
   // Unconfirmed time from previous days grouped by day
   const pendingByDay = {};
   allOrders.forEach(o => o.sessions.forEach(s => {
-    const t = s.date || s.start;
-    if (!s.cnf && t && t < todayStart) {
+    const t = sStart(s);
+    if (isPendingSession(s) && t && t < todayStart) {
       const d = new Date(t);
       d.setHours(0, 0, 0, 0);
       const k = d.getTime();
@@ -3410,9 +3765,10 @@ function renderStats() {
     const dEnd   = dStart + 86400000;
     let ms = 0;
     allOrders.forEach(o => o.sessions.forEach(s => {
-      const t = s.start || s.date;
-      if (t >= dStart && t < dEnd && (s.duration || 0) > 0) ms += s.duration;
+      const t = sStart(s);
+      if (t >= dStart && t < dEnd) ms += s.duration || 0;
     }));
+    if (i === 0) ms += runningMs;
     days7.push({ dStart, ms });
   }
   const maxDayMs = Math.max(GOAL_MS, ...days7.map(d => d.ms));
@@ -3460,31 +3816,36 @@ function exportDateStr() {
 }
 
 function exportCSV() {
-  const cols = ['PO','Status','Tags','Notes','Session Date','Duration (min)','Duration (hh:mm:ss)','CNF','Adjustment'];
+  const cols = ['PO','Status','Tags','Notes','Date','Start','End','Duration (min)','Duration (hh:mm:ss)','CNF','Adjustment','Split Qty','Finished'];
   const rows = [cols];
   const allOrders = [
     ...db.orders.map(o => ({ ...o, _status: 'Active' })),
     ...db.archive.map(o => ({ ...o, _status: 'Archived' }))
   ];
+  const hm = ts => { const d = new Date(ts); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
   for (const o of allOrders) {
+    const base = [o.po, o._status, o.tags.join(';'), o.notes || ''];
+    const tail = [o.splitQty || '', o.finishedAt ? `${localDateStr(new Date(o.finishedAt))} ${hm(o.finishedAt)}` : ''];
     if (o.sessions.length === 0) {
-      rows.push([o.po, o._status, o.tags.join(';'), o.notes || '', '', '', '', '', ''].map(csvCell));
-    } else {
-      for (const s of o.sessions) {
-        const abs = Math.abs(s.duration || 0);
-        const sign = s.duration < 0 ? '-' : '';
-        rows.push([
-          o.po,
-          o._status,
-          o.tags.join(';'),
-          o.notes || '',
-          new Date(s.date).toISOString(),
-          sign + Math.round(abs / 60000),
-          sign + fmt(abs),
-          s.cnf ? 'Yes' : 'No',
-          s.manual || s.duration < 0 ? 'Yes' : 'No'
-        ].map(csvCell));
-      }
+      rows.push([...base, '', '', '', '', '', '', '', ...tail].map(csvCell));
+      continue;
+    }
+    for (const s of [...o.sessions].sort((a, b) => sStart(a) - sStart(b))) {
+      const start = sStart(s);
+      const dur = s.duration || 0;
+      const abs = Math.abs(dur);
+      const sign = dur < 0 ? '-' : '';
+      rows.push([
+        ...base,
+        localDateStr(new Date(start)),
+        hm(start),
+        dur > 0 ? hm(start + dur) : '',
+        sign + Math.round(abs / 60000),
+        sign + fmt(abs),
+        s.cnf ? 'Yes' : 'No',
+        s.manual || dur < 0 ? 'Yes' : 'No',
+        ...tail
+      ].map(csvCell));
     }
   }
   const csv = rows.map(r => r.join(',')).join('\r\n');
@@ -3493,12 +3854,45 @@ function exportCSV() {
 
 function csvCell(v) {
   const s = String(v);
-  return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
 function exportJSON() {
-  const payload = JSON.stringify(db, null, 2);
+  const payload = JSON.stringify({ ...db, exportedAt: new Date().toISOString(), app: 'po-tracker', version: APP_VERSION }, null, 2);
   downloadBlob(payload, `po-tracker-${exportDateStr()}.json`, 'application/json');
+}
+
+// Restores a JSON backup made by exportJSON, replacing the current data.
+function importJSONFile(input) {
+  const file = input.files && input.files[0];
+  input.value = ''; // allow picking the same file again
+  if (!file) return;
+  if (timerStart) {
+    openConfirmModal('Timer Running', 'Stop the running timer before restoring a backup.', 'OK', null);
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    let data = null;
+    try { data = normalizeDB(JSON.parse(reader.result)); } catch(e) {}
+    if (!data) {
+      openConfirmModal('Restore Failed', `${file.name} is not a PO Tracker backup.`, 'OK', null);
+      return;
+    }
+    openConfirmModal(
+      'Restore Backup?',
+      `Replace current data (${db.orders.length} active, ${db.archive.length} archived) with the backup ` +
+        `(${data.orders.length} active, ${data.archive.length} archived)?\n\nCurrent data will be lost — export it first if unsure.`,
+      'Restore',
+      () => {
+        db = data;
+        saveDB();
+        closeModal('modal-settings');
+        switchView('orders');
+      }
+    );
+  };
+  reader.readAsText(file);
 }
 
 // ── LIVE TIMER NOTIFICATION ────────────────────────────────────────────────
@@ -3529,12 +3923,13 @@ async function scheduleSwAlerts() {
     if (t.getTime() <= now) t.setDate(t.getDate() + 1);
     return t.getTime() - now;
   };
-  const [lh, lm] = settings.lunchStart.split(':').map(Number);
+  const lunch = hhmm(settings.lunchStart);
+  const eod   = hhmm(settings.dayEnd);
   sw.active.postMessage({
     type: 'SCHEDULE_ALERTS',
     alerts: [
-      { delay: buildDelay(lh, lm), title: 'PO Tracker — Lunch Break?', body: 'Timer is still active during lunch.', tag: 'noon-alert' },
-      { delay: buildDelay(16, 0),  title: 'PO Tracker — Timer Running', body: 'It is 4:00 PM and a timer is still active.', tag: 'four-pm-alert' }
+      { delay: buildDelay(lunch.h, lunch.m), title: 'PO Tracker — Lunch Break?', body: 'Timer is still active during lunch.', tag: 'noon-alert' },
+      { delay: buildDelay(eod.h, eod.m),     title: 'PO Tracker — Timer Running', body: `It is ${fmtClock(settings.dayEnd)} and a timer is still active.`, tag: 'four-pm-alert' }
     ]
   });
 }
@@ -3587,25 +3982,17 @@ if ('serviceWorker' in navigator) {
 loadDB();
 loadSettings();
 requestPersistentStorage(false);
-
-if (restoreTimerState()) {
-  restoreTimerUI();
-  renderOrders(); // so the active-timer indicator shows if user navigates to Orders
-} else {
-  renderTags();
-  renderOrders();
-}
 initTimelineDrag();
+if (restoreTimerState()) restoreTimerUI();
+else renderOrders();
 
-// Catch 4pm alert missed while app was in background
+// Timeouts don't run while the app is in the background — catch up on return
 document.addEventListener('visibilitychange', () => {
   if (document.hidden || !timerStart) return;
-  const now = new Date();
-  const h = now.getHours(), m = now.getMinutes();
-  if (h === 16 && m < 30) showFourPmAlert();
-  if (h === 12 && m < 30) showNoonAlert();
-  scheduleFourPmAlert();
-  scheduleNoonAlert();
+  checkMissedAlerts();
+  if (timerPausedAt === null) { scheduleFourPmAlert(); scheduleNoonAlert(); }
+  timerTick();
+  updateFloatingTimer();
 });
 
 // Prevent rubber-band scroll on iOS
@@ -3614,42 +4001,37 @@ document.addEventListener('touchmove', e => {
   e.preventDefault();
 }, { passive: false });
 
-// Back button closes modals
+// Back button closes the top-most modal instead of leaving the app
 window.addEventListener('popstate', () => {
-  const open = document.querySelector('.modal-overlay.open');
-  if (open) { open.classList.remove('open'); history.pushState(null, ''); }
+  const open = [...document.querySelectorAll('.modal-overlay.open')].pop();
+  if (open) { closeModal(open.id); history.pushState(null, ''); }
 });
 history.pushState(null, '');
 
 // ── TAB SWIPE NAVIGATION ───────────────────────────────────────────────────
 (function() {
-  const TABS = ['orders', 'new', 'archive', 'stats'];
   const THRESHOLD = 50;
   let startX = 0, startY = 0, tracking = false;
 
-  function currentIndex() {
-    const active = document.querySelector('.view.active');
-    if (!active) return 0;
-    return TABS.indexOf(active.id.replace('view-', ''));
-  }
-
   document.addEventListener('touchstart', e => {
-    if (activeOrderId) return;
-    if (e.target.closest('.swipe-card-wrap') || e.target.closest('.swipe-action')) return;
+    tracking = false;
+    if (document.querySelector('.modal-overlay.open')) return;
+    if (e.target.closest('#timeline-container, input, textarea, select, video')) return;
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
     tracking = true;
   }, { passive: true });
 
   document.addEventListener('touchend', e => {
-    if (!tracking || activeOrderId) { tracking = false; return; }
+    if (!tracking) return;
     tracking = false;
     const dx = e.changedTouches[0].clientX - startX;
     const dy = e.changedTouches[0].clientY - startY;
     if (Math.abs(dx) < THRESHOLD || Math.abs(dx) <= Math.abs(dy)) return;
-    const i = currentIndex();
-    if (dx < 0 && i < TABS.length - 1) switchView(TABS[i + 1]);
-    else if (dx > 0 && i > 0) switchView(TABS[i - 1]);
+    const i = TAB_VIEWS.indexOf(currentView());
+    if (i === -1) return; // timer screen isn't part of the tab row
+    if (dx < 0 && i < TAB_VIEWS.length - 1) switchView(TAB_VIEWS[i + 1]);
+    else if (dx > 0 && i > 0) switchView(TAB_VIEWS[i - 1]);
   }, { passive: true });
 })();
 </script>
