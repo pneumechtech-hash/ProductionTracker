@@ -362,7 +362,7 @@
     border: 1px solid rgba(251,191,36,0.45); color: var(--amber);
     background: rgba(251,191,36,0.08); margin-top: 5px;
   }
-  .order-card.split-order { border-left: 3px solid var(--amber); }
+  .order-card.split-order { border-left: 4px solid var(--split-c, var(--amber)); }
 
   /* MULTI-SELECT */
   .order-card.ms-selected { border-color: var(--accent); background: var(--green-dim); }
@@ -432,6 +432,23 @@
 
   /* Keep the last cards reachable above the fixed multi-select bars */
   body.ms-open .content { padding-bottom: 210px; }
+
+  /* ORDER DETAIL: pinned actions, split group, long session lists */
+  #modal-detail .modal { padding-bottom: 0; }
+  .detail-actions {
+    position: sticky; bottom: 0; z-index: 3;
+    margin: 14px -16px 0; padding: 10px 16px calc(12px + var(--safe-bottom));
+    background: #15151b; border-top: 1px solid var(--border-mid);
+    box-shadow: 0 -10px 18px rgba(0,0,0,0.45);
+  }
+  .detail-actions .row .btn { padding: 11px 8px; }
+  .detail-actions-note { font-size: 11px; text-align: center; margin-bottom: 8px; letter-spacing: 0.3px; }
+  .detail-group { border: 1px solid; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; }
+  .detail-group-title { font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 8px; }
+  .detail-group-pos { display: flex; flex-wrap: wrap; gap: 6px; }
+  .detail-group-po { font-size: 11px; font-family: 'Courier New', monospace; padding: 4px 9px; border-radius: 6px; border: 1px solid var(--border-mid); background: transparent; color: var(--text); cursor: pointer; }
+  .detail-group-po.current { cursor: default; font-weight: 700; }
+  .sessions-more { width: 100%; font-size: 10px; letter-spacing: 0.5px; color: var(--accent); background: var(--bg-card); border: 1px dashed var(--border-mid); border-radius: 8px; padding: 7px; margin-bottom: 8px; cursor: pointer; }
 
   #floating-timer { cursor: pointer; }
   #floating-timer.paused { border-bottom-color: var(--amber); }
@@ -674,6 +691,7 @@
     <button class="modal-close" onclick="closeModal('modal-detail')" aria-label="Close">✕</button>
     <div class="modal-title" id="modal-detail-title">Order Detail</div>
     <div id="modal-detail-body"></div>
+    <div id="modal-detail-actions" class="detail-actions"></div>
   </div>
 </div>
 
@@ -879,7 +897,7 @@ const DB_KEY       = 'po-tracker-v1';
 const SETTINGS_KEY = 'po-tracker-settings-v1';
 const TIMER_KEY    = 'po-tracker-timer-v1';
 const ALERTS_KEY   = 'po-tracker-alerts-v1';
-const DEFAULT_SETTINGS = { goalMin: 450, lunchStart: '12:00', lunchDur: 30, dayEnd: '16:00', ordersSort: 'newest' };
+const DEFAULT_SETTINGS = { goalMin: 450, lunchStart: '12:00', lunchDur: 30, dayEnd: '16:00', ordersSort: 'newest', sessionSort: 'asc' };
 
 let settings = { ...DEFAULT_SETTINGS, tags: [...DEFAULT_TAGS] };
 let db = { orders: [], archive: [] };
@@ -947,14 +965,53 @@ function loadDB() {
     const raw = localStorage.getItem(DB_KEY);
     if (raw) db = normalizeDB(JSON.parse(raw)) || db;
   } catch(e) { console.warn('DB load error', e); }
+  if (ensureSplitLabels()) saveDB();
 }
 function saveDB() {
+  ensureSplitLabels();
   try { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
   catch(e) {
     console.warn('DB save error', e);
     alert('Could not save — device storage may be full. Export a backup from Settings.');
   }
 }
+
+// ── SPLIT GROUP LABELS ─────────────────────────────────────────────────────
+// Every active split group gets its own letter (A, B, C…) and colour so
+// several groups on the go can be told apart. Labels are stored on the orders
+// and kept unique among active groups; the oldest group keeps its letter.
+// Avoids the app's own blue (accent), amber (warnings) and red (danger)
+const SPLIT_COLORS = ['#2dd4bf', '#c084fc', '#fb923c', '#f472b6', '#a3e635', '#e879f9'];
+function splitColor(label) {
+  const i = /^[A-Z]$/.test(label || '') ? label.charCodeAt(0) - 65 : 0;
+  return SPLIT_COLORS[i % SPLIT_COLORS.length];
+}
+function ensureSplitLabels() {
+  const groups = new Map();
+  for (const o of db.orders) {
+    if (!o.splitGroupId) continue;
+    if (!groups.has(o.splitGroupId)) groups.set(o.splitGroupId, []);
+    groups.get(o.splitGroupId).push(o);
+  }
+  const taken = new Set();
+  const plan = [...groups].sort((a, b) => a[0] - b[0]).map(([, members]) => {
+    const own = (members.find(m => m.splitLabel) || {}).splitLabel;
+    if (own && !taken.has(own)) { taken.add(own); return [members, own]; }
+    return [members, null];
+  });
+  let changed = false;
+  for (const p of plan) {
+    if (!p[1]) {
+      let i = 0;
+      while (i < 26 && taken.has(String.fromCharCode(65 + i))) i++;
+      p[1] = i < 26 ? String.fromCharCode(65 + i) : '?';
+      taken.add(p[1]);
+    }
+    p[0].forEach(m => { if (m.splitLabel !== p[1]) { m.splitLabel = p[1]; changed = true; } });
+  }
+  return changed;
+}
+function splitGroupMembers(groupId) { return db.orders.filter(o => o.splitGroupId === groupId); }
 
 // ── SETTINGS ───────────────────────────────────────────────────────────────
 const TIME_RE = /^\d{2}:\d{2}$/;
@@ -968,6 +1025,7 @@ function loadSettings() {
     if (s.lunchDur >= 0) settings.lunchDur  = s.lunchDur;
     if (TIME_RE.test(s.dayEnd)) settings.dayEnd = s.dayEnd;
     if (typeof s.ordersSort === 'string') settings.ordersSort = s.ordersSort;
+    if (s.sessionSort === 'asc' || s.sessionSort === 'desc') settings.sessionSort = s.sessionSort;
     if (Array.isArray(s.tags) && s.tags.length) settings.tags = s.tags;
   } catch(e) {}
 }
@@ -1564,13 +1622,18 @@ function updateTimerMeta(tags, notes) {
 function renderTimerHeader() {
   const orders = timerOrders();
   const poEl = document.getElementById('timer-po');
+  const labelEl = document.getElementById('timer-po-label');
+  labelEl.style.color = '';
   if (splitOrderIds.length) {
-    document.getElementById('timer-po-label').textContent = `Split — ${orders.length} Orders`;
+    const groups = new Set(orders.map(o => o.splitGroupId));
+    const label = groups.size === 1 && orders[0] && orders[0].splitGroupId ? orders[0].splitLabel : null;
+    labelEl.textContent = label ? `⑂ Split ${label} — ${orders.length} Orders` : `Split — ${orders.length} Orders`;
+    if (label) labelEl.style.color = splitColor(label);
     poEl.innerHTML = orders.map(o =>
       `<div style="font-size:18px;line-height:1.5;">${escHtml(o.po)}${o.splitQty ? `<span style="font-size:11px;color:var(--text-muted);letter-spacing:1px;margin-left:8px;">QTY <span style="color:var(--amber);font-family:'Courier New',monospace;">${o.splitQty}</span></span>` : ''}</div>`
     ).join('');
   } else {
-    document.getElementById('timer-po-label').textContent = 'Production Order';
+    labelEl.textContent = 'Production Order';
     poEl.textContent = orders[0] ? orders[0].po : '';
   }
   updateTimerMeta(orders[0] ? orders[0].tags : [], orders[0] ? orders[0].notes : '');
@@ -1688,6 +1751,19 @@ function endTimer() {
 }
 
 // ── ORDER DETAIL MODAL ─────────────────────────────────────────────────────
+const SESSIONS_COLLAPSED = 5;   // long session lists show only the latest few…
+let detailShowAllFor = null;    // …unless expanded for this order id
+
+function toggleSessionSort(id) {
+  settings.sessionSort = settings.sessionSort === 'desc' ? 'asc' : 'desc';
+  saveSettings();
+  showOrderDetail(id);
+}
+function toggleShowAllSessions(id) {
+  detailShowAllFor = detailShowAllFor === id ? null : id;
+  showOrderDetail(id);
+}
+
 function showOrderDetail(id) {
   if (multiSelectMode) { toggleOrderSelection(id); return; }
   const order = db.orders.find(o => o.id === id) || db.archive.find(o => o.id === id);
@@ -1699,10 +1775,21 @@ function showOrderDetail(id) {
   const timing = isOrderTiming(id);
   const today = localDateStr();
 
-  const groupSiblings = order.splitGroupId
-    ? db.orders.filter(o => o.splitGroupId === order.splitGroupId && o.id !== id && !o.finished)
+  const groupSiblings = order.splitGroupId && !order.finished
+    ? splitGroupMembers(order.splitGroupId).filter(o => o.id !== id)
     : [];
   const hasActiveGroup = groupSiblings.length > 0;
+  const groupColor = hasActiveGroup ? splitColor(order.splitLabel) : '';
+
+  // Sessions: chosen order, and only the latest few when the list is long
+  const asc = settings.sessionSort !== 'desc';
+  const n = order.sessions.length;
+  const showAll = detailShowAllFor === id || n <= SESSIONS_COLLAPSED + 1;
+  const latest = new Set(order.sessions.map((s, i) => ({ s, i }))
+    .sort((a, b) => sStart(b.s) - sStart(a.s)).slice(0, SESSIONS_COLLAPSED).map(x => x.i));
+  const visibleSessions = order.sessions.map((s, i) => ({ s, i }))
+    .filter(x => showAll || latest.has(x.i))
+    .sort((a, b) => asc ? sStart(a.s) - sStart(b.s) : sStart(b.s) - sStart(a.s));
 
   document.getElementById('modal-detail-title').textContent = order.po;
   document.getElementById('modal-detail-body').innerHTML = `
@@ -1716,16 +1803,31 @@ function showOrderDetail(id) {
     ${order.splitQty ? `<div style="font-size:11px;color:var(--text-muted);letter-spacing:1px;margin-bottom:10px;margin-top:-4px;">QTY <span style="color:var(--amber);font-family:'Courier New',monospace;font-size:13px;">${order.splitQty}</span></div>` : ''}
     <div id="detail-tags-${id}" style="margin-bottom:12px;"></div>
     <div id="detail-notes-${id}" style="margin-bottom:12px;"></div>
+    ${hasActiveGroup ? `
+      <div class="detail-group" style="border-color:${groupColor}59;background:${groupColor}0f;">
+        <div class="detail-group-title" style="color:${groupColor};">⑂ Split group ${escHtml(order.splitLabel)} · ${groupSiblings.length + 1} orders</div>
+        <div class="detail-group-pos">
+          <span class="detail-group-po current" style="border-color:${groupColor};color:${groupColor};">${escHtml(order.po)}</span>
+          ${groupSiblings.map(o => `<button class="detail-group-po" onclick="showOrderDetail(${o.id})">${escHtml(o.po)}</button>`).join('')}
+        </div>
+      </div>` : ''}
     <hr class="divider">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);">
-      <span class="section-label" style="margin-bottom:0;padding-bottom:0;border-bottom:none;">Sessions (${order.sessions.length})</span>
-      ${pendingCount > 0 && !order.finished ? `<button class="btn btn-ghost btn-sm" id="detail-cnf-all" onclick="cnfAll(${id})" style="font-size:9px;padding:3px 10px;min-height:26px;color:var(--accent);border-color:rgba(96,165,250,0.4);">CNF All (${pendingCount})</button>` : ''}
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);">
+      <span class="section-label" style="margin-bottom:0;padding-bottom:0;border-bottom:none;">Sessions (${n})</span>
+      <div style="display:flex;gap:6px;align-items:center;">
+        ${n > 1 ? `<button class="header-btn" id="detail-sort-btn" onclick="toggleSessionSort(${id})" title="Change session order">${asc ? 'Oldest first ↑' : 'Newest first ↓'}</button>` : ''}
+        ${pendingCount > 0 && !order.finished ? `<button class="btn btn-ghost btn-sm" id="detail-cnf-all" onclick="cnfAll(${id})" style="font-size:9px;padding:3px 10px;min-height:26px;color:var(--accent);border-color:rgba(96,165,250,0.4);">CNF All (${pendingCount})</button>` : ''}
+      </div>
     </div>
-    ${order.sessions.length && !order.finished ? '<div style="font-size:9px;color:var(--text-muted);letter-spacing:0.5px;margin:-4px 0 8px;">Press and hold a session to delete it</div>' : ''}
+    ${n && !order.finished ? '<div style="font-size:9px;color:var(--text-muted);letter-spacing:0.5px;margin:-4px 0 8px;">Press and hold a session to delete it</div>' : ''}
+    ${n > SESSIONS_COLLAPSED + 1 ? `
+      <button class="sessions-more" id="detail-show-all" onclick="toggleShowAllSessions(${id})">
+        ${showAll ? `Show only the latest ${SESSIONS_COLLAPSED} ▴` : `Showing latest ${SESSIONS_COLLAPSED} of ${n} · Show all ▾`}
+      </button>` : ''}
     <div class="sessions-list">
-      ${order.sessions.length === 0
+      ${n === 0
         ? '<div style="font-size:11px;color:var(--text-muted);padding:12px 0;">No sessions recorded yet</div>'
-        : order.sessions.map((s, i) => ({ s, i })).sort((a, b) => sStart(a.s) - sStart(b.s)).map(({ s, i }) => {
+        : visibleSessions.map(({ s, i }) => {
           const neg = s.duration < 0;
           const abs = Math.abs(s.duration);
           const cls = neg ? 'deduction' : (s.manual ? 'manual' : '');
@@ -1812,35 +1914,35 @@ function showOrderDetail(id) {
         <div id="add-error-${id}" style="font-size:10px;color:var(--red);min-height:16px;margin-bottom:6px;"></div>
         <button class="btn btn-primary" onclick="submitAddSession(${id})">+ Add Session</button>
       </div>
-      <hr class="divider">
-      ${timing ? `
-        <div class="alert alert-success" style="text-align:center;">● Timer is running on this order</div>
-        <button class="btn btn-primary" style="margin-bottom:8px;" onclick="startTimerOnOrder(${id})">Open Timer ›</button>
-        <button class="btn btn-warn" style="margin-bottom:10px;" onclick="confirmFinish(${id})">Stop &amp; Mark Finished</button>
-      ` : hasActiveGroup ? `
-        <div style="font-size:11px;color:var(--text-dim);text-align:center;margin-bottom:10px;">
-          Split group · ${groupSiblings.length + 1} orders
-        </div>
-        <button class="btn btn-primary" style="margin-bottom:8px;" onclick="resumeGroupTimer(${order.splitGroupId})">▶ Resume Group Timer</button>
-        <div class="row" style="margin-bottom:10px;">
-          <button class="btn btn-ghost" onclick="startTimerOnOrder(${id})">▶ Solo Timer</button>
-          <button class="btn btn-warn" onclick="confirmFinish(${id})">Mark Finished</button>
-        </div>
-      ` : `
-        <div class="row" style="margin-bottom:10px;">
-          <button class="btn btn-primary" id="detail-start-btn" onclick="startTimerOnOrder(${id})">▶ Start Timer</button>
-          <button class="btn btn-warn" id="detail-finish-btn" onclick="confirmFinish(${id})">Mark Finished</button>
-        </div>
-      `}
-      ${pendingCount > 0 ? `<div style="font-size:11px;color:var(--amber);text-align:center;">${pendingCount} session${pendingCount>1?'s':''} pending CNF · ${fmtMin(pendingMs)} unconfirmed</div>` : ''}
-    ` : `
-      <hr class="divider">
-      <div class="alert alert-success" style="margin-bottom:12px;">✓ Finished${order.finishedAt ? ' ' + fmtDate(order.finishedAt) : ''} — archived</div>
-      <button class="btn btn-primary" style="width:100%;" id="detail-unarchive-btn" onclick="unarchiveOrder(${id})">↩ Unarchive</button>
-    `}
+    ` : ''}
     <div class="gap-lg"></div>
     <button class="btn btn-ghost btn-sm" id="detail-delete-btn" style="width:100%;color:var(--red);border-color:rgba(248,113,113,0.3);" onclick="confirmDeleteOrder(${id})">Delete order</button>
   `;
+
+  // Main actions stay pinned to the bottom of the sheet, however long it gets
+  document.getElementById('modal-detail-actions').innerHTML = order.finished ? `
+      <div class="detail-actions-note" style="color:var(--accent);">✓ Finished${order.finishedAt ? ' ' + fmtDate(order.finishedAt) : ''} — archived</div>
+      <button class="btn btn-primary" id="detail-unarchive-btn" onclick="unarchiveOrder(${id})">↩ Unarchive</button>
+    ` : `
+      ${timing ? '<div class="detail-actions-note" style="color:var(--accent);">● Timer is running on this order</div>'
+        : pendingCount > 0 ? `<div class="detail-actions-note" style="color:var(--amber);">${pendingCount} session${pendingCount > 1 ? 's' : ''} pending CNF · ${fmtMin(pendingMs)} unconfirmed</div>` : ''}
+      ${timing ? `
+        <div class="row">
+          <button class="btn btn-primary" id="detail-open-timer-btn" onclick="startTimerOnOrder(${id})">Open Timer ›</button>
+          <button class="btn btn-warn" id="detail-finish-btn" onclick="confirmFinish(${id})">Stop &amp; Finish</button>
+        </div>
+      ` : hasActiveGroup ? `
+        <div class="row">
+          <button class="btn btn-primary" id="detail-group-btn" onclick="resumeGroupTimer(${order.splitGroupId})" style="background:${groupColor};border-color:${groupColor};">▶ Group ${escHtml(order.splitLabel)}</button>
+          <button class="btn btn-ghost" id="detail-start-btn" onclick="startTimerOnOrder(${id})" style="color:var(--text);">▶ Solo</button>
+          <button class="btn btn-warn" id="detail-finish-btn" onclick="confirmFinish(${id})">Finish</button>
+        </div>
+      ` : `
+        <div class="row">
+          <button class="btn btn-primary" id="detail-start-btn" onclick="startTimerOnOrder(${id})">▶ Start Timer</button>
+          <button class="btn btn-warn" id="detail-finish-btn" onclick="confirmFinish(${id})">Mark Finished</button>
+        </div>
+      `}`;
   openModal('modal-detail');
   renderDetailTags(id);
   renderDetailNotes(id);
@@ -2124,12 +2226,40 @@ function fmtTime(ts) {
 
 // Lunch break on the day of `ts`, but only once it is over: while lunch is
 // still ahead or in progress it doesn't block anything.
-function lunchIntervalFor(ts) {
+function lunchOn(ts) {
   if (!(settings.lunchDur > 0)) return null;
   const { h, m } = hhmm(settings.lunchStart);
   const d = new Date(ts); d.setHours(h, m, 0, 0);
-  const l = { start: d.getTime(), end: d.getTime() + settings.lunchDur * 60000 };
-  return Date.now() > l.end ? l : null;
+  return { start: d.getTime(), end: d.getTime() + settings.lunchDur * 60000 };
+}
+function lunchIntervalFor(ts) {
+  const l = lunchOn(ts);
+  return l && Date.now() > l.end ? l : null;
+}
+
+// Time already taken: worked sessions on any order, plus the running timer.
+function busyIntervals() {
+  const busy = [];
+  for (const o of [...db.orders, ...db.archive]) {
+    for (const s of o.sessions) if ((s.duration || 0) > 0) busy.push([sStart(s), sStart(s) + s.duration]);
+  }
+  if (timerStart) busy.push([timerStart, timerPausedAt !== null ? timerPausedAt : Date.now()]);
+  return busy;
+}
+
+// Latest gap of `dur` ms that ends by `end`, starts no earlier than `floor`,
+// and doesn't touch `busy` or lunch. Returns { start, end } or null.
+function findFreeSlot(end, dur, busy, floor) {
+  for (let guard = 0; guard < 1000; guard++) {
+    const start = end - dur;
+    if (start < floor) return null;
+    const blockers = busy.filter(([a, b]) => start < b && end > a);
+    const l = lunchOn(start);
+    if (l && start < l.end && end > l.start) blockers.push([l.start, l.end]);
+    if (!blockers.length) return { start, end };
+    end = Math.min(...blockers.map(b => b[0]));
+  }
+  return null;
 }
 function getLunchInterval() { return lunchIntervalFor(Date.now()); }
 
@@ -2350,12 +2480,12 @@ function stageMultiSelectAdj(deltaMs) {
   const abs = fmtMin(Math.abs(msAdjStaging));
   if (msAdjStaging > 0) {
     label.style.color = '#a78bfa';
-    label.textContent = '+' + abs + ' — will log as new session on each order';
+    label.textContent = '+' + abs + ' on each order — placed one after another, before now';
     commit.textContent = 'Add Session';
     commit.className = 'btn btn-primary btn-sm';
   } else if (msAdjStaging < 0) {
     label.style.color = '#f87171';
-    label.textContent = '−' + abs + ' — will log as deduction on each order';
+    label.textContent = '−' + abs + ' deduction on each order';
     commit.textContent = 'Log Deduction';
     commit.className = 'btn btn-warn btn-sm';
   } else {
@@ -2371,13 +2501,35 @@ function clearMultiSelectAdj() {
   if (preview) preview.style.display = 'none';
 }
 
+// Adds the staged ± time to every selected order. Each order gets its own
+// slot — back to back, working backwards from now and skipping time that is
+// already logged, the running timer and lunch — so nothing overlaps.
 function commitMultiSelectAdj() {
-  if (!msAdjStaging || !selectedOrderIds.size) return;
-  // Logged as ending now, so it lands at the same spot in the timeline and the session list
-  const at = Date.now() - Math.abs(msAdjStaging);
-  selectedOrderIds.forEach(id => {
-    const order = db.orders.find(o => o.id === id);
-    if (order) order.sessions.push({ start: at, duration: msAdjStaging, cnf: false, date: at, manual: true });
+  const orders = selectedOrders();
+  if (!msAdjStaging || !orders.length) return;
+  const dur = Math.abs(msAdjStaging);
+  const busy = busyIntervals();
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const slots = [];
+  let end = Date.now();
+  for (let i = 0; i < orders.length; i++) {
+    let slot = findFreeSlot(end, dur, busy, today.getTime());
+    if (!slot) {
+      if (msAdjStaging > 0) {
+        const label = document.getElementById('ms-adj-label');
+        label.style.color = 'var(--red)';
+        label.textContent = `Not enough free time today for ${orders.length} × ${fmtMin(dur)}`;
+        return;
+      }
+      slot = { start: end - dur, end }; // deductions don't occupy time — just keep them apart
+    }
+    slots.push(slot);
+    busy.push([slot.start, slot.end]);
+    end = slot.start;
+  }
+  // Slots run newest → oldest; give the first-selected order the earliest one
+  slots.reverse().forEach((slot, i) => {
+    orders[i].sessions.push({ start: slot.start, duration: msAdjStaging, cnf: false, date: slot.start, manual: true });
   });
   saveDB();
   clearMultiSelectAdj();
@@ -2592,6 +2744,7 @@ let ordersShowTimeline = false;
 let ordersQuickFilter  = null; // null | 'favorites' | 'unconfirmed'
 let ordersTagFilter    = null; // a tag name, or null
 let chipTags           = [];   // tags shown as filter chips, by index
+let ordersGroupFilter  = null; // a split-group letter, or null
 
 const ORDER_SORTS = {
   newest: (a, b) => b.created - a.created,
@@ -2613,6 +2766,23 @@ function toggleQuickFilter(name) {
   renderOrders();
 }
 
+function toggleGroupFilter(label) {
+  ordersGroupFilter = ordersGroupFilter === label ? null : label;
+  renderOrders();
+}
+
+// Split groups with more than one active order, oldest first: [{ label, size }]
+function activeSplitGroups() {
+  const sizes = new Map();
+  db.orders.forEach(o => { if (o.splitGroupId) sizes.set(o.splitLabel, (sizes.get(o.splitLabel) || 0) + 1); });
+  return [...sizes].filter(([, n]) => n > 1).map(([label, size]) => ({ label, size })).sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function splitBadge(label, size) {
+  const c = splitColor(label);
+  return `<span class="split-badge" style="color:${c};border-color:${c}73;background:${c}14;">⑂ Split ${escHtml(label)} · ${size}</span>`;
+}
+
 function toggleTagFilter(idx) {
   const t = chipTags[idx];
   ordersTagFilter = ordersTagFilter === t ? null : t;
@@ -2630,9 +2800,15 @@ function renderOrderChips() {
   if (ordersTagFilter && !chipTags.includes(ordersTagFilter)) ordersTagFilter = null;
   const favCount = db.orders.filter(o => o.favorite).length;
   const uncCount = db.orders.filter(o => pendingSessions(o).length).length;
+  const groups = activeSplitGroups();
+  if (ordersGroupFilter && !groups.some(g => g.label === ordersGroupFilter)) ordersGroupFilter = null;
   document.getElementById('orders-filter-chips').innerHTML = `
     <button class="filter-chip${ordersQuickFilter === 'favorites' ? ' active' : ''}" id="chip-favorites" onclick="toggleQuickFilter('favorites')">★ Favorites${favCount ? ' · ' + favCount : ''}</button>
     <button class="filter-chip${ordersQuickFilter === 'unconfirmed' ? ' active' : ''}" id="chip-unconfirmed" onclick="toggleQuickFilter('unconfirmed')">⚠ Unconfirmed${uncCount ? ' · ' + uncCount : ''}</button>
+    ${groups.map(g => {
+      const c = splitColor(g.label), on = ordersGroupFilter === g.label;
+      return `<button class="filter-chip group-chip" data-group="${escHtml(g.label)}" onclick="toggleGroupFilter('${escHtml(g.label)}')" style="color:${on ? '#09090b' : c};border-color:${c}${on ? '' : '73'};background:${on ? c : 'transparent'};">⑂ Split ${escHtml(g.label)} · ${g.size}</button>`;
+    }).join('')}
     ${chipTags.map((t, i) => `<button class="filter-chip tag-chip${ordersTagFilter === t ? ' active' : ''}" onclick="toggleTagFilter(${i})">${escHtml(t)}</button>`).join('')}`;
 }
 
@@ -2692,12 +2868,21 @@ function renderOrders() {
   if (ordersQuickFilter === 'favorites')   list = list.filter(o => o.favorite);
   if (ordersQuickFilter === 'unconfirmed') list = list.filter(o => pendingSessions(o).length > 0);
   if (ordersTagFilter)                     list = list.filter(o => o.tags.includes(ordersTagFilter));
+  if (ordersGroupFilter)                   list = list.filter(o => o.splitGroupId && o.splitLabel === ordersGroupFilter);
   // The order being timed first, then favorites, then the chosen sort
   const cmp  = ORDER_SORTS[settings.ordersSort];
   const rank = o => isOrderTiming(o.id) ? 0 : o.favorite ? 1 : 2;
   list.sort((a, b) => rank(a) - rank(b) || cmp(a, b));
+  // Keep each split group's orders together, where its first member lands
+  const placed = new Set();
+  list = list.flatMap(o => {
+    if (!o.splitGroupId) return [o];
+    if (placed.has(o.splitGroupId)) return [];
+    placed.add(o.splitGroupId);
+    return list.filter(x => x.splitGroupId === o.splitGroupId);
+  });
 
-  const filtered = q || ordersQuickFilter || ordersTagFilter;
+  const filtered = q || ordersQuickFilter || ordersTagFilter || ordersGroupFilter;
   document.getElementById('orders-section-title').textContent = filtered
     ? `Showing ${list.length} of ${db.orders.length}`
     : `Active Orders · ${db.orders.length}`;
@@ -2715,16 +2900,16 @@ function renderOrders() {
     const pendingMs = pendingDuration(o);
     const dot = o.sessions.length === 0 ? 'dot-gray' : (pending > 0 ? 'dot-amber' : 'dot-green');
     const sel = multiSelectMode && selectedOrderIds.has(o.id);
-    const isSplit = !!o.splitGroupId;
-    const splitGroupSize = isSplit ? db.orders.filter(x => x.splitGroupId === o.splitGroupId).length : 0;
+    const splitGroupSize = o.splitGroupId ? splitGroupMembers(o.splitGroupId).length : 0;
+    const isSplit = splitGroupSize > 1;
     const isActive = isOrderTiming(o.id) && !multiSelectMode; // don't look "selected" while selecting
     const when = o.sessions.length ? 'Last worked ' + fmtDate(lastWorked(o)) : 'Created ' + fmtDate(o.created);
-    return `<div class="order-card${sel ? ' ms-selected' : ''}${isSplit ? ' split-order' : ''}${isActive ? ' timer-active' : ''}" data-id="${o.id}" onclick="showOrderDetail(${o.id})">
+    return `<div class="order-card${sel ? ' ms-selected' : ''}${isSplit ? ' split-order' : ''}${isActive ? ' timer-active' : ''}" data-id="${o.id}" onclick="showOrderDetail(${o.id})"${isSplit ? ` style="--split-c:${splitColor(o.splitLabel)};"` : ''}>
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
         <div>
           <div class="order-po">${escHtml(o.po)}</div>
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-            ${isSplit && splitGroupSize > 1 ? `<span class="split-badge">Split ×${splitGroupSize}</span>` : ''}
+            ${isSplit ? splitBadge(o.splitLabel, splitGroupSize) : ''}
             ${o.splitQty ? `<span style="font-size:10px;color:var(--text-muted);letter-spacing:0.5px;">QTY <span style="color:var(--amber);font-family:'Courier New',monospace;">${o.splitQty}</span></span>` : ''}
           </div>
         </div>
@@ -2906,6 +3091,7 @@ function closeModal(id) {
   if (id === 'modal-stop')     pendingAfterStop = null;
   if (id === 'modal-confirm')  _confirmCallback = null;
   if (id === 'modal-adj-edit') adjEditState = null;
+  if (id === 'modal-detail')   detailShowAllFor = null;
 }
 
 // Close modal on overlay click
@@ -3022,6 +3208,12 @@ function tlShiftDay(delta) {
   renderTimeline();
 }
 
+// Small "⑂A" marker in the split group's colour (sessions and orders both carry the fields)
+function tlGroupMark(x) {
+  return x.splitGroupId && x.splitLabel
+    ? ` <span style="color:${splitColor(x.splitLabel)};font-weight:700;">⑂${escHtml(x.splitLabel)}</span>` : '';
+}
+
 function renderTimeline() {
   const now = new Date(tlViewDate);
   const dayStart = new Date(now); dayStart.setHours(0, 0, 0, 0);
@@ -3066,7 +3258,7 @@ function renderTimeline() {
     o.sessions.forEach((s, idx) => {
       const t = s.start || s.date;
       if (t >= tsStart && t <= tsEnd) {
-        allSessions.push({ ...s, orderId: o.id, sessionIdx: idx, po: o.po, splitGroupId: o.splitGroupId || null });
+        allSessions.push({ ...s, orderId: o.id, sessionIdx: idx, po: o.po, splitGroupId: o.splitGroupId || null, splitLabel: o.splitLabel || null });
       }
     });
   });
@@ -3155,7 +3347,7 @@ function renderTimeline() {
     const colLeft  = s.col === 0              ? `${LEFT + 3}px`   : `calc(${LEFT + 3}px + ${lf} * ${avail})`;
     const colRight = s.col === s.totalCols-1  ? '3px'             : `calc(3px + ${rf} * ${avail})`;
     blocks += `<div style="position:absolute;left:${colLeft};right:${colRight};top:${top}px;height:${h}px;background:${c}1a;border:1px solid ${c}44;border-left:3px solid ${c};border-radius:4px;padding:3px 5px;box-sizing:border-box;overflow:hidden;">
-      <div style="font-size:9px;font-weight:700;color:${c};font-family:'Courier New',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(s.po)}</div>
+      <div style="font-size:9px;font-weight:700;color:${c};font-family:'Courier New',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(s.po)}${tlGroupMark(s)}</div>
       ${meta}
     </div>`;
   });
@@ -3196,7 +3388,7 @@ function renderTimeline() {
     todayOrders.map(o =>
       `<div style="display:inline-flex;align-items:center;gap:5px;">
         <div style="width:8px;height:8px;border-radius:2px;background:${colorMap[o.id]};flex-shrink:0;"></div>
-        <span style="font-size:10px;color:var(--text);font-family:'Courier New',monospace;">${escHtml(o.po)}</span>
+        <span style="font-size:10px;color:var(--text);font-family:'Courier New',monospace;">${escHtml(o.po)}${tlGroupMark(o)}</span>
       </div>`
     ).join('') + '</div>';
 
@@ -3763,12 +3955,14 @@ function renderStats() {
   for (let i = 0; i < 7; i++) {
     const dStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i).getTime();
     const dEnd   = dStart + 86400000;
-    let ms = 0;
+    let ms = 0, count = 0;
     allOrders.forEach(o => o.sessions.forEach(s => {
       const t = sStart(s);
-      if (t >= dStart && t < dEnd) ms += s.duration || 0;
+      if (t >= dStart && t < dEnd) { ms += s.duration || 0; count++; }
     }));
-    if (i === 0) ms += runningMs;
+    if (i === 0 && runningMs > 0) { ms += runningMs; count++; }
+    const weekday = new Date(dStart).getDay();
+    if ((weekday === 0 || weekday === 6) && count === 0) continue; // empty weekend day
     days7.push({ dStart, ms });
   }
   const maxDayMs = Math.max(GOAL_MS, ...days7.map(d => d.ms));

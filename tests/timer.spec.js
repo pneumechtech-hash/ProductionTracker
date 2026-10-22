@@ -55,7 +55,7 @@ test('finishing an order that is being timed saves the running session first', a
   await page.clock.fastForward('12:00');
   await openOrder(page, 'PO-A');
   await expect(page.locator('#modal-detail')).toContainText('Timer is running on this order');
-  await page.getByRole('button', { name: 'Stop & Mark Finished' }).click();
+  await page.getByRole('button', { name: 'Stop & Finish' }).click();
   await expect(page.locator('#stop-next-info')).toContainText('then finish PO-A');
   await page.click('#stop-save-cnf-btn');
 

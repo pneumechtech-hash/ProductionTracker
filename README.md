@@ -88,6 +88,7 @@ If the banner doesn't appear:
 **Entering an order** — tap **+ New**, scan the barcode or type the PO, then pick tags / add notes and tap **▶ Start Timer** (or **Save Without Timer**).
 - If the PO is already active you're offered **Start timer on it** / **Open order** instead of creating a duplicate; if it's archived you can **Reopen it**.
 - **Split Time** mode times several POs at once. Enter a QTY on every PO to weight the time by quantity, otherwise it is split evenly. POs that already exist get the time added to them.
+- Each split group gets a letter and colour (⑂ Split A, B…) on its cards, timer and timeline, and its orders are listed together.
 
 **Tracking time**
 - Only one timer runs at a time. Starting another (or finishing the order being timed) first asks you to save the running session — time is never silently dropped.
@@ -98,8 +99,8 @@ If the banner doesn't appear:
 
 **Organizing**
 - Orders list: search (PO, tag or notes; `*` wildcards work on PO/tags), ★ favorites, ⚠ unconfirmed, tag filter chips, and sort (newest, last worked, oldest, PO #, most time). Favorites and the order being timed stay at the top.
-- **Select** (or press and hold a card) for bulk CNF, finish, split timer, or ± time.
-- Order detail: edit PO number, notes and tags; mark finished; delete.
+- **Select** (or press and hold a card) for bulk CNF, finish, split timer, or ± time (each order's added time gets its own slot, so nothing overlaps).
+- Order detail: edit PO number, notes and tags; flip session order (oldest/newest first); mark finished; delete. Long session lists show the latest 5, and the main buttons stay pinned at the bottom.
 - **Timeline** shows a day's sessions; ‹ › moves between days.
 - **Archive** holds finished orders: reopen or (with confirmation) delete them.
 

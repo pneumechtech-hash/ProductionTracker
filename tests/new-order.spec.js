@@ -138,7 +138,7 @@ test('split time weights the session by quantity', async ({ page }) => {
   await expect(page.locator('#details-po-label')).toHaveText('Split Time — 2 Orders');
   await page.locator('#tags-grid .tag', { hasText: 'Kit' }).click();
   await page.click('#details-start-btn');
-  await expect(page.locator('#timer-po-label')).toHaveText('Split — 2 Orders');
+  await expect(page.locator('#timer-po-label')).toHaveText('⑂ Split A — 2 Orders');
 
   await page.clock.fastForward('40:00');
   await page.click('#timer-stop-btn');
