@@ -1,4 +1,4 @@
-const CACHE = 'po-tracker-v18'; // keep in step with APP_VERSION in index.html
+const CACHE = 'po-tracker-v19'; // keep in step with APP_VERSION in index.html
 const ASSETS = [
   './',
   './index.html',

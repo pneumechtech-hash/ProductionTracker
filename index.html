@@ -381,7 +381,7 @@
   }
   .ms-bar-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
   .ms-bar-count { font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: 1px; text-transform: uppercase; }
-  .ms-bar-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .ms-bar-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
   .time-adjust-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 
   /* ACTIVE TIMER CARD */
@@ -409,7 +409,8 @@
   .settings-hint { font-size: 10px; color: var(--text-dim); letter-spacing: 0.3px; margin-top: 2px; }
   .settings-input { background: var(--bg-input); border: 1px solid var(--border-mid); border-radius: 7px; padding: 7px 10px; font-size: 13px; color: var(--text); outline: none; text-align: right; font-family: inherit; min-width: 80px; }
   .settings-input[type="number"] { width: 90px; }
-  .settings-input[type="time"] { width: 110px; }
+  .settings-input[type="time"] { width: 124px; }
+  .settings-row > .settings-input { flex-shrink: 0; }
   .settings-input:focus { border-color: var(--accent); }
   .settings-tag-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border); }
 
@@ -449,6 +450,24 @@
   .detail-group-po { font-size: 11px; font-family: 'Courier New', monospace; padding: 4px 9px; border-radius: 6px; border: 1px solid var(--border-mid); background: transparent; color: var(--text); cursor: pointer; }
   .detail-group-po.current { cursor: default; font-weight: 700; }
   .sessions-more { width: 100%; font-size: 10px; letter-spacing: 0.5px; color: var(--accent); background: var(--bg-card); border: 1px dashed var(--border-mid); border-radius: 8px; padding: 7px; margin-bottom: 8px; cursor: pointer; }
+
+  /* FILTER CHIP OVERFLOW */
+  .filter-chip.more-chip { border-style: dashed; }
+  .filter-chip.more-chip.open { color: var(--accent); border-color: var(--accent); }
+  .chip-overflow { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; background: var(--bg-card); border: 1px solid var(--border-mid); border-radius: 10px; }
+
+  /* SETTINGS: chip pins + work days */
+  .pin-chip-row, .day-toggle-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pin-chip, .day-toggle { font-size: 11px; padding: 6px 10px; border-radius: 16px; border: 1px solid var(--border-mid); background: transparent; color: var(--text-dim); cursor: pointer; }
+  .pin-chip.on, .day-toggle.on { background: var(--green-dim); color: var(--accent); border-color: var(--accent); }
+  .day-toggle { min-width: 40px; }
+
+  /* TRANSFER / FIND TIME */
+  .xfer-preview { font-size: 11px; line-height: 1.6; color: var(--text-dim); background: var(--bg-card); border: 1px solid var(--border); border-radius: 9px; padding: 10px 12px; margin: 4px 0 14px; min-height: 40px; }
+  .xfer-preview .err { color: var(--red); }
+  .xfer-preview .ok { color: var(--accent); }
+  .xfer-preview .warn { color: var(--amber); }
+  .modal select.input-field { margin-bottom: 12px; cursor: pointer; }
 
   #floating-timer { cursor: pointer; }
   #floating-timer.paused { border-bottom-color: var(--amber); }
@@ -643,6 +662,9 @@
         <div id="stat-today-running" style="display:none;font-size:10px;color:var(--text-dim);letter-spacing:0.5px;margin-top:6px;">Includes running timer</div>
       </div>
 
+      <div class="section-label" id="stat-month-label">This Month</div>
+      <div class="stat-card wide" id="stat-month" style="margin-bottom:10px;"></div>
+
       <div class="stat-grid">
         <div class="stat-card">
           <div class="stat-value" id="stat-finished-today">—</div>
@@ -739,6 +761,13 @@
       </div>
       <input type="number" id="settings-goal" class="settings-input" min="1" max="1440" value="450">
     </div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Monthly goal (hours)</div>
+        <div class="settings-hint" id="settings-month-hint">0 = off</div>
+      </div>
+      <input type="number" id="settings-month-goal" class="settings-input" min="0" max="744" step="0.5" value="0">
+    </div>
 
     <div class="section-label" style="margin-top:16px;">Breaks &amp; Alerts</div>
     <div class="settings-row">
@@ -763,6 +792,26 @@
       <input type="time" id="settings-day-end" class="settings-input" value="16:00">
     </div>
 
+    <div class="section-label" style="margin-top:16px;">Working Hours</div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Work starts</div>
+        <div class="settings-hint">Find Time only places time inside working hours</div>
+      </div>
+      <input type="time" id="settings-work-start" class="settings-input" value="07:00">
+    </div>
+    <div class="settings-row">
+      <div class="settings-label">Work ends</div>
+      <input type="time" id="settings-work-end" class="settings-input" value="16:00">
+    </div>
+    <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px;">
+      <div>
+        <div class="settings-label">Work days</div>
+        <div class="settings-hint">Days off are skipped by Find Time, the timeline and “Last 7 days”</div>
+      </div>
+      <div class="day-toggle-row" id="settings-workdays"></div>
+    </div>
+
     <div class="section-label" style="margin-top:16px;">Tags</div>
     <div id="settings-tags-list" style="margin-bottom:8px;"></div>
     <div class="tag-add-row" style="margin-bottom:16px;">
@@ -770,6 +819,10 @@
         onkeydown="if(event.key==='Enter'){event.preventDefault();settingsAddTag()}">
       <button class="btn btn-ghost btn-sm" onclick="settingsAddTag()">Add</button>
     </div>
+
+    <div class="section-label">Filter Chips</div>
+    <div class="settings-hint" style="margin-bottom:8px;">Highlighted chips are always shown on the Orders tab; the rest go under “More”.</div>
+    <div class="pin-chip-row" id="settings-chip-pins" style="margin-bottom:18px;"></div>
 
     <button class="btn btn-primary" id="settings-save-btn" onclick="saveSettingsModal()">Save Settings</button>
     <div class="gap"></div>
@@ -800,6 +853,24 @@
       <div class="settings-label">App version</div>
       <div id="app-version" style="font-size:12px;color:var(--text-dim);font-family:'Courier New',monospace;"></div>
     </div>
+  </div>
+</div>
+
+<!-- ── TRANSFER TIME MODAL ── -->
+<div class="modal-overlay" id="modal-transfer">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-transfer')" aria-label="Close">✕</button>
+    <div class="modal-title">Transfer Time</div>
+    <div id="transfer-body"></div>
+  </div>
+</div>
+
+<!-- ── FIND TIME MODAL ── -->
+<div class="modal-overlay" id="modal-find">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-find')" aria-label="Close">✕</button>
+    <div class="modal-title">Find Time</div>
+    <div id="find-body"></div>
   </div>
 </div>
 
@@ -868,8 +939,9 @@
   <div class="ms-bar-grid">
     <button class="btn btn-ghost btn-sm" id="ms-cnf-btn" onclick="multiSelectCNF()">CNF All</button>
     <button class="btn btn-warn btn-sm" id="ms-finish-btn" onclick="multiSelectFinish()">Finish All</button>
-    <button class="btn btn-primary btn-sm" id="ms-both-btn" onclick="multiSelectBoth()">CNF + Finish</button>
+    <button class="btn btn-primary btn-sm" id="ms-both-btn" onclick="multiSelectBoth()">CNF+Finish</button>
     <button class="btn btn-ghost btn-sm" id="ms-split-btn" onclick="multiSelectSplitTimer()">▶ Split Timer</button>
+    <button class="btn btn-ghost btn-sm" id="ms-find-btn" onclick="multiSelectFindTime()">⌕ Find Time</button>
   </div>
   <div class="time-adjust-row" style="margin-top:10px;">
     <button class="btn btn-ghost btn-sm" onclick="stageMultiSelectAdj(-900000)">−15m</button>
@@ -891,15 +963,17 @@
 'use strict';
 
 // ── STATE ──────────────────────────────────────────────────────────────────
-const APP_VERSION  = 'v18'; // keep in step with CACHE in sw.js
+const APP_VERSION  = 'v19'; // keep in step with CACHE in sw.js
 const DEFAULT_TAGS = ['Gantry','Air Prep','Testing','Learning', 'Kit', '3rd Party'];
 const DB_KEY       = 'po-tracker-v1';
 const SETTINGS_KEY = 'po-tracker-settings-v1';
 const TIMER_KEY    = 'po-tracker-timer-v1';
 const ALERTS_KEY   = 'po-tracker-alerts-v1';
-const DEFAULT_SETTINGS = { goalMin: 450, lunchStart: '12:00', lunchDur: 30, dayEnd: '16:00', ordersSort: 'newest', sessionSort: 'asc' };
+const DEFAULT_SETTINGS = { goalMin: 450, lunchStart: '12:00', lunchDur: 30, dayEnd: '16:00', ordersSort: 'newest', sessionSort: 'asc',
+  monthGoalHours: 0, workStart: '07:00', workEnd: '16:00', workDays: [1, 2, 3, 4, 5],
+  pinnedChips: ['favorites', 'unconfirmed', 'groups'] };
 
-let settings = { ...DEFAULT_SETTINGS, tags: [...DEFAULT_TAGS] };
+let settings = { ...DEFAULT_SETTINGS, workDays: [...DEFAULT_SETTINGS.workDays], pinnedChips: [...DEFAULT_SETTINGS.pinnedChips], tags: [...DEFAULT_TAGS] };
 let db = { orders: [], archive: [] };
 let draft = { tags: [], notes: '', po: '', splitMode: false, splitPOs: [] };
 let activeOrderId = null;
@@ -1026,6 +1100,10 @@ function loadSettings() {
     if (TIME_RE.test(s.dayEnd)) settings.dayEnd = s.dayEnd;
     if (typeof s.ordersSort === 'string') settings.ordersSort = s.ordersSort;
     if (s.sessionSort === 'asc' || s.sessionSort === 'desc') settings.sessionSort = s.sessionSort;
+    if (s.monthGoalHours >= 0) settings.monthGoalHours = Number(s.monthGoalHours);
+    if (TIME_RE.test(s.workStart) && TIME_RE.test(s.workEnd) && s.workStart < s.workEnd) { settings.workStart = s.workStart; settings.workEnd = s.workEnd; }
+    if (Array.isArray(s.workDays) && s.workDays.length && s.workDays.every(d => d >= 0 && d <= 6)) settings.workDays = s.workDays;
+    if (Array.isArray(s.pinnedChips)) settings.pinnedChips = s.pinnedChips.map(String);
     if (Array.isArray(s.tags) && s.tags.length) settings.tags = s.tags;
   } catch(e) {}
 }
@@ -1038,12 +1116,34 @@ function fmtClock(str) {
   return new Date(2000, 0, 1, h, m).toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit' });
 }
 
-// Tags are edited on a copy so closing the modal without saving discards changes.
+function isWorkDay(d) { return settings.workDays.includes(d.getDay()); }
+// Work days in [fromTs, toTs), counting each calendar day once.
+function countWorkDays(fromTs, toTs, days = settings.workDays) {
+  let n = 0;
+  for (const d = new Date(fromTs); d.getTime() < toTs; d.setDate(d.getDate() + 1)) if (days.includes(d.getDay())) n++;
+  return n;
+}
+function monthBounds(ref = new Date()) {
+  return { start: new Date(ref.getFullYear(), ref.getMonth(), 1).getTime(), end: new Date(ref.getFullYear(), ref.getMonth() + 1, 1).getTime() };
+}
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+function workDaysLabel(days = settings.workDays) {
+  const sorted = [1, 2, 3, 4, 5, 6, 0].filter(d => days.includes(d));
+  return sorted.join(',') === '1,2,3,4,5' ? 'Mon–Fri' : sorted.map(d => DAY_NAMES[d]).join(', ');
+}
+
+// Tags, pinned chips and work days are edited on copies so closing the modal
+// without saving discards changes.
 let settingsTagsDraft = [];
+let settingsPinsDraft = new Set();
+let settingsWorkDaysDraft = new Set();
 function openSettingsModal() {
   fillSettingsForm(settings);
   settingsTagsDraft = [...settings.tags];
+  settingsPinsDraft = new Set(settings.pinnedChips);
+  settingsWorkDaysDraft = new Set(settings.workDays);
   renderSettingsTags();
+  renderSettingsWorkDays();
   document.getElementById('app-version').textContent = APP_VERSION;
   showPersistStatus();
   openModal('modal-settings');
@@ -1053,10 +1153,51 @@ function fillSettingsForm(s) {
   document.getElementById('settings-lunch-start').value = s.lunchStart;
   document.getElementById('settings-lunch-dur').value   = s.lunchDur;
   document.getElementById('settings-day-end').value     = s.dayEnd;
+  document.getElementById('settings-month-goal').value  = s.monthGoalHours;
+  document.getElementById('settings-work-start').value  = s.workStart;
+  document.getElementById('settings-work-end').value    = s.workEnd;
+}
+function renderSettingsWorkDays() {
+  document.getElementById('settings-workdays').innerHTML = [1, 2, 3, 4, 5, 6, 0].map(d =>
+    `<button class="day-toggle${settingsWorkDaysDraft.has(d) ? ' on' : ''}" data-day="${d}" onclick="toggleSettingsWorkDay(${d})">${DAY_NAMES[d]}</button>`
+  ).join('');
+  // Help pick a monthly goal: this month's work days at the daily goal
+  const { start, end } = monthBounds();
+  const days = countWorkDays(start, end, [...settingsWorkDaysDraft]);
+  const goal = parseInt(document.getElementById('settings-goal').value, 10) || settings.goalMin;
+  document.getElementById('settings-month-hint').textContent =
+    `0 = off · this month: ${days} work days × daily goal ≈ ${Math.round(days * goal / 6) / 10} h`;
+}
+function toggleSettingsWorkDay(d) {
+  if (settingsWorkDaysDraft.has(d)) { if (settingsWorkDaysDraft.size > 1) settingsWorkDaysDraft.delete(d); }
+  else settingsWorkDaysDraft.add(d);
+  renderSettingsWorkDays();
+}
+// Pin options: the built-in chips plus every tag (from Settings or on an order)
+function chipPinOptions() {
+  const tags = [...new Set([...settingsTagsDraft, ...db.orders.flatMap(o => o.tags)])].sort((a, b) => a.localeCompare(b));
+  return [
+    { key: 'favorites', label: '★ Favorites' },
+    { key: 'unconfirmed', label: '⚠ Unconfirmed' },
+    { key: 'groups', label: '⑂ Split groups' },
+    ...tags.map(t => ({ key: 'tag:' + t, label: t })),
+  ];
+}
+function renderSettingsChipPins() {
+  const opts = chipPinOptions();
+  document.getElementById('settings-chip-pins').innerHTML = opts.map((o, i) =>
+    `<button class="pin-chip${settingsPinsDraft.has(o.key) ? ' on' : ''}" data-key="${escHtml(o.key)}" onclick="toggleSettingsPin(${i})">${escHtml(o.label)}</button>`
+  ).join('');
+}
+function toggleSettingsPin(i) {
+  const key = chipPinOptions()[i].key;
+  if (settingsPinsDraft.has(key)) settingsPinsDraft.delete(key); else settingsPinsDraft.add(key);
+  renderSettingsChipPins();
 }
 function renderSettingsTags() {
   const el = document.getElementById('settings-tags-list');
   if (!el) return;
+  renderSettingsChipPins();
   if (!settingsTagsDraft.length) { el.innerHTML = '<div style="font-size:11px;color:var(--text-muted);padding:8px 0;">No tags — add one below</div>'; return; }
   el.innerHTML = settingsTagsDraft.map((t, i) => `
     <div class="settings-tag-row">
@@ -1081,7 +1222,19 @@ function saveSettingsModal() {
   const ls = document.getElementById('settings-lunch-start').value;
   const ld = parseInt(document.getElementById('settings-lunch-dur').value, 10);
   const de = document.getElementById('settings-day-end').value;
+  const mg = parseFloat(document.getElementById('settings-month-goal').value);
+  const ws = document.getElementById('settings-work-start').value;
+  const we = document.getElementById('settings-work-end').value;
+  if (TIME_RE.test(ws) && TIME_RE.test(we) && ws >= we) {
+    alert('Work must end after it starts.');
+    return;
+  }
   if (g > 0)                 settings.goalMin    = g;
+  if (!isNaN(mg) && mg >= 0) settings.monthGoalHours = mg;
+  if (TIME_RE.test(ws))      settings.workStart  = ws;
+  if (TIME_RE.test(we))      settings.workEnd    = we;
+  settings.workDays    = [...settingsWorkDaysDraft].sort();
+  settings.pinnedChips = [...settingsPinsDraft];
   if (TIME_RE.test(ls))      settings.lunchStart = ls;
   if (!isNaN(ld) && ld >= 0) settings.lunchDur   = ld;
   if (TIME_RE.test(de))      settings.dayEnd     = de;
@@ -1095,7 +1248,10 @@ function saveSettingsModal() {
 function resetSettings() {
   fillSettingsForm(DEFAULT_SETTINGS);
   settingsTagsDraft = [...DEFAULT_TAGS];
+  settingsPinsDraft = new Set(DEFAULT_SETTINGS.pinnedChips);
+  settingsWorkDaysDraft = new Set(DEFAULT_SETTINGS.workDays);
   renderSettingsTags();
+  renderSettingsWorkDays();
 }
 
 // ── STORAGE PERSISTENCE ─────────────────────────────────────────────────────
@@ -1835,6 +1991,7 @@ function showOrderDetail(id) {
           const minStr = (neg ? '−' : '') + fmtMin(abs);
           const badge = neg
             ? '<span class="deduction-badge">ADJ −</span>'
+            : s.transferFrom ? `<span class="adj-badge" title="Transferred from ${escHtml(s.transferFrom)}">FROM ${escHtml(s.transferFrom)}</span>`
             : (s.manual ? '<span class="adj-badge">MANUAL</span>' : '');
           const canDeduct = !s.manual && !neg && !order.finished;
           const deducts = s.deductions || [];
@@ -1846,8 +2003,11 @@ function showOrderDetail(id) {
             <div style="display:flex;align-items:center;gap:8px;padding:5px 12px 5px 14px;background:rgba(248,113,113,0.06);border-top:1px solid rgba(248,113,113,0.15);">
               <span style="font-size:10px;color:var(--red);flex:1;">↳ −${Math.round(d.amount/60000)} min removed at ${fmtTime(d.ts)}</span>
               ${!order.finished ? `<button class="btn btn-ghost btn-sm" onclick="undoDeduction(${id},${i},${di})" style="font-size:9px;padding:3px 8px;min-height:26px;">↩ Undo</button>` : ''}
+            </div>`).join('') + (s.transfers || []).map(t => `
+            <div style="display:flex;align-items:center;gap:8px;padding:5px 12px 5px 14px;background:rgba(167,139,250,0.06);border-top:1px solid rgba(167,139,250,0.15);">
+              <span style="font-size:10px;color:#a78bfa;flex:1;">↳ ${Math.round(t.amount/60000)} min moved to ${escHtml(t.toPO)} at ${fmtTime(t.ts)}</span>
             </div>`).join('');
-          const hasHistory = deducts.length > 0;
+          const hasHistory = deducts.length > 0 || (s.transfers || []).length > 0;
           const holdAttrs = !order.finished
             ? `onmousedown="startSessionHold(event,${id},${i})" ontouchstart="startSessionHold(event,${id},${i})" onmouseup="cancelSessionHold()" onmouseleave="cancelSessionHold()" ontouchend="cancelSessionHold()" ontouchmove="cancelSessionHold()" style="cursor:pointer;${hasHistory ? 'border-radius:9px 9px 0 0;margin-bottom:0;' : ''}"`
             : `style="${hasHistory ? 'border-radius:9px 9px 0 0;margin-bottom:0;' : ''}"`;
@@ -1888,6 +2048,11 @@ function showOrderDetail(id) {
         </div>
       </div>
       <div id="quick-add-error-${id}" style="font-size:10px;color:var(--red);min-height:14px;margin-bottom:8px;"></div>
+      <div class="section-label" style="margin-bottom:8px;">Move &amp; Fill Time</div>
+      <div style="display:flex;gap:6px;margin-bottom:14px;">
+        <button class="btn btn-ghost btn-sm" style="flex:1;" id="detail-transfer-btn" onclick="openTransfer(${id})"${order.sessions.some(s => s.duration > 0) ? '' : ' disabled title="No logged time to move"'}>⇄ Transfer time</button>
+        <button class="btn btn-ghost btn-sm" style="flex:1;" id="detail-find-btn" onclick="openFindTime([${id}])">⌕ Find time</button>
+      </div>
       <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:6px;" onclick="toggleManualAddForm(${id})">
         <span class="section-label" style="margin-bottom:0;">Manual Session</span>
         <span id="manual-fold-icon-${id}" style="color:var(--text-dim);font-size:12px;">▶ expand</span>
@@ -2376,6 +2541,284 @@ function toggleManualAddForm(orderId) {
   if (icon) icon.textContent = open ? '▼ collapse' : '▶ expand';
 }
 
+// ── TRANSFER TIME ──────────────────────────────────────────────────────────
+// Moves X minutes from one order to another. The minutes are cut from the end
+// of the source's sessions (latest first, or one chosen session) and that same
+// clock time becomes a session on the target, so the timeline still adds up.
+let transferFromId = null;
+
+function workedSessionsLatestFirst(order) {
+  return order.sessions.map((s, i) => ({ s, i }))
+    .filter(x => (x.s.duration || 0) > 0)
+    .sort((a, b) => (sStart(b.s) + b.s.duration) - (sStart(a.s) + a.s.duration));
+}
+
+function openTransfer(orderId) {
+  const order = db.orders.find(o => o.id === orderId);
+  if (!order) return;
+  transferFromId = orderId;
+  const worked = workedSessionsLatestFirst(order);
+  const available = worked.reduce((a, x) => a + x.s.duration, 0);
+  const targets = db.orders.filter(o => o.id !== orderId)
+    .sort((a, b) => (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0) || a.po.localeCompare(b.po, undefined, { numeric: true }));
+  const body = document.getElementById('transfer-body');
+  body.innerHTML = `
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;">From <strong style="color:var(--accent);">${escHtml(order.po)}</strong> · ${fmtMin(available)} logged</div>
+    ${!targets.length ? '<div class="xfer-preview">There are no other active orders to move time to.</div>' : `
+    <div class="section-label" style="margin-bottom:8px;">Minutes to move</div>
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:12px;">
+      <input type="number" id="transfer-min" class="input-field" min="1" placeholder="min" style="flex:1;" oninput="renderTransferPreview()">
+      ${[15, 30, 60].map(m => `<button class="btn btn-ghost btn-sm" onclick="setInputMin('transfer-min',${m});renderTransferPreview()">${m}</button>`).join('')}
+    </div>
+    <div class="section-label" style="margin-bottom:8px;">Take from</div>
+    <select id="transfer-src" class="input-field" onchange="renderTransferPreview()">
+      <option value="auto">Latest sessions first</option>
+      ${worked.map(x => `<option value="${x.i}">${fmtSessionRange(x.s)} · ${fmtMin(x.s.duration)}</option>`).join('')}
+    </select>
+    <div class="section-label" style="margin-bottom:8px;">Move to</div>
+    <select id="transfer-to" class="input-field" onchange="renderTransferPreview()">
+      <option value="">Choose an order…</option>
+      ${targets.map(o => `<option value="${o.id}">${o.favorite ? '★ ' : ''}${escHtml(o.po)}${o.splitGroupId && splitGroupMembers(o.splitGroupId).length > 1 ? ` (Split ${escHtml(o.splitLabel)})` : ''}</option>`).join('')}
+    </select>
+    <div id="transfer-preview" class="xfer-preview"></div>
+    <div class="row">
+      <button class="btn btn-ghost" onclick="closeModal('modal-transfer')">Cancel</button>
+      <button class="btn btn-primary" id="transfer-ok" onclick="commitTransfer()" disabled>Transfer</button>
+    </div>`}`;
+  openModal('modal-transfer');
+  if (targets.length) renderTransferPreview();
+}
+
+function setInputMin(id, m) { document.getElementById(id).value = m; }
+
+function planTransfer(order, src, ms) {
+  const pool = src === 'auto'
+    ? workedSessionsLatestFirst(order)
+    : workedSessionsLatestFirst(order).filter(x => x.i === Number(src));
+  const pieces = [];
+  let left = ms;
+  for (const { s, i } of pool) {
+    if (left <= 0) break;
+    const take = Math.min(left, s.duration);
+    const end = sStart(s) + s.duration;
+    pieces.push({ i, start: end - take, end, take, wasCnf: !!s.cnf });
+    left -= take;
+  }
+  return { pieces, short: left, available: pool.reduce((a, x) => a + x.s.duration, 0) };
+}
+
+function readTransferForm() {
+  const order = db.orders.find(o => o.id === transferFromId);
+  const mins = parseInt(document.getElementById('transfer-min').value, 10);
+  const src = document.getElementById('transfer-src').value;
+  const target = db.orders.find(o => o.id === Number(document.getElementById('transfer-to').value)) || null;
+  return { order, target, src, ms: mins > 0 ? mins * 60000 : 0 };
+}
+
+function renderTransferPreview() {
+  const { order, target, src, ms } = readTransferForm();
+  const el = document.getElementById('transfer-preview');
+  const ok = document.getElementById('transfer-ok');
+  ok.disabled = true;
+  if (!order) return;
+  if (!ms) { el.innerHTML = 'Enter how many minutes to move.'; return; }
+  const plan = planTransfer(order, src, ms);
+  if (plan.short > 0) {
+    el.innerHTML = `<span class="err">Only ${fmtMin(plan.available)} available ${src === 'auto' ? 'on this order' : 'in that session'}.</span>`;
+    return;
+  }
+  const lines = plan.pieces.map(p =>
+    `${new Date(p.start).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })} ${fmtTime(p.start)}–${fmtTime(p.end)} · ${fmtMin(p.take)}`).join('<br>');
+  const cnfNote = plan.pieces.some(p => p.wasCnf)
+    ? `<br><span class="warn">Some of this time was CNF'd — those sessions go back to pending so SAP can be corrected.</span>` : '';
+  el.innerHTML = target
+    ? `<span class="ok">${fmtMin(ms)} from ${escHtml(order.po)} → ${escHtml(target.po)}</span><br>${lines}${cnfNote}`
+    : `${lines}<br>Choose the order to move it to.${cnfNote}`;
+  ok.disabled = !target;
+}
+
+function commitTransfer() {
+  const { order, target, src, ms } = readTransferForm();
+  if (!order || !target || !ms) return;
+  const plan = planTransfer(order, src, ms);
+  if (plan.short > 0) return;
+  const now = Date.now();
+  const emptied = new Set();
+  plan.pieces.forEach(p => {
+    const s = order.sessions[p.i];
+    s.duration -= p.take;
+    s.cnf = false;
+    (s.transfers = s.transfers || []).push({ amount: p.take, ts: now, toPO: target.po });
+    if (s.duration <= 0) emptied.add(s);
+    target.sessions.push({ start: p.start, duration: p.take, cnf: false, date: p.start, transferFrom: order.po });
+  });
+  order.sessions = order.sessions.filter(s => !emptied.has(s));
+  saveDB();
+  closeModal('modal-transfer');
+  showOrderDetail(order.id);
+  refreshActiveView();
+}
+
+// ── FIND TIME ──────────────────────────────────────────────────────────────
+// Back-dates time onto one or more orders: finds free gaps inside working
+// hours (Settings), newest first, skipping logged time, the running timer and
+// lunch, and shows exactly where it will go before anything is saved.
+const FIND_MIN_CHUNK = 5 * 60000; // don't use slivers shorter than this…
+let findOrderIds = [];
+let findMode = 'each';            // 'each' order gets the minutes, or 'split' the total
+
+function timeOnDay(day, str) { const { h, m } = hhmm(str); const d = new Date(day); d.setHours(h, m, 0, 0); return d.getTime(); }
+
+// Free gaps in working hours over the last `daysBack` days, latest first.
+function freeWorkGaps(daysBack) {
+  const now = Date.now();
+  const busy = busyIntervals();
+  const gaps = [];
+  for (let back = 0; back < daysBack; back++) {
+    const day = new Date(); day.setHours(0, 0, 0, 0); day.setDate(day.getDate() - back);
+    if (!isWorkDay(day)) continue;
+    const ws = timeOnDay(day, settings.workStart);
+    const we = Math.min(timeOnDay(day, settings.workEnd), now);
+    if (we <= ws) continue;
+    const blocks = [...busy];
+    const l = lunchOn(ws);
+    if (l) blocks.push([l.start, l.end]);
+    let free = [[ws, we]];
+    for (const [bs, be] of blocks) {
+      if (be <= ws || bs >= we) continue;
+      free = free.flatMap(([a, b]) => (be <= a || bs >= b) ? [[a, b]]
+        : [[a, Math.min(b, bs)], [Math.max(a, be), b]].filter(([x, y]) => y > x));
+    }
+    for (const [a, b] of free) {
+      const a1 = Math.ceil(a / 60000) * 60000, b1 = Math.floor(b / 60000) * 60000; // whole minutes
+      if (b1 > a1) gaps.push([a1, b1]);
+    }
+  }
+  return gaps.sort((x, y) => y[1] - x[1]);
+}
+
+// requests: [{ orderId, ms }] → { pieces: [{ orderId, start, end }], short }
+function planFindTime(requests, daysBack) {
+  const gaps = freeWorkGaps(daysBack);
+  const pieces = [];
+  let short = 0;
+  // Fill from the latest gap back; the last order goes latest, so the
+  // first-selected order ends up with the earliest time.
+  for (const req of [...requests].reverse()) {
+    let need = req.ms;
+    for (const g of gaps) {
+      if (need <= 0) break;
+      const len = g[1] - g[0];
+      if (len <= 0 || (len < FIND_MIN_CHUNK && len < need)) continue; // …unless it finishes the job
+      const take = Math.min(need, len);
+      pieces.push({ orderId: req.orderId, start: g[1] - take, end: g[1] });
+      g[1] -= take;
+      need -= take;
+    }
+    short += Math.max(0, need);
+  }
+  return { pieces: pieces.sort((a, b) => a.start - b.start), short };
+}
+
+function openFindTime(ids) {
+  findOrderIds = ids.filter(id => db.orders.some(o => o.id === id));
+  if (!findOrderIds.length) return;
+  findMode = 'each';
+  const orders = findOrderIds.map(id => db.orders.find(o => o.id === id));
+  document.getElementById('find-body').innerHTML = `
+    <div class="order-tags" style="margin:0 0 10px;">${orders.map(o => `<span class="order-tag" style="font-family:'Courier New',monospace;">${escHtml(o.po)}</span>`).join('')}</div>
+    <div style="font-size:11px;color:var(--text-dim);line-height:1.5;margin-bottom:14px;">
+      Fills free time inside working hours (${fmtClock(settings.workStart)}–${fmtClock(settings.workEnd)}, ${workDaysLabel()}), working back from now.
+      Time already logged, the running timer and lunch are skipped.
+    </div>
+    <div class="section-label" style="margin-bottom:8px;">Minutes</div>
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:12px;">
+      <input type="number" id="find-min" class="input-field" min="1" placeholder="min" style="flex:1;" oninput="renderFindPreview()">
+      ${[15, 30, 60].map(m => `<button class="btn btn-ghost btn-sm" onclick="setInputMin('find-min',${m});renderFindPreview()">${m}</button>`).join('')}
+    </div>
+    ${orders.length > 1 ? `
+      <div class="split-mode-bar">
+        <button class="split-opt active" id="find-each" onclick="setFindMode('each')">Each order</button>
+        <button class="split-opt" id="find-split" onclick="setFindMode('split')">Split the total</button>
+      </div>` : ''}
+    <div class="section-label" style="margin-bottom:8px;">Search back</div>
+    <select id="find-days" class="input-field" onchange="renderFindPreview()">
+      <option value="1">Today only</option>
+      <option value="7">7 days</option>
+      <option value="14" selected>14 days</option>
+      <option value="31">31 days</option>
+    </select>
+    <div id="find-preview" class="xfer-preview"></div>
+    <div class="row">
+      <button class="btn btn-ghost" onclick="closeModal('modal-find')">Cancel</button>
+      <button class="btn btn-primary" id="find-ok" onclick="commitFindTime()" disabled>Add time</button>
+    </div>`;
+  openModal('modal-find');
+  renderFindPreview();
+}
+
+function setFindMode(mode) {
+  findMode = mode;
+  document.getElementById('find-each').classList.toggle('active', mode === 'each');
+  document.getElementById('find-split').classList.toggle('active', mode === 'split');
+  renderFindPreview();
+}
+
+function findRequests() {
+  const mins = parseInt(document.getElementById('find-min').value, 10);
+  if (!(mins > 0)) return null;
+  const n = findOrderIds.length;
+  if (findMode === 'split' && n > 1) {
+    // Whole minutes; any remainder goes to the first orders
+    const base = Math.floor(mins / n), extra = mins % n;
+    return findOrderIds.map((orderId, i) => ({ orderId, ms: (base + (i < extra ? 1 : 0)) * 60000 })).filter(r => r.ms > 0);
+  }
+  return findOrderIds.map(orderId => ({ orderId, ms: mins * 60000 }));
+}
+
+function currentFindPlan() {
+  const reqs = findRequests();
+  if (!reqs) return null;
+  return { reqs, ...planFindTime(reqs, parseInt(document.getElementById('find-days').value, 10)) };
+}
+
+function renderFindPreview() {
+  const el = document.getElementById('find-preview');
+  const ok = document.getElementById('find-ok');
+  ok.disabled = true;
+  const plan = currentFindPlan();
+  if (!plan) { el.innerHTML = 'Enter how many minutes to add.'; return; }
+  const wanted = plan.reqs.reduce((a, r) => a + r.ms, 0);
+  if (plan.short > 0) {
+    el.innerHTML = `<span class="err">Only ${fmtMin(wanted - plan.short)} of ${fmtMin(wanted)} free in working hours — search further back, or check working hours in Settings.</span>`;
+    return;
+  }
+  const fmtPiece = p => `${new Date(p.start).toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' })} ${fmtTime(p.start)}–${fmtTime(p.end)}`;
+  el.innerHTML = findOrderIds.map(id => {
+    const order = db.orders.find(o => o.id === id);
+    const mine = plan.pieces.filter(p => p.orderId === id);
+    if (!mine.length) return '';
+    const total = mine.reduce((a, p) => a + p.end - p.start, 0);
+    return `<span class="ok">${escHtml(order.po)} · ${fmtMin(total)}</span><br>${mine.map(fmtPiece).join('<br>')}`;
+  }).filter(Boolean).join('<br>');
+  ok.textContent = `Add ${plan.pieces.length} session${plan.pieces.length !== 1 ? 's' : ''}`;
+  ok.disabled = false;
+}
+
+function commitFindTime() {
+  const plan = currentFindPlan();
+  if (!plan || plan.short > 0) return;
+  plan.pieces.forEach(p => {
+    const order = db.orders.find(o => o.id === p.orderId);
+    if (order) order.sessions.push({ start: p.start, duration: p.end - p.start, cnf: false, date: p.start, manual: true });
+  });
+  saveDB();
+  closeModal('modal-find');
+  if (multiSelectMode) exitMultiSelect();
+  if (document.getElementById('modal-detail').classList.contains('open') && findOrderIds.length === 1) showOrderDetail(findOrderIds[0]);
+  refreshActiveView();
+}
+
 // ── QUICK ADD (staging) ─────────────────────────────────────────────────────
 const quickStaging = {};
 
@@ -2795,6 +3238,12 @@ function clearOrdersSearch() {
   renderOrders();
 }
 
+// Chips the user pinned in Settings are always shown; the rest sit behind
+// "More". A chip that is currently filtering is always shown, so it can be
+// switched off again.
+let chipsMoreOpen = false;
+function toggleChipsMore() { chipsMoreOpen = !chipsMoreOpen; renderOrderChips(); }
+
 function renderOrderChips() {
   chipTags = [...new Set(db.orders.flatMap(o => o.tags))].sort((a, b) => a.localeCompare(b));
   if (ordersTagFilter && !chipTags.includes(ordersTagFilter)) ordersTagFilter = null;
@@ -2802,15 +3251,31 @@ function renderOrderChips() {
   const uncCount = db.orders.filter(o => pendingSessions(o).length).length;
   const groups = activeSplitGroups();
   if (ordersGroupFilter && !groups.some(g => g.label === ordersGroupFilter)) ordersGroupFilter = null;
-  document.getElementById('orders-filter-chips').innerHTML = `
-    <button class="filter-chip${ordersQuickFilter === 'favorites' ? ' active' : ''}" id="chip-favorites" onclick="toggleQuickFilter('favorites')">★ Favorites${favCount ? ' · ' + favCount : ''}</button>
-    <button class="filter-chip${ordersQuickFilter === 'unconfirmed' ? ' active' : ''}" id="chip-unconfirmed" onclick="toggleQuickFilter('unconfirmed')">⚠ Unconfirmed${uncCount ? ' · ' + uncCount : ''}</button>
-    ${groups.map(g => {
+
+  const chips = [
+    { key: 'favorites', active: ordersQuickFilter === 'favorites',
+      html: `<button class="filter-chip${ordersQuickFilter === 'favorites' ? ' active' : ''}" id="chip-favorites" onclick="pickChip(()=>toggleQuickFilter('favorites'))">★ Favorites${favCount ? ' · ' + favCount : ''}</button>` },
+    { key: 'unconfirmed', active: ordersQuickFilter === 'unconfirmed',
+      html: `<button class="filter-chip${ordersQuickFilter === 'unconfirmed' ? ' active' : ''}" id="chip-unconfirmed" onclick="pickChip(()=>toggleQuickFilter('unconfirmed'))">⚠ Unconfirmed${uncCount ? ' · ' + uncCount : ''}</button>` },
+    ...groups.map(g => {
       const c = splitColor(g.label), on = ordersGroupFilter === g.label;
-      return `<button class="filter-chip group-chip" data-group="${escHtml(g.label)}" onclick="toggleGroupFilter('${escHtml(g.label)}')" style="color:${on ? '#09090b' : c};border-color:${c}${on ? '' : '73'};background:${on ? c : 'transparent'};">⑂ Split ${escHtml(g.label)} · ${g.size}</button>`;
-    }).join('')}
-    ${chipTags.map((t, i) => `<button class="filter-chip tag-chip${ordersTagFilter === t ? ' active' : ''}" onclick="toggleTagFilter(${i})">${escHtml(t)}</button>`).join('')}`;
+      return { key: 'groups', active: on,
+        html: `<button class="filter-chip group-chip" data-group="${escHtml(g.label)}" onclick="pickChip(()=>toggleGroupFilter('${escHtml(g.label)}'))" style="color:${on ? '#09090b' : c};border-color:${c}${on ? '' : '73'};background:${on ? c : 'transparent'};">⑂ Split ${escHtml(g.label)} · ${g.size}</button>` };
+    }),
+    ...chipTags.map((t, i) => ({ key: 'tag:' + t, active: ordersTagFilter === t,
+      html: `<button class="filter-chip tag-chip${ordersTagFilter === t ? ' active' : ''}" onclick="pickChip(()=>toggleTagFilter(${i}))">${escHtml(t)}</button>` })),
+  ];
+  const pinned = new Set(settings.pinnedChips);
+  const shown  = chips.filter(c => pinned.has(c.key) || c.active);
+  const hidden = chips.filter(c => !(pinned.has(c.key) || c.active));
+  if (!hidden.length) chipsMoreOpen = false;
+  document.getElementById('orders-filter-chips').innerHTML =
+    shown.map(c => c.html).join('') +
+    (hidden.length ? `<button class="filter-chip more-chip${chipsMoreOpen ? ' open' : ''}" id="chip-more" onclick="toggleChipsMore()">${chipsMoreOpen ? 'Less ▴' : `More · ${hidden.length} ▾`}</button>` : '') +
+    (chipsMoreOpen ? `<div class="chip-overflow" id="chip-overflow">${hidden.map(c => c.html).join('')}</div>` : '');
 }
+// Choosing a chip from the "More" panel closes it, like a dropdown.
+function pickChip(fn) { chipsMoreOpen = false; fn(); }
 
 function toggleFavorite(id, event) {
   if (event) event.stopPropagation();
@@ -3182,7 +3647,7 @@ let tlTouchPending  = null;
 let tlTodaySessions = []; // non-manual sessions for snap targets
 let tlViewDate      = new Date(); // day currently shown in the timeline
 
-function tlIsWeekend(d) { const day = d.getDay(); return day === 0 || day === 6; }
+function tlIsDayOff(d) { return !isWorkDay(d); }
 
 function tlHasSessionsOnDate(d) {
   const dayStart = new Date(d); dayStart.setHours(0, 0, 0, 0);
@@ -3202,7 +3667,7 @@ function tlShiftDay(delta) {
   for (let i = 0; i < 366; i++) {
     d.setDate(d.getDate() + delta);
     if (delta > 0 && d.getTime() > today.getTime()) return; // don't navigate into the future
-    if (!tlIsWeekend(d) || tlHasSessionsOnDate(d)) break;
+    if (!tlIsDayOff(d) || tlHasSessionsOnDate(d)) break;
   }
   tlViewDate = d;
   renderTimeline();
@@ -3809,7 +4274,7 @@ function selectAllOrders() {
 function updateMultiSelectBar() {
   const n = selectedOrderIds.size;
   document.getElementById('multiselect-count').textContent = `${n} order${n !== 1 ? 's' : ''} selected`;
-  ['ms-cnf-btn', 'ms-finish-btn', 'ms-both-btn', 'ms-split-btn'].forEach(id => {
+  ['ms-cnf-btn', 'ms-finish-btn', 'ms-both-btn', 'ms-split-btn', 'ms-find-btn'].forEach(id => {
     document.getElementById(id).disabled = n === 0;
   });
 }
@@ -3857,6 +4322,11 @@ function multiSelectSplitTimer() {
   });
 }
 
+function multiSelectFindTime() {
+  const ids = selectedOrders().map(o => o.id);
+  if (ids.length) openFindTime(ids);
+}
+
 function initOrdersLongPress() {
   initLongPress('orders-list', id => multiSelectMode ? toggleOrderSelection(id) : enterMultiSelect(id));
 }
@@ -3900,6 +4370,8 @@ function renderStats() {
   const bar = document.getElementById('stat-today-bar');
   bar.style.width = todayPct + '%';
   bar.classList.toggle('complete', todayPct >= 100);
+
+  renderMonthStat(runningMs);
 
   document.getElementById('stat-finished-today').textContent = finishedToday;
   document.getElementById('stat-active-orders').textContent = db.orders.length;
@@ -3961,8 +4433,7 @@ function renderStats() {
       if (t >= dStart && t < dEnd) { ms += s.duration || 0; count++; }
     }));
     if (i === 0 && runningMs > 0) { ms += runningMs; count++; }
-    const weekday = new Date(dStart).getDay();
-    if ((weekday === 0 || weekday === 6) && count === 0) continue; // empty weekend day
+    if (!isWorkDay(new Date(dStart)) && count === 0) continue; // empty day off
     days7.push({ dStart, ms });
   }
   const maxDayMs = Math.max(GOAL_MS, ...days7.map(d => d.ms));
@@ -3989,6 +4460,54 @@ function renderStats() {
         </div>
       </div>`;
   }).join('');
+}
+
+// Month-to-date hours against the monthly goal from Settings.
+function renderMonthStat(runningMs) {
+  const now = new Date();
+  const { start, end } = monthBounds(now);
+  let ms = 0;
+  [...db.orders, ...db.archive].forEach(o => o.sessions.forEach(s => {
+    const t = sStart(s);
+    if (t >= start && t < end) ms += s.duration || 0;
+  }));
+  if (timerStart && timerStart >= start) ms += runningMs;
+  const hours = ms / 3600000;
+  const h1 = x => (Math.round(x * 10) / 10).toFixed(1);
+  const monthName = now.toLocaleDateString('en-CA', { month: 'long' });
+  document.getElementById('stat-month-label').textContent = `This Month — ${monthName}`;
+  const goal = settings.monthGoalHours;
+  const el = document.getElementById('stat-month');
+  if (!(goal > 0)) {
+    el.innerHTML = `
+      <div class="stat-value" id="stat-month-hours">${h1(hours)} h</div>
+      <div class="stat-label">Logged this month</div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="openSettingsModal()">Set a monthly goal</button>`;
+    return;
+  }
+  const pct = Math.round(hours / goal * 100);
+  const left = Math.max(0, 100 - pct);
+  const remaining = Math.max(0, goal - hours);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const daysLeft = countWorkDays(today, end);
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+      <div>
+        <div class="stat-value" id="stat-month-hours">${h1(hours)} h</div>
+        <div class="stat-label">of ${h1(goal)} h goal</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="stat-value" id="stat-month-left" style="font-size:24px;color:${left === 0 ? '#4ade80' : 'var(--amber)'};">${left === 0 ? '✓' : left + '%'}</div>
+        <div class="stat-label">${left === 0 ? 'Goal reached' : 'left'}</div>
+      </div>
+    </div>
+    <div class="progress-track"><div class="progress-fill${pct >= 100 ? ' complete' : ''}" style="width:${Math.min(100, pct)}%"></div></div>
+    <div class="progress-row">
+      <div class="progress-pct" id="stat-month-pct">${pct}%</div>
+      <div class="progress-goal" id="stat-month-detail">${remaining > 0
+        ? `${h1(remaining)} h to go · ${daysLeft} work day${daysLeft !== 1 ? 's' : ''} left${daysLeft ? ` · ≈ ${h1(remaining / daysLeft)} h/day` : ''}`
+        : `${h1(hours - goal)} h over goal`}</div>
+    </div>`;
 }
 
 // ── EXPORT ─────────────────────────────────────────────────────────────────

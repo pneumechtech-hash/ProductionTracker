@@ -37,6 +37,7 @@ test('favorites are pinned to the top and can be filtered', async ({ page }) => 
 
 test('tag chips filter the list and search covers PO, tags and notes', async ({ page }) => {
   await openApp(page, { orders: seed() });
+  await page.click('#chip-more'); // tags aren't pinned by default
   await page.locator('#orders-filter-chips .tag-chip', { hasText: 'Kit' }).click();
   expect(await listed(page)).toEqual(['PO-100', 'PO-9']);
   await page.locator('#orders-filter-chips .tag-chip', { hasText: 'Kit' }).click();

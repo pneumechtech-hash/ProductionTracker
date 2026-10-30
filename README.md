@@ -102,6 +102,10 @@ If the banner doesn't appear:
 - **Select** (or press and hold a card) for bulk CNF, finish, split timer, or ± time (each order's added time gets its own slot, so nothing overlaps).
 - Order detail: edit PO number, notes and tags; flip session order (oldest/newest first); mark finished; delete. Long session lists show the latest 5, and the main buttons stay pinned at the bottom.
 - **Timeline** shows a day's sessions; ‹ › moves between days.
+- Filter chips: pin the ones you use in ⚙ Settings → Filter Chips; the rest are under **More ▾**.
+- **⇄ Transfer time** (order detail) moves minutes from one order to another — the same clock time, so nothing double-counts.
+- **⌕ Find time** (order detail, or Select bar for several orders) back-dates minutes into free gaps inside your working hours (⚙ Settings → Working Hours), with a preview before saving.
+- **Stats → This Month** tracks hours against a monthly goal (⚙ Settings) with % left and the pace needed.
 - **Archive** holds finished orders: reopen or (with confirmation) delete them.
 
 **Your data** lives only on the device (localStorage). In ⚙ Settings → Backup & Restore you can export CSV (for spreadsheets / SAP entry) or a JSON backup, and restore a JSON backup.
