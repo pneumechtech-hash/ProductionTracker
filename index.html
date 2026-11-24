@@ -301,6 +301,15 @@
   #install-banner p { font-size: 12px; font-weight: 500; color: var(--text); }
   #install-banner button { font-size: 11px; font-weight: 500; padding: 7px 14px; border-radius: 7px; cursor: pointer; }
   #install-btn { background: var(--accent); color: #09090b; border: none; font-weight: 600; }
+
+  /* Auto-export paused banner */
+  #autosync-banner {
+    display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 350; cursor: pointer;
+    background: var(--bg-card); border-bottom: 2px solid var(--amber); color: var(--amber);
+    padding: 10px 16px; padding-top: calc(10px + var(--safe-top)); text-align: center;
+    font-family: 'Courier New', monospace; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+  }
+  #autosync-banner.show { display: block; }
   #dismiss-btn { background: transparent; color: var(--text-dim); border: 1px solid var(--border-mid); }
 
   /* SPLIT TIME MODE */
@@ -836,6 +845,17 @@
       <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="document.getElementById('import-file').click()">↑ Restore</button>
     </div>
     <input type="file" id="import-file" accept="application/json,.json" style="display:none;" onchange="importJSONFile(this)">
+    <div class="settings-row" style="border-bottom:none;">
+      <div>
+        <div class="settings-label">Auto-export to file</div>
+        <div class="settings-hint" id="autosync-status">Off</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button id="autosync-off-btn" class="btn btn-ghost btn-sm" style="display:none;" onclick="disableAutoSync()">Stop</button>
+        <button id="autosync-btn" class="btn btn-ghost btn-sm" onclick="autoSyncButton()">Choose folder</button>
+      </div>
+    </div>
+    <div class="settings-hint" style="margin-bottom:8px;line-height:1.5;">After every change, saves a backup into the chosen folder (e.g. your Syncthing folder) as po-tracker-YYYY-MM-DD.json — one file per day, updated through the day, same format as ↓ Backup.</div>
 
     <div class="section-label" style="margin-top:16px;">Device</div>
     <div class="settings-row">
@@ -903,6 +923,9 @@
   </div>
 </div>
 
+<!-- ── AUTO-EXPORT PAUSED BANNER ── -->
+<div id="autosync-banner" onclick="resumeAutoSync()">⟳ Auto-export paused — tap to resume</div>
+
 <!-- ── INSTALL BANNER ── -->
 <div id="install-banner">
   <p>Add PO Tracker to home screen for the full app experience</p>
@@ -963,7 +986,7 @@
 'use strict';
 
 // ── STATE ──────────────────────────────────────────────────────────────────
-const APP_VERSION  = 'v19'; // keep in step with CACHE in sw.js
+const APP_VERSION  = 'v20'; // keep in step with CACHE in sw.js
 const DEFAULT_TAGS = ['Gantry','Air Prep','Testing','Learning', 'Kit', '3rd Party'];
 const DB_KEY       = 'po-tracker-v1';
 const SETTINGS_KEY = 'po-tracker-settings-v1';
@@ -1043,7 +1066,7 @@ function loadDB() {
 }
 function saveDB() {
   ensureSplitLabels();
-  try { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+  try { localStorage.setItem(DB_KEY, JSON.stringify(db)); scheduleAutoSync(); }
   catch(e) {
     console.warn('DB save error', e);
     alert('Could not save — device storage may be full. Export a backup from Settings.');
@@ -1146,6 +1169,7 @@ function openSettingsModal() {
   renderSettingsWorkDays();
   document.getElementById('app-version').textContent = APP_VERSION;
   showPersistStatus();
+  renderAutoSyncStatus();
   openModal('modal-settings');
 }
 function fillSettingsForm(s) {
@@ -4570,9 +4594,202 @@ function csvCell(v) {
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+function backupPayload() {
+  return JSON.stringify({ ...db, exportedAt: new Date().toISOString(), app: 'po-tracker', version: APP_VERSION }, null, 2);
+}
+
 function exportJSON() {
-  const payload = JSON.stringify({ ...db, exportedAt: new Date().toISOString(), app: 'po-tracker', version: APP_VERSION }, null, 2);
-  downloadBlob(payload, `po-tracker-${exportDateStr()}.json`, 'application/json');
+  downloadBlob(backupPayload(), `po-tracker-${exportDateStr()}.json`, 'application/json');
+}
+
+// ── AUTO-EXPORT FILE ───────────────────────────────────────────────────────
+// Shortly after every save, writes a full backup into a folder the user
+// picked once (e.g. a Syncthing folder) as po-tracker-YYYY-MM-DD.json — one
+// file per day, overwritten through the day, named like ↓ Backup. Browsers
+// without a folder picker fall back to rewriting one chosen file. Uses the
+// File System Access API; the handle can't go in localStorage, so it lives in
+// IndexedDB. Chrome may drop write access after a restart; getting it back
+// needs a tap, which the banner provides. Each write is a full snapshot, so
+// nothing is lost while paused.
+const AUTOSYNC_KEY   = 'po-tracker-autosync-v1'; // { name, lastFile, lastAt, lastError }
+const AUTOSYNC_DELAY = 2000;
+let autoSyncHandle = null;
+let autoSyncTimer  = null;
+let autoSyncChain  = Promise.resolve();
+let autoSyncState  = 'off'; // off | ok | paused | error
+
+function autoSyncSupported() {
+  return ('showDirectoryPicker' in window || 'showSaveFilePicker' in window || 'showOpenFilePicker' in window)
+    && 'indexedDB' in window && window.self === window.top;
+}
+const autoSyncIsFolder = h => !!h && h.kind === 'directory';
+const autoSyncFileName = () => `po-tracker-${exportDateStr()}.json`;
+function autoSyncMeta() {
+  try { return JSON.parse(localStorage.getItem(AUTOSYNC_KEY)) || {}; } catch(e) { return {}; }
+}
+function setAutoSyncMeta(patch) {
+  try { localStorage.setItem(AUTOSYNC_KEY, JSON.stringify({ ...autoSyncMeta(), ...patch })); } catch(e) {}
+}
+
+// Runs fn(store) in a transaction on the handle store; resolves with the request's result.
+function autoSyncIDB(mode, fn) {
+  return new Promise((resolve, reject) => {
+    const open = indexedDB.open('po-tracker-files', 1);
+    open.onupgradeneeded = () => open.result.createObjectStore('handles');
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const conn = open.result;
+      let req;
+      try { req = fn(conn.transaction('handles', mode).objectStore('handles')); }
+      catch(e) { conn.close(); reject(e); return; }
+      req.onsuccess = () => { conn.close(); resolve(req.result); };
+      req.onerror = () => { conn.close(); reject(req.error); };
+    };
+  });
+}
+
+async function autoSyncPermission(handle, ask) {
+  const opts = { mode: 'readwrite' };
+  if (ask) return handle.requestPermission ? handle.requestPermission(opts) : 'granted';
+  return handle.queryPermission ? handle.queryPermission(opts) : 'granted';
+}
+
+function setAutoSyncState(state) {
+  autoSyncState = state;
+  document.getElementById('autosync-banner').classList.toggle('show', state === 'paused');
+  renderAutoSyncStatus();
+}
+
+function renderAutoSyncStatus() {
+  const statusEl = document.getElementById('autosync-status');
+  const btn = document.getElementById('autosync-btn');
+  const offBtn = document.getElementById('autosync-off-btn');
+  if (!statusEl) return;
+  if (!autoSyncSupported()) {
+    statusEl.textContent = 'Not supported by this browser';
+    statusEl.style.color = 'var(--text-muted)';
+    btn.disabled = true;
+    return;
+  }
+  const meta = autoSyncMeta();
+  const on = !!autoSyncHandle;
+  offBtn.style.display = on ? '' : 'none';
+  btn.textContent = autoSyncState === 'paused' ? 'Resume' : on ? 'Change' : 'Choose folder';
+  let text = 'Off', color = 'var(--text-dim)';
+  if (on) {
+    const base = autoSyncHandle.name || meta.name || 'file';
+    const name = autoSyncIsFolder(autoSyncHandle) ? `${base}/${meta.lastFile || autoSyncFileName()}` : base;
+    if (autoSyncState === 'paused') { text = `${name} — paused, needs permission`; color = 'var(--amber)'; }
+    else if (autoSyncState === 'error') { text = `${name} — last write failed: ${meta.lastError || 'unknown error'}`; color = 'var(--red)'; }
+    else if (meta.lastAt) {
+      const d = new Date(meta.lastAt);
+      const when = `${localDateStr(d) === localDateStr() ? '' : localDateStr(d) + ' '}${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      text = `${name} — saved ${when}`; color = 'var(--accent)';
+    } else { text = `${name} — waiting for first save`; color = 'var(--accent)'; }
+  }
+  statusEl.textContent = text;
+  statusEl.style.color = color;
+}
+
+function scheduleAutoSync() {
+  if (!autoSyncHandle || autoSyncState === 'paused') return;
+  clearTimeout(autoSyncTimer);
+  autoSyncTimer = setTimeout(flushAutoSync, AUTOSYNC_DELAY);
+}
+
+// Writes now; writes are queued so two never overlap on the same file.
+function flushAutoSync() {
+  clearTimeout(autoSyncTimer);
+  autoSyncTimer = null;
+  autoSyncChain = autoSyncChain.then(writeAutoSyncFile);
+  return autoSyncChain;
+}
+
+async function writeAutoSyncFile() {
+  const handle = autoSyncHandle;
+  if (!handle) return;
+  try {
+    if (await autoSyncPermission(handle, false) !== 'granted') { setAutoSyncState('paused'); return; }
+    const fileName = autoSyncIsFolder(handle) ? autoSyncFileName() : handle.name;
+    const file = autoSyncIsFolder(handle) ? await handle.getFileHandle(fileName, { create: true }) : handle;
+    const w = await file.createWritable();
+    await w.write(backupPayload());
+    await w.close();
+    setAutoSyncMeta({ lastFile: fileName, lastAt: Date.now(), lastError: '' });
+    setAutoSyncState('ok');
+  } catch(e) {
+    console.warn('Auto-export failed', e);
+    if (e && e.name === 'NotAllowedError') { setAutoSyncState('paused'); return; }
+    setAutoSyncMeta({ lastError: (e && e.message) || String(e) });
+    setAutoSyncState('error');
+  }
+}
+
+function autoSyncButton() {
+  if (autoSyncState === 'paused') resumeAutoSync(); else chooseAutoSyncFile();
+}
+
+async function chooseAutoSyncFile() {
+  const types = [{ description: 'PO Tracker backup', accept: { 'application/json': ['.json'] } }];
+  let handle = null;
+  try {
+    // Preferred: a folder, so each day gets its own dated file
+    if (window.showDirectoryPicker) {
+      try { handle = await window.showDirectoryPicker({ id: 'po-autosync', mode: 'readwrite' }); }
+      catch(e) { if (e.name === 'AbortError' || !(window.showSaveFilePicker || window.showOpenFilePicker)) throw e; }
+    }
+    // Fallbacks: one fixed file — a new one, or an existing one if the save dialog fails
+    if (!handle && window.showSaveFilePicker) {
+      try { handle = await window.showSaveFilePicker({ id: 'po-autosync', suggestedName: 'po-tracker-sync.json', types }); }
+      catch(e) { if (e.name === 'AbortError' || !window.showOpenFilePicker) throw e; }
+    }
+    if (!handle) [handle] = await window.showOpenFilePicker({ id: 'po-autosync', types });
+    if (await autoSyncPermission(handle, true) !== 'granted') {
+      alert('Write access was not granted, so auto-export stays off.');
+      return;
+    }
+  } catch(e) {
+    if (e.name !== 'AbortError') alert(`Could not choose a location: ${e.message}`);
+    return;
+  }
+  autoSyncHandle = handle;
+  try { await autoSyncIDB('readwrite', s => s.put(handle, 'file')); }
+  catch(e) { console.warn('Could not remember auto-export location; it will be asked for again after a restart', e); }
+  setAutoSyncMeta({ name: handle.name, lastFile: '', lastAt: 0, lastError: '' });
+  setAutoSyncState('ok');
+  await flushAutoSync();
+}
+
+async function resumeAutoSync() {
+  if (!autoSyncHandle) return setAutoSyncState('off');
+  let perm = 'denied';
+  try { perm = await autoSyncPermission(autoSyncHandle, true); } catch(e) {}
+  if (perm !== 'granted') {
+    setAutoSyncMeta({ lastError: 'permission refused — choose the folder again' });
+    setAutoSyncState('error');
+    return;
+  }
+  setAutoSyncState('ok');
+  await flushAutoSync();
+}
+
+async function disableAutoSync() {
+  clearTimeout(autoSyncTimer);
+  autoSyncHandle = null;
+  try { await autoSyncIDB('readwrite', s => s.delete('file')); } catch(e) {}
+  try { localStorage.removeItem(AUTOSYNC_KEY); } catch(e) {}
+  setAutoSyncState('off');
+}
+
+async function initAutoSync() {
+  if (!autoSyncSupported()) return;
+  try { autoSyncHandle = (await autoSyncIDB('readonly', s => s.get('file'))) || null; }
+  catch(e) { console.warn('Auto-export handle load failed', e); return; }
+  if (!autoSyncHandle) return;
+  let perm = 'prompt';
+  try { perm = await autoSyncPermission(autoSyncHandle, false); } catch(e) {}
+  if (perm === 'granted') { setAutoSyncState('ok'); flushAutoSync(); }
+  else setAutoSyncState('paused');
 }
 
 // Restores a JSON backup made by exportJSON, replacing the current data.
@@ -4695,9 +4912,15 @@ if ('serviceWorker' in navigator) {
 loadDB();
 loadSettings();
 requestPersistentStorage(false);
+initAutoSync();
 initTimelineDrag();
 if (restoreTimerState()) restoreTimerUI();
 else renderOrders();
+
+// Don't leave a pending auto-export waiting on a timer that won't run in the background
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && autoSyncTimer) flushAutoSync();
+});
 
 // Timeouts don't run while the app is in the background — catch up on return
 document.addEventListener('visibilitychange', () => {
